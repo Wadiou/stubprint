@@ -13,13 +13,16 @@ const PREVIEW_LINES: usize = 3;
 /// A receipt in a list.
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct ReceiptSummary {
+    /// The number of the receipt, which is never used again.
     pub id: u64,
+    /// The name of the printer that printed it.
     pub printer: String,
     pub dialect: Dialect,
     /// When it was cut, in milliseconds since 1970.
     pub at: u64,
     /// How many bytes made it.
     pub bytes: usize,
+    /// How many events, which are the commands it holds.
     pub events: usize,
     /// The first printed lines.
     pub preview: Vec<String>,
@@ -68,11 +71,15 @@ impl<'a> ReceiptDetail<'a> {
 /// A printer, and how it is doing.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct PrinterInfo {
+    /// What the API calls the printer.
     pub name: String,
     pub dialect: Dialect,
+    /// The printer model, which decides the code pages, the columns and the answers.
     pub profile: String,
+    /// The address of its TCP port.
     pub listen: String,
     pub status: PrinterStatus,
+    /// How many programs are connected to it now.
     pub connections: usize,
 }
 

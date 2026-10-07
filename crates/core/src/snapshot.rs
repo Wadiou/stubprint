@@ -12,6 +12,7 @@ pub struct Snapshot {
     pub align: Align,
     /// The number the last code page command sent, and the code page it means on this model.
     pub code_page_number: u8,
+    /// The name of the code page that number means on this model, when it has one.
     pub code_page: Option<String>,
     /// The international character set, 0 for American.
     pub international: u8,
@@ -21,6 +22,7 @@ pub struct Snapshot {
     pub user_characters: bool,
     /// Two byte characters are read.
     pub kanji: bool,
+    /// Page mode is on: the printer lays a page out in a box and prints it at once.
     pub page_mode: bool,
     pub layout: Layout,
 }

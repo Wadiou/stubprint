@@ -1048,3 +1048,79 @@ async fn without_a_page_the_server_has_only_the_api() {
     assert_eq!(server.get("/").await.status(), 404);
     assert_eq!(server.get("/api/nothing").await.status(), 404);
 }
+
+/// Everything the description of the API says about is described, so reading it is enough.
+fn undescribed(document: &Value) -> Vec<String> {
+    let mut missing = Vec::new();
+    let described = |value: &Value| {
+        value["description"]
+            .as_str()
+            .is_some_and(|d| !d.trim().is_empty())
+    };
+    for (path, methods) in document["paths"].as_object().unwrap() {
+        for (method, operation) in methods.as_object().unwrap() {
+            let name = format!("{} {path}", method.to_uppercase());
+            if !described(operation) && operation["summary"].as_str().is_none_or(str::is_empty) {
+                missing.push(format!("{name} says nothing about itself"));
+            }
+            if operation["tags"].as_array().is_none_or(Vec::is_empty) {
+                missing.push(format!("{name} has no tag"));
+            }
+            for parameter in operation["parameters"].as_array().into_iter().flatten() {
+                if !described(parameter) {
+                    missing.push(format!("{name}: parameter {}", parameter["name"]));
+                }
+            }
+            for (status, response) in operation["responses"].as_object().into_iter().flatten() {
+                if !described(response) {
+                    missing.push(format!("{name}: response {status}"));
+                }
+            }
+        }
+    }
+    for (schema, definition) in document["components"]["schemas"].as_object().unwrap() {
+        for (property, value) in definition["properties"].as_object().into_iter().flatten() {
+            // A field that is another type is described inside its `$ref` or its `oneOf`.
+            let inside = ["oneOf", "anyOf", "allOf"].iter().any(|key| {
+                value[*key]
+                    .as_array()
+                    .is_some_and(|parts| parts.iter().any(&described))
+            });
+            let reference = value.get("$ref").is_some();
+            if !reference && !inside && !described(value) {
+                missing.push(format!("{schema}.{property}"));
+            }
+        }
+    }
+    missing
+}
+
+#[tokio::test]
+async fn the_description_of_the_api_describes_every_route_parameter_and_field() {
+    let server = Harness::start(&["name=till"]).await;
+    let document = server.json("/api/openapi.json").await;
+    let missing = undescribed(&document);
+    assert!(
+        missing.is_empty(),
+        "{} undescribed:\n{}",
+        missing.len(),
+        missing.join("\n")
+    );
+}
+
+#[tokio::test]
+async fn the_entry_point_says_what_this_is_and_where_its_description_is() {
+    let server = Harness::start(&["name=till", "name=star,dialect=starline"]).await;
+    let index = server.json("/api").await;
+    assert_eq!(index["name"], "stubprint");
+    assert_eq!(index["openapi"], "/api/openapi.json");
+    assert_eq!(index["version"], env!("CARGO_PKG_VERSION"));
+    assert_eq!(index["printers"][1]["dialect"], "starline");
+    assert_eq!(
+        server
+            .get(index["openapi"].as_str().unwrap())
+            .await
+            .status(),
+        200
+    );
+}

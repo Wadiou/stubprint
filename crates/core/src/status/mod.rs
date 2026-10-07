@@ -33,13 +33,16 @@ pub enum Fault {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct PrinterStatus {
+    /// The printer is on line and ready to print.
     pub online: bool,
+    /// The cover is open.
     pub cover_open: bool,
     pub paper: Paper,
     /// The level of pin 3 of the cash drawer connector.
     pub drawer_open: bool,
     /// The paper feed button is held.
     pub feed_button: bool,
+    /// What is wrong, when something is.
     pub fault: Option<Fault>,
 }
 

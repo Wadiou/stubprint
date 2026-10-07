@@ -42,7 +42,8 @@ Nothing has a password, so the ports and the API listen on this machine only unt
 
 ## The API
 
-The description of the API is made from the code and is served at `/api/openapi.json`.
+`GET /api` says what this is and where the description is. The description of the API is made from
+the code and is served at `/api/openapi.json`, with every route, parameter and field described.
 
 | | |
 |---|---|

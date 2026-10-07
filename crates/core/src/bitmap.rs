@@ -8,8 +8,11 @@ use serde::{Serialize, Serializer};
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Bitmap {
+    /// How many dots wide it is.
     width: u32,
+    /// How many dots tall it is.
     height: u32,
+    /// How many bytes a row takes: the width rounded up to whole bytes of 8 dots.
     row_bytes: usize,
     /// In base64 when written as JSON.
     #[cfg_attr(feature = "openapi", schema(value_type = String))]

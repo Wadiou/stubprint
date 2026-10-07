@@ -7,7 +7,9 @@ use crate::event::{Event, LineSpacing};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct MotionUnits {
+    /// A horizontal motion unit is 1/x inch, or the printer's own default when this is 0.
     pub x: u8,
+    /// A vertical motion unit is 1/y inch, or the printer's own default when this is 0.
     pub y: u8,
 }
 

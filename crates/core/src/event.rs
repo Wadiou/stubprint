@@ -83,11 +83,13 @@ impl CutMode {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Style {
+    /// Printed heavier.
     pub bold: bool,
     /// 0 is off, 1 is a thin line and 2 is a thick one.
     pub underline: u8,
     /// A line over the characters, which only the Star languages have.
     pub overline: bool,
+    /// White on black.
     pub invert: bool,
     /// How many times wider than normal, 1 to 8.
     pub width: u8,
@@ -249,6 +251,7 @@ impl QrLevel {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Qr {
+    /// What the code holds.
     pub data: String,
     /// 1 or 2, or 3 for a Micro QR code.
     pub model: u8,
@@ -260,6 +263,7 @@ pub struct Qr {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Pdf417 {
+    /// What the code holds.
     pub data: String,
     /// How many columns of data, or 0 to pick the number from the data.
     pub columns: u8,
@@ -271,6 +275,7 @@ pub struct Pdf417 {
     pub height: u8,
     /// 48 says `level` is a level, and 49 says it is a percentage of the data.
     pub level_mode: u8,
+    /// The error correction level, or the percentage of the data it takes, as the mode says.
     pub level: u8,
     /// Without the stop bar and the right row indicator, which makes the code narrower.
     pub truncated: bool,
@@ -312,9 +317,11 @@ pub struct Symbol {
     pub kind: SymbolKind,
     #[serde(serialize_with = "hex::serialize")]
     #[cfg_attr(feature = "openapi", schema(value_type = String))]
+    /// What the code holds, in hexadecimal when written as JSON.
     pub data: Vec<u8>,
     #[serde(serialize_with = "hex::serialize_pairs")]
     #[cfg_attr(feature = "openapi", schema(value_type = Vec<(u8, String)>))]
+    /// The settings sent before the data: the number of each function and its bytes in hexadecimal.
     pub settings: Vec<(u8, Vec<u8>)>,
 }
 
@@ -326,7 +333,9 @@ serialize_as_name!(Align, CutMode, Symbology, TextPosition, QrLevel, SymbolKind)
 pub struct Pulse {
     /// Which drawer connector, 0 or 1.
     pub pin: u8,
+    /// How long the drawer is driven, in milliseconds.
     pub on_ms: u16,
+    /// How long to wait before the next pulse, in milliseconds.
     pub off_ms: u16,
 }
 
