@@ -1,0 +1,8 @@
+[package]
+name = "receipt"
+description = "Decodes printer command streams (ESC/POS, StarPRNT, StarLine) into a document that can be drawn."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
