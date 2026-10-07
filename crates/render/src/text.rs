@@ -40,9 +40,10 @@ fn line(line: &Line, options: &Options) -> String {
     let mut moved = false;
     for part in &line.parts {
         match part {
-            Part::Text { text, style } => {
+            Part::Text { text, .. } => {
                 for character in text.chars() {
-                    let columns = columns_of(character) * usize::from(style.width);
+                    // Size is not shown, so a word in double width letters can still be found.
+                    let columns = columns_of(character);
                     if columns == 0 {
                         continue;
                     }
@@ -169,9 +170,14 @@ mod tests {
     }
 
     #[test]
-    fn wide_characters_take_the_columns_they_print_over() {
-        // Double width: every character takes two columns.
-        assert_eq!(text(b"\x1d!\x10ab\x1d!\x00c\n"), "a b c\n");
+    fn the_size_of_the_letters_is_not_shown_so_words_stay_whole() {
+        assert_eq!(text(b"\x1d!\x10ab\x1d!\x00c\n"), "abc\n");
+    }
+
+    #[test]
+    fn the_wide_characters_of_east_asia_take_two_columns() {
+        // "中" is one character that is as wide as two, so a tab stop counts both.
+        assert_eq!(text("中\tx\n".as_bytes()).chars().count(), 8 + 1 + 1);
     }
 
     #[test]
