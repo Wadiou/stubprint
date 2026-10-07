@@ -1,7 +1,7 @@
 //! What the API says, as JSON.
 
-use receipt::{Dialect, Event, PrinterStatus, Receipt, Snapshot, Traced};
 use serde::Serialize;
+use stubprint_core::{Dialect, Event, PrinterStatus, Receipt, Snapshot, Traced};
 use utoipa::ToSchema;
 
 use crate::hub::Stored;

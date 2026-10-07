@@ -1,4 +1,4 @@
-# Plan
+# Plan for Stubprint
 
 ## Why
 Printing from an app can't be tested without a printer. Existing emulators either draw nothing from
@@ -6,13 +6,13 @@ network input, have no API for agents, or support only one command language. Thi
 plus a small server, so tests, people and agents can all see exactly what was printed.
 
 ## Layout
-A Cargo workspace, one repo. Folders have no prefix. The core library's package is named
-`receipt`, because Rust already has its own crate called `core`.
+A Cargo workspace, one repo. Folders have no prefix. The packages are named `stubprint-core`,
+`stubprint-render` and `stubprint-server`, and the program is called `stubprint`.
 
 ```text
 crates/
-  core/      package `receipt`: decoders, document model, printer state (a library, no networking)
-  render/    package `receipt-render`: a receipt as text and as a picture, and the fonts
+  core/      package `stubprint-core`: decoders, document model, printer state (a library, no networking)
+  render/    package `stubprint-render`: a receipt as text and as a picture, and the fonts
   server/    TCP listener, REST API, live events (headless binary), see docs/SERVER.md
   app/       Tauri shell around the same server and page (added last)
 web/         the web page, a static single page app that only talks HTTP and events

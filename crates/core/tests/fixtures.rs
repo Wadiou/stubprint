@@ -8,10 +8,10 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
 
-use receipt::{
+use serde_json::{json, Value};
+use stubprint_core::{
     Dialect, Event, Fault, Page, Paper, Position, Printer, PrinterStatus, Profile, Receipt,
 };
-use serde_json::{json, Value};
 
 struct Fixture {
     name: String,
@@ -184,7 +184,7 @@ fn hex(bytes: &[u8]) -> String {
 }
 
 /// A picture as rows of `#` for black and `.` for white dots, which a spec can write by hand.
-fn picture_json(bitmap: &receipt::Bitmap) -> Value {
+fn picture_json(bitmap: &stubprint_core::Bitmap) -> Value {
     let rows: Vec<String> = (0..bitmap.height())
         .map(|y| {
             (0..bitmap.width())
@@ -204,7 +204,7 @@ fn position_json(position: &Position) -> Value {
 
 /// The events that a spec checks as a list of JSON, by the key it uses for them.
 fn extra(event: &Event) -> Option<(&'static str, Value)> {
-    use receipt::{FeedAmount, LineSpacing};
+    use stubprint_core::{FeedAmount, LineSpacing};
     Some(match event {
         Event::Beep { times, duration } => {
             ("beeps", json!({ "times": times, "duration": duration }))
@@ -384,7 +384,7 @@ fn problems(fixture: &Fixture, decoded: &Decoded) -> Vec<String> {
     }
 
     if let Some(barcodes) = expected.get("barcodes") {
-        let got: Vec<&receipt::Barcode> = events(receipts)
+        let got: Vec<&stubprint_core::Barcode> = events(receipts)
             .filter_map(|event| match event {
                 Event::Barcode(barcode) => Some(barcode),
                 _ => None,
@@ -413,7 +413,7 @@ fn problems(fixture: &Fixture, decoded: &Decoded) -> Vec<String> {
     }
 
     if let Some(qrs) = expected.get("qrs") {
-        let got: Vec<&receipt::Qr> = events(receipts)
+        let got: Vec<&stubprint_core::Qr> = events(receipts)
             .filter_map(|event| match event {
                 Event::Qr(qr) => Some(qr),
                 _ => None,
@@ -434,7 +434,7 @@ fn problems(fixture: &Fixture, decoded: &Decoded) -> Vec<String> {
     }
 
     if let Some(codes) = expected.get("pdf417") {
-        let got: Vec<&receipt::Pdf417> = events(receipts)
+        let got: Vec<&stubprint_core::Pdf417> = events(receipts)
             .filter_map(|event| match event {
                 Event::Pdf417(code) => Some(code),
                 _ => None,

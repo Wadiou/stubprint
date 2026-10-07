@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
-use receipt::{Dialect, Profile};
 use serde::Deserialize;
+use stubprint_core::{Dialect, Profile};
 
 /// What the server does: where the REST API is, and which virtual printers listen.
 #[derive(Debug, Clone)]

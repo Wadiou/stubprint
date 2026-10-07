@@ -1,15 +1,16 @@
 [package]
-name = "receipt-render"
+name = "stubprint-render"
 description = "Draws a receipt as text or as a picture."
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
 license.workspace = true
+homepage.workspace = true
 
 [dependencies]
 ab_glyph = "0.2.32"
 png = "0.18.1"
-receipt = { version = "0.0.1", path = "../core" }
+stubprint-core = { version = "0.0.1", path = "../core" }
 rxing = "0.9.3"
 
 [dev-dependencies]

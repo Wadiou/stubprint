@@ -3,8 +3,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use receipt::{Event, PrinterStatus, Receipt, Snapshot};
 use serde::Serialize;
+use stubprint_core::{Event, PrinterStatus, Receipt, Snapshot};
 use tokio::sync::broadcast;
 use tokio::time::Instant;
 use utoipa::ToSchema;

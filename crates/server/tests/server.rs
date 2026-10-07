@@ -4,8 +4,8 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use receipt_server::{serve, Config, PrinterConfig, Running};
 use serde_json::{json, Value};
+use stubprint_server::{serve, Config, PrinterConfig, Running};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::timeout;

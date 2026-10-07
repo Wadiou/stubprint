@@ -1,11 +1,11 @@
 //! Draws the bytes of a file as the paper a printer would print, to look at while developing:
 //!
-//!     cargo run -p receipt-render --example render -- stream.bin out.png [dialect [profile]]
+//!     cargo run -p stubprint-render --example render -- stream.bin out.png [dialect [profile]]
 //!
 //! Without a profile the paper is 80 mm with 48 columns, which is what the fixtures are made for.
 
-use receipt::{Dialect, Printer, Profile};
-use receipt_render::{png, text_of, Options};
+use stubprint_core::{Dialect, Printer, Profile};
+use stubprint_render::{png, text_of, Options};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();

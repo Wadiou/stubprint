@@ -1,10 +1,11 @@
 [package]
-name = "receipt"
+name = "stubprint-core"
 description = "Decodes printer command streams (ESC/POS, StarPRNT, StarLine) into a document that can be drawn."
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
 license.workspace = true
+homepage.workspace = true
 
 [dependencies]
 base64 = "0.23.1"

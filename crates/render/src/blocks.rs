@@ -4,7 +4,7 @@
 
 use std::collections::BTreeMap;
 
-use receipt::{
+use stubprint_core::{
     Align, Barcode, Event, FeedAmount, Layout, LineSpacing, Pdf417, Position, Qr, Receipt, Style,
     Symbol, UserCharacter, UserKanji,
 };
@@ -53,7 +53,7 @@ pub enum Block {
     Line(Line),
     /// The paper moved this many dots, with nothing printed.
     Feed(u32),
-    Image(receipt::Bitmap, Align),
+    Image(stubprint_core::Bitmap, Align),
     Barcode(Barcode, Align),
     Qr(Qr, Align),
     Pdf417(Pdf417, Align),
@@ -292,7 +292,7 @@ pub fn document(receipt: &Receipt, options: &Options) -> Document {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use receipt::Printer;
+    use stubprint_core::Printer;
 
     fn receipt(bytes: &[u8]) -> Receipt {
         let mut printer = Printer::new();

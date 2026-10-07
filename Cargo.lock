@@ -1663,45 +1663,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "03251193000f4bd3b042892be858ee50e8b3719f2b08e5833ac4353724632430"
 
 [[package]]
-name = "receipt"
-version = "0.0.1"
-dependencies = [
- "base64",
- "encoding_rs",
- "oem_cp",
- "serde",
- "serde_json",
- "utoipa",
-]
-
-[[package]]
-name = "receipt-render"
-version = "0.0.1"
-dependencies = [
- "ab_glyph",
- "png",
- "receipt",
- "rxing",
- "serde_json",
-]
-
-[[package]]
-name = "receipt-server"
-version = "0.0.1"
-dependencies = [
- "axum",
- "clap",
- "receipt",
- "receipt-render",
- "reqwest",
- "serde",
- "serde_json",
- "tokio",
- "tokio-stream",
- "utoipa",
-]
-
-[[package]]
 name = "regex"
 version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1992,6 +1953,45 @@ name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
+
+[[package]]
+name = "stubprint-core"
+version = "0.0.1"
+dependencies = [
+ "base64",
+ "encoding_rs",
+ "oem_cp",
+ "serde",
+ "serde_json",
+ "utoipa",
+]
+
+[[package]]
+name = "stubprint-render"
+version = "0.0.1"
+dependencies = [
+ "ab_glyph",
+ "png",
+ "rxing",
+ "serde_json",
+ "stubprint-core",
+]
+
+[[package]]
+name = "stubprint-server"
+version = "0.0.1"
+dependencies = [
+ "axum",
+ "clap",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "stubprint-core",
+ "stubprint-render",
+ "tokio",
+ "tokio-stream",
+ "utoipa",
+]
 
 [[package]]
 name = "syn"

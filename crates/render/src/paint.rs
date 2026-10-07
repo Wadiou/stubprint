@@ -1,6 +1,6 @@
 //! A receipt as a picture of the paper, one dot for each dot the printer prints.
 
-use receipt::{Align, Barcode, Bitmap, TextPosition};
+use stubprint_core::{Align, Barcode, Bitmap, TextPosition};
 
 use crate::blocks::{Block, Document, Glyph, Line, Part};
 use crate::canvas::Canvas;
@@ -36,7 +36,7 @@ struct Placed<'a> {
     x: i64,
     /// How many cells wide, and so how many times the cell width.
     cells: usize,
-    style: &'a receipt::Style,
+    style: &'a stubprint_core::Style,
 }
 
 /// Where each character of a line goes, and how far along the line the characters reach.
@@ -90,7 +90,13 @@ fn place<'a>(line: &'a Line, options: &Options) -> (Vec<Placed<'a>>, u32, bool) 
     (placed, reach.max(0) as u32, moved)
 }
 
-fn draw_user_glyph(strip: &mut Canvas, glyph: &Glyph, x: i64, top: i64, style: &receipt::Style) {
+fn draw_user_glyph(
+    strip: &mut Canvas,
+    glyph: &Glyph,
+    x: i64,
+    top: i64,
+    style: &stubprint_core::Style,
+) {
     let (across, down) = (i64::from(style.width), i64::from(style.height));
     for column in 0..glyph.width {
         for row in 0..glyph.height {
@@ -393,7 +399,7 @@ pub fn paint(document: &Document, options: &Options) -> Canvas {
 
 #[cfg(test)]
 mod tests {
-    use receipt::Printer;
+    use stubprint_core::Printer;
 
     use super::*;
     use crate::{picture, Options};

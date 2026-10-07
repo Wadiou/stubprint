@@ -2,8 +2,8 @@
 
 use std::path::PathBuf;
 
-use receipt::{Dialect, Printer, Profile, Receipt};
-use receipt_render::{picture, png, text_of, Options};
+use stubprint_core::{Dialect, Printer, Profile, Receipt};
+use stubprint_render::{picture, png, text_of, Options};
 
 fn streams() -> Vec<(String, Dialect, Vec<u8>)> {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/out/escpos");

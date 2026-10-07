@@ -55,7 +55,7 @@ pub async fn listen(
 async fn serve(
     mut stream: TcpStream,
     mut session: Session,
-    mut status: watch::Receiver<receipt::PrinterStatus>,
+    mut status: watch::Receiver<stubprint_core::PrinterStatus>,
     mut stop: watch::Receiver<bool>,
 ) {
     let mut buffer = vec![0u8; 16 * 1024];

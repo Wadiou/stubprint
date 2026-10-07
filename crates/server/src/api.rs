@@ -10,10 +10,10 @@ use axum::response::sse::{Event as Sse, KeepAlive};
 use axum::response::{IntoResponse, Response, Sse as SseResponse};
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use receipt::{Dialect, Event, Fault, Paper, Printer, PrinterStatus, Profile};
-use receipt_render::Options;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::json;
+use stubprint_core::{Dialect, Event, Fault, Paper, Printer, PrinterStatus, Profile};
+use stubprint_render::Options;
 use tokio_stream::wrappers::errors::BroadcastStreamRecvError;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::{Stream, StreamExt};
@@ -80,7 +80,7 @@ async fn health() -> Json<serde_json::Value> {
 #[derive(OpenApi)]
 #[openapi(
     info(
-        title = "Receipt printer emulator",
+        title = "Stubprint",
         description = "A virtual receipt printer. Programs print to its TCP ports, and this API shows what was printed.",
         version = "0.0.1"
     ),
@@ -310,13 +310,13 @@ async fn receipt(
             .into_response()),
         "txt" => Ok((
             [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
-            receipt_render::text_of(part.as_ref().unwrap_or(&stored.receipt), &options),
+            stubprint_render::text_of(part.as_ref().unwrap_or(&stored.receipt), &options),
         )
             .into_response()),
         "png" => {
             // Drawing takes a while for a long receipt, so it does not hold up the other requests.
             let file = tokio::task::spawn_blocking(move || {
-                receipt_render::png(part.as_ref().unwrap_or(&stored.receipt), &options)
+                stubprint_render::png(part.as_ref().unwrap_or(&stored.receipt), &options)
             })
             .await
             .map_err(|error| ApiError(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?

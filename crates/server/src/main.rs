@@ -3,12 +3,12 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::Parser;
-use receipt_server::Config;
+use stubprint_server::Config;
 
 /// A virtual receipt printer. Programs print to its TCP ports, and its REST API shows what was
 /// printed.
 #[derive(Parser)]
-#[command(version)]
+#[command(name = "stubprint", version)]
 struct Options {
     /// A JSON file with `http`, `keep` and `printers`. The other options are not used with it.
     #[arg(long, conflicts_with_all = ["http", "keep", "printer"])]
@@ -45,14 +45,14 @@ async fn main() -> ExitCode {
     let config = match configuration(Options::parse()) {
         Ok(config) => config,
         Err(message) => {
-            eprintln!("receipt-server: {message}");
+            eprintln!("stubprint: {message}");
             return ExitCode::from(2);
         }
     };
-    match receipt_server::run(config).await {
+    match stubprint_server::run(config).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("receipt-server: {error}");
+            eprintln!("stubprint: {error}");
             ExitCode::FAILURE
         }
     }

@@ -1,8 +1,8 @@
 //! Barcodes and two dimensional codes as black and white modules, which a printer draws itself.
 
-use receipt::{Barcode, Pdf417, Qr, Symbol, SymbolKind, Symbology};
 use rxing::common::BitMatrix;
 use rxing::{BarcodeFormat, EncodeHintValue, EncodeHints, MultiFormatWriter, Writer};
+use stubprint_core::{Barcode, Pdf417, Qr, Symbol, SymbolKind, Symbology};
 
 /// The modules of a code, a module being a dot of the code and not of the paper.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -93,7 +93,7 @@ pub fn symbol(symbol: &Symbol) -> Result<Modules, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use receipt::{QrLevel, TextPosition};
+    use stubprint_core::{QrLevel, TextPosition};
 
     fn ean13(data: &str) -> Barcode {
         Barcode {

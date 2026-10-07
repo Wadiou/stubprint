@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use receipt::{Printer, PrinterStatus, Pushed};
+use stubprint_core::{Printer, PrinterStatus, Pushed};
 
 use crate::hub::{Hub, Notice};
 use crate::printer::VirtualPrinter;
@@ -97,7 +97,7 @@ impl Session {
         replies
     }
 
-    fn keep(&mut self, receipts: Vec<receipt::Receipt>) {
+    fn keep(&mut self, receipts: Vec<stubprint_core::Receipt>) {
         for receipt in receipts {
             self.stored
                 .push(self.hub.store(&self.virtual_printer, self.id, receipt));

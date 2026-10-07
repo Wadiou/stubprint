@@ -1,7 +1,7 @@
 //! Draws a receipt as plain text or as a picture of the paper.
 //!
 //! Both start from [`blocks`], which works out what is on the paper, top to bottom, from the events
-//! of a [`receipt::Receipt`].
+//! of a [`stubprint_core::Receipt`].
 
 pub mod blocks;
 mod canvas;
@@ -10,7 +10,7 @@ mod fonts;
 mod paint;
 mod text;
 
-use receipt::{Profile, Receipt};
+use stubprint_core::{Profile, Receipt};
 
 pub use canvas::Canvas;
 pub use text::text;

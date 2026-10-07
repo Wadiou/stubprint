@@ -1,6 +1,6 @@
 //! A receipt as lines of text.
 
-use receipt::Align;
+use stubprint_core::Align;
 
 use crate::blocks::{Block, Document, Line, Part, DPI};
 use crate::Options;
@@ -138,7 +138,7 @@ pub fn text(document: &Document, options: &Options) -> String {
 
 #[cfg(test)]
 mod tests {
-    use receipt::Printer;
+    use stubprint_core::Printer;
 
     use crate::{text_of, Options};
 

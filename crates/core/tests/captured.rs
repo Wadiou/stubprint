@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use receipt::{Decoder, Event};
+use stubprint_core::{Decoder, Event};
 
 /// Commands the decoder reports as unknown today. The bytes are the start of the command.
 const KNOWN_GAPS: &[(&[u8], &str)] = &[];

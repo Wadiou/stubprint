@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use receipt::{Dialect, PrinterStatus, Profile};
+use stubprint_core::{Dialect, PrinterStatus, Profile};
 use tokio::sync::watch;
 
 /// A virtual printer: what it is, where it listens, and what it pretends to be going through.

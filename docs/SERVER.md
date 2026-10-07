@@ -1,12 +1,12 @@
 # The server
 
-`receipt-server` is a virtual receipt printer on the network. A program prints to one of its TCP
+`stubprint-server` is a virtual receipt printer on the network. A program prints to one of its TCP
 ports, exactly as it would print to a real printer, and the REST API shows what came out. It runs
-with no window, from the command line or a container, and it is also a library (`receipt_server`)
+with no window, from the command line or a container, and it is also a library (`stubprint_server`)
 that another program can start.
 
 ```bash
-cargo run -p receipt-server -- --printer name=till,listen=127.0.0.1:9100,dialect=escpos
+cargo run -p stubprint-server -- --printer name=till,listen=127.0.0.1:9100,dialect=escpos
 ```
 
 ## Printers
