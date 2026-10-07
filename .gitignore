@@ -27,6 +27,9 @@
 /fixtures/out
 /fixtures/generate/node_modules
 
+# Other people's projects, cloned to read and never committed
+/tmp
+
 # Draft plan files, never staged
 .github/commit-plan.md
 .github/pr-plan.md
