@@ -75,6 +75,47 @@ def _pdf417_image(data):
         return _note(f"no preview: {error}"[:60])
 
 
+def _kanji_index(code):
+    """Where a Kanji a program drew is in the private use area: the decoder's UserKanji::glyph."""
+    first, second = code
+    if first == 0x77 and 0x21 <= second <= 0x7E:
+        return second - 0x21
+    if first == 0xEC and 0x40 <= second <= 0x7E:
+        return second - 0x40
+    if first == 0xEC and 0x80 <= second <= 0x9E:
+        return second - 0x80 + 63
+    if first == 0xFE and 0xA1 <= second <= 0xFE:
+        return second - 0xA1
+    return None
+
+
+def _drawn_characters(expected):
+    """The characters a program drew, by the private use character the decoder shows for each."""
+    drawn = {}
+    for event in expected.get("userCharacters", []):
+        if "define" in event:
+            d = event["define"]
+            data = bytes.fromhex(d["data"])
+            size = d["columnBytes"]
+            drawn[chr(0xE000 + d["code"])] = {
+                "width": d["width"],
+                "height": size * 8,
+                "columns": [data[i * size : (i + 1) * size] for i in range(d["width"])],
+            }
+        elif "delete" in event:
+            drawn.pop(chr(0xE000 + event["delete"]), None)
+    for event in expected.get("userKanji", []):
+        index = _kanji_index(bytes.fromhex(event["code"]))
+        data = bytes.fromhex(event["data"])
+        size = event["height"] // 8
+        drawn[chr(0xE100 + index)] = {
+            "width": event["width"],
+            "height": event["height"],
+            "columns": [data[i * size : (i + 1) * size] for i in range(event["width"])],
+        }
+    return drawn
+
+
 def render_preview(expected, bitmap_image, lines):
     """Returns a picture, or None when a stream has nothing to show."""
     codes = _code_images(expected)
@@ -108,8 +149,9 @@ def render_preview(expected, bitmap_image, lines):
     draw = ImageDraw.Draw(canvas)
     for image, x, top in pieces:
         canvas.paste(image, (x, top))
+    drawn = _drawn_characters(expected)
     for line, baseline in text_rows:
-        draw_line(draw, line, 12, baseline, "left", 20)
+        draw_line(draw, line, 12, baseline, "left", 20, drawn=drawn)
     for caption, baseline in captions:
         draw.text((12, baseline), caption, font=font("latin", False, 14), fill=100, anchor="ls")
     return canvas
