@@ -1,0 +1,36 @@
+{
+  "name": "text-plain",
+  "kind": "steps",
+  "note": "plain lines, including an empty one",
+  "steps": [
+    {
+      "op": "initialize"
+    },
+    {
+      "op": "line",
+      "text": "Hello"
+    },
+    {
+      "op": "line",
+      "text": ""
+    },
+    {
+      "op": "line",
+      "text": "Second line"
+    },
+    {
+      "op": "cut",
+      "mode": "full"
+    }
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "Hello",
+      "Second line"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

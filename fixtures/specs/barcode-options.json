@@ -1,0 +1,82 @@
+{
+  "name": "barcode-options",
+  "kind": "steps",
+  "note": "height, module width and where the readable text goes. The library's widths 1 to 3 are written as 2 to 4 dots",
+  "steps": [
+    {
+      "op": "initialize"
+    },
+    {
+      "op": "barcode",
+      "value": "ABC",
+      "symbology": "code128",
+      "height": 40,
+      "width": 1,
+      "text": "below"
+    },
+    {
+      "op": "barcode",
+      "value": "ABC",
+      "symbology": "code128",
+      "height": 80,
+      "width": 2,
+      "text": "above"
+    },
+    {
+      "op": "barcode",
+      "value": "ABC",
+      "symbology": "code128",
+      "height": 50,
+      "width": 3,
+      "text": "both"
+    },
+    {
+      "op": "barcode",
+      "value": "ABC",
+      "symbology": "code128",
+      "height": 30,
+      "width": 2,
+      "text": "none"
+    },
+    {
+      "op": "cut",
+      "mode": "full"
+    }
+  ],
+  "expect": {
+    "receipts": 1,
+    "barcodes": [
+      {
+        "symbology": "code128",
+        "data": "ABC",
+        "height": 40,
+        "width": 2,
+        "text": "below"
+      },
+      {
+        "symbology": "code128",
+        "data": "ABC",
+        "height": 80,
+        "width": 3,
+        "text": "above"
+      },
+      {
+        "symbology": "code128",
+        "data": "ABC",
+        "height": 50,
+        "width": 4,
+        "text": "both"
+      },
+      {
+        "symbology": "code128",
+        "data": "ABC",
+        "height": 30,
+        "width": 3,
+        "text": "none"
+      }
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

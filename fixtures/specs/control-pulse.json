@@ -1,0 +1,48 @@
+{
+  "name": "control-pulse",
+  "kind": "steps",
+  "note": "the cash drawer kick, with the library's defaults and with chosen times",
+  "steps": [
+    {
+      "op": "initialize"
+    },
+    {
+      "op": "line",
+      "text": "Open drawer"
+    },
+    {
+      "op": "pulse"
+    },
+    {
+      "op": "pulse",
+      "device": 1,
+      "on": 100,
+      "off": 200
+    },
+    {
+      "op": "cut",
+      "mode": "full"
+    }
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "Open drawer"
+    ],
+    "pulses": [
+      {
+        "pin": 0,
+        "onMs": 100,
+        "offMs": 500
+      },
+      {
+        "pin": 1,
+        "onMs": 100,
+        "offMs": 200
+      }
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

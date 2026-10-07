@@ -1,0 +1,11 @@
+{
+  "name": "receipt-native-fr-58",
+  "kind": "receipt",
+  "receipt": {
+    "lang": "fr"
+  },
+  "paper": 58,
+  "mode": "native",
+  "codepage": "windows1252",
+  "note": "accents through a code page"
+}

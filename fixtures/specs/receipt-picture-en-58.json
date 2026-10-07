@@ -1,0 +1,9 @@
+{
+  "name": "receipt-picture-en-58",
+  "kind": "receipt",
+  "receipt": {
+    "lang": "en"
+  },
+  "paper": 58,
+  "mode": "picture"
+}

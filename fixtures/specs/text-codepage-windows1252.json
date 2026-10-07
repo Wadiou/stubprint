@@ -1,0 +1,37 @@
+{
+  "name": "text-codepage-windows1252",
+  "kind": "steps",
+  "note": "Western European accents, the euro sign and a dash",
+  "steps": [
+    {
+      "op": "initialize"
+    },
+    {
+      "op": "codepage",
+      "name": "windows1252"
+    },
+    {
+      "op": "line",
+      "text": "Café crème brûlée"
+    },
+    {
+      "op": "line",
+      "text": "Œuf à l'huile — 5 €"
+    },
+    {
+      "op": "cut",
+      "mode": "full"
+    }
+  ],
+  "expect": {
+    "receipts": 1,
+    "codepage": "windows1252",
+    "texts": [
+      "Café crème brûlée",
+      "Œuf à l'huile — 5 €"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

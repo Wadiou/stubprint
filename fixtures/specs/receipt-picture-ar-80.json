@@ -1,0 +1,10 @@
+{
+  "name": "receipt-picture-ar-80",
+  "kind": "receipt",
+  "receipt": {
+    "lang": "ar"
+  },
+  "paper": 80,
+  "mode": "picture",
+  "note": "Arabic drawn as a picture, shaped and right to left"
+}

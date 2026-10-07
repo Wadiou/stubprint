@@ -1,0 +1,19 @@
+{
+  "name": "edge-no-line-feed",
+  "kind": "bytes",
+  "note": "text with no line feed before the cut is still printed",
+  "bytes": [
+    "1b 40",
+    "text:No newline",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "No newline"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

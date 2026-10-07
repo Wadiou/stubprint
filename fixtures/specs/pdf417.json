@@ -1,0 +1,29 @@
+{
+  "name": "pdf417",
+  "kind": "steps",
+  "note": "a PDF417 code, which uses the same command family as QR",
+  "steps": [
+    {
+      "op": "initialize"
+    },
+    {
+      "op": "pdf417",
+      "value": "hello"
+    },
+    {
+      "op": "cut",
+      "mode": "full"
+    }
+  ],
+  "expect": {
+    "receipts": 1,
+    "pdf417": [
+      {
+        "data": "hello"
+      }
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

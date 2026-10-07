@@ -1,0 +1,103 @@
+{
+  "name": "text-styles",
+  "kind": "steps",
+  "note": "bold, underline, size and invert, each turned on and off again",
+  "steps": [
+    {
+      "op": "initialize"
+    },
+    {
+      "op": "bold",
+      "value": true
+    },
+    {
+      "op": "line",
+      "text": "BOLD"
+    },
+    {
+      "op": "bold",
+      "value": false
+    },
+    {
+      "op": "underline",
+      "value": true
+    },
+    {
+      "op": "line",
+      "text": "UNDERLINE"
+    },
+    {
+      "op": "underline",
+      "value": false
+    },
+    {
+      "op": "size",
+      "width": 2,
+      "height": 2
+    },
+    {
+      "op": "line",
+      "text": "BIG"
+    },
+    {
+      "op": "size",
+      "width": 1,
+      "height": 1
+    },
+    {
+      "op": "invert",
+      "value": true
+    },
+    {
+      "op": "line",
+      "text": "INVERT"
+    },
+    {
+      "op": "invert",
+      "value": false
+    },
+    {
+      "op": "line",
+      "text": "plain"
+    },
+    {
+      "op": "cut",
+      "mode": "partial"
+    }
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "BOLD",
+      "UNDERLINE",
+      "BIG",
+      "INVERT",
+      "plain"
+    ],
+    "styles": [
+      {
+        "text": "BOLD",
+        "bold": true
+      },
+      {
+        "text": "UNDERLINE",
+        "underline": true
+      },
+      {
+        "text": "BIG",
+        "width": 2,
+        "height": 2
+      },
+      {
+        "text": "INVERT",
+        "invert": true
+      },
+      {
+        "text": "plain"
+      }
+    ],
+    "cuts": [
+      "partial"
+    ]
+  }
+}

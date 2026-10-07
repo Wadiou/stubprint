@@ -1,0 +1,6 @@
+{
+  "name": "image-384x90-odd-height",
+  "kind": "pattern",
+  "height": 90,
+  "note": "the library pads the height up to a multiple of 8"
+}

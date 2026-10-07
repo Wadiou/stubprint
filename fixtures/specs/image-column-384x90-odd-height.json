@@ -1,0 +1,7 @@
+{
+  "name": "image-column-384x90-odd-height",
+  "kind": "pattern",
+  "imageMode": "column",
+  "height": 90,
+  "note": "column format pads the height up to a multiple of 24"
+}

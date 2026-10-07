@@ -1,0 +1,32 @@
+{
+  "name": "text-rules",
+  "kind": "steps",
+  "note": "rules are drawn with box characters from the code page, so they test that page too",
+  "steps": [
+    {
+      "op": "initialize"
+    },
+    {
+      "op": "rule",
+      "style": "single"
+    },
+    {
+      "op": "rule",
+      "style": "double"
+    },
+    {
+      "op": "cut",
+      "mode": "full"
+    }
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "────────────────────────────────────────────────",
+      "════════════════════════════════════════════════"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

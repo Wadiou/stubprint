@@ -1,0 +1,25 @@
+{
+  "name": "edge-unknown-command",
+  "kind": "bytes",
+  "note": "an unknown GS command is reported and skipped; the text after it still prints",
+  "bytes": [
+    "1b 40",
+    "text:Hello",
+    "0a",
+    "1d 99 01",
+    "text:After",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "Hello",
+      "After"
+    ],
+    "unknown": 1,
+    "cuts": [
+      "full"
+    ]
+  }
+}

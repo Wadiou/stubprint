@@ -1,0 +1,11 @@
+{
+  "name": "receipt-native-ar-80",
+  "kind": "receipt",
+  "receipt": {
+    "lang": "ar"
+  },
+  "paper": 80,
+  "mode": "native",
+  "codepage": "windows1256",
+  "note": "Arabic through a code page, unshaped"
+}

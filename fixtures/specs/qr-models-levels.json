@@ -1,0 +1,74 @@
+{
+  "name": "qr-models-levels",
+  "kind": "steps",
+  "note": "both QR models, every error level, and different module sizes",
+  "steps": [
+    {
+      "op": "initialize"
+    },
+    {
+      "op": "qrcode",
+      "value": "hi",
+      "model": 1,
+      "size": 3,
+      "level": "l"
+    },
+    {
+      "op": "qrcode",
+      "value": "hi",
+      "model": 2,
+      "size": 4,
+      "level": "m"
+    },
+    {
+      "op": "qrcode",
+      "value": "hi",
+      "model": 2,
+      "size": 6,
+      "level": "q"
+    },
+    {
+      "op": "qrcode",
+      "value": "hi",
+      "model": 2,
+      "size": 8,
+      "level": "h"
+    },
+    {
+      "op": "cut",
+      "mode": "full"
+    }
+  ],
+  "expect": {
+    "receipts": 1,
+    "qrs": [
+      {
+        "data": "hi",
+        "model": 1,
+        "size": 3,
+        "level": "L"
+      },
+      {
+        "data": "hi",
+        "model": 2,
+        "size": 4,
+        "level": "M"
+      },
+      {
+        "data": "hi",
+        "model": 2,
+        "size": 6,
+        "level": "Q"
+      },
+      {
+        "data": "hi",
+        "model": 2,
+        "size": 8,
+        "level": "H"
+      }
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "name": "control-align-feed",
+  "kind": "bytes",
+  "note": "hardware alignment and paper feed, written by hand",
+  "bytes": [
+    "1b 40",
+    "1b 61 01",
+    "text:Centered",
+    "0a",
+    "1b 61 02",
+    "text:Right",
+    "0a",
+    "1b 61 00",
+    "1b 64 03",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "Centered",
+      "Right"
+    ],
+    "aligns": [
+      "center",
+      "right",
+      "left"
+    ],
+    "feeds": [
+      3
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

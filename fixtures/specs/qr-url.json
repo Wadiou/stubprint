@@ -1,0 +1,35 @@
+{
+  "name": "qr-url",
+  "kind": "steps",
+  "note": "a typical link, the kind of text a receipt carries",
+  "steps": [
+    {
+      "op": "initialize"
+    },
+    {
+      "op": "qrcode",
+      "value": "https://example.com/orders/8F2A?lang=ar",
+      "model": 2,
+      "size": 5,
+      "level": "m"
+    },
+    {
+      "op": "cut",
+      "mode": "full"
+    }
+  ],
+  "expect": {
+    "receipts": 1,
+    "qrs": [
+      {
+        "data": "https://example.com/orders/8F2A?lang=ar",
+        "model": 2,
+        "size": 5,
+        "level": "M"
+      }
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

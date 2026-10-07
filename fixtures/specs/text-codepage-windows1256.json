@@ -1,0 +1,37 @@
+{
+  "name": "text-codepage-windows1256",
+  "kind": "steps",
+  "note": "Arabic letters in a printer code page, in reading order and not shaped",
+  "steps": [
+    {
+      "op": "initialize"
+    },
+    {
+      "op": "codepage",
+      "name": "windows1256"
+    },
+    {
+      "op": "line",
+      "text": "مرحبا بالعالم"
+    },
+    {
+      "op": "line",
+      "text": "السعر: 1250"
+    },
+    {
+      "op": "cut",
+      "mode": "full"
+    }
+  ],
+  "expect": {
+    "receipts": 1,
+    "codepage": "windows1256",
+    "texts": [
+      "مرحبا بالعالم",
+      "السعر: 1250"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

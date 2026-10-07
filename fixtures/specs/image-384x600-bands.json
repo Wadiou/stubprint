@@ -1,0 +1,6 @@
+{
+  "name": "image-384x600-bands",
+  "kind": "pattern",
+  "height": 600,
+  "note": "tall enough for the library to split into several raster commands"
+}

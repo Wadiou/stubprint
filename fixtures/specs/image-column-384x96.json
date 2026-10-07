@@ -1,0 +1,7 @@
+{
+  "name": "image-column-384x96",
+  "kind": "pattern",
+  "imageMode": "column",
+  "height": 96,
+  "note": "the older column format, in strips of 24 rows"
+}

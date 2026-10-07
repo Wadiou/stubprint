@@ -1,0 +1,21 @@
+{
+  "name": "edge-blank-after-cut",
+  "kind": "bytes",
+  "note": "blank lines after a cut print nothing, so they are not a second receipt",
+  "bytes": [
+    "1b 40",
+    "text:ONLY",
+    "0a",
+    "1d 56 00",
+    "0a 0d 0a"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "ONLY"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "edge-two-receipts",
+  "kind": "bytes",
+  "note": "two receipts in one stream",
+  "bytes": [
+    "1b 40",
+    "text:FIRST",
+    "0a",
+    "1d 56 00",
+    "1b 40",
+    "text:SECOND",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 2,
+    "receiptTexts": [
+      [
+        "FIRST"
+      ],
+      [
+        "SECOND"
+      ]
+    ],
+    "cuts": [
+      "full",
+      "full"
+    ]
+  }
+}

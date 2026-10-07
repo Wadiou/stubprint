@@ -1,0 +1,112 @@
+{
+  "name": "barcode-symbologies",
+  "kind": "steps",
+  "note": "every symbology the library writes: the NUL ended form and the length prefixed form",
+  "steps": [
+    {
+      "op": "initialize"
+    },
+    {
+      "op": "barcode",
+      "value": "03600029145",
+      "symbology": "upca",
+      "height": 60
+    },
+    {
+      "op": "barcode",
+      "value": "0123456",
+      "symbology": "upce",
+      "height": 60
+    },
+    {
+      "op": "barcode",
+      "value": "590123412345",
+      "symbology": "ean13",
+      "height": 60
+    },
+    {
+      "op": "barcode",
+      "value": "9638507",
+      "symbology": "ean8",
+      "height": 60
+    },
+    {
+      "op": "barcode",
+      "value": "CODE39",
+      "symbology": "code39",
+      "height": 60
+    },
+    {
+      "op": "barcode",
+      "value": "123456",
+      "symbology": "itf",
+      "height": 60
+    },
+    {
+      "op": "barcode",
+      "value": "A12345B",
+      "symbology": "codabar",
+      "height": 60
+    },
+    {
+      "op": "barcode",
+      "value": "CODE93",
+      "symbology": "code93",
+      "height": 60
+    },
+    {
+      "op": "barcode",
+      "value": "ABC-123",
+      "symbology": "code128",
+      "height": 60
+    },
+    {
+      "op": "cut",
+      "mode": "full"
+    }
+  ],
+  "expect": {
+    "receipts": 1,
+    "barcodes": [
+      {
+        "symbology": "upca",
+        "data": "03600029145"
+      },
+      {
+        "symbology": "upce",
+        "data": "0123456"
+      },
+      {
+        "symbology": "ean13",
+        "data": "590123412345"
+      },
+      {
+        "symbology": "ean8",
+        "data": "9638507"
+      },
+      {
+        "symbology": "code39",
+        "data": "CODE39"
+      },
+      {
+        "symbology": "itf",
+        "data": "123456"
+      },
+      {
+        "symbology": "codabar",
+        "data": "A12345B"
+      },
+      {
+        "symbology": "code93",
+        "data": "CODE93"
+      },
+      {
+        "symbology": "code128",
+        "data": "ABC-123"
+      }
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

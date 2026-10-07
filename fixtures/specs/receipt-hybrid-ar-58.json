@@ -1,0 +1,9 @@
+{
+  "name": "receipt-hybrid-ar-58",
+  "kind": "receipt",
+  "receipt": {
+    "lang": "ar"
+  },
+  "paper": 58,
+  "mode": "hybrid"
+}

@@ -1,0 +1,11 @@
+{
+  "name": "receipt-native-en-58",
+  "kind": "receipt",
+  "receipt": {
+    "lang": "en"
+  },
+  "paper": 58,
+  "mode": "native",
+  "codepage": "cp437",
+  "note": "printer font, 32 columns"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "image-64x8-tiny",
+  "kind": "pattern",
+  "width": 64,
+  "height": 8,
+  "note": "the smallest picture, one band of one strip"
+}

@@ -1,0 +1,41 @@
+{
+  "name": "control-cut-modes",
+  "kind": "steps",
+  "note": "a partial cut ends one receipt and a full cut ends the next",
+  "steps": [
+    {
+      "op": "initialize"
+    },
+    {
+      "op": "line",
+      "text": "A"
+    },
+    {
+      "op": "cut",
+      "mode": "partial"
+    },
+    {
+      "op": "line",
+      "text": "B"
+    },
+    {
+      "op": "cut",
+      "mode": "full"
+    }
+  ],
+  "expect": {
+    "receipts": 2,
+    "receiptTexts": [
+      [
+        "A"
+      ],
+      [
+        "B"
+      ]
+    ],
+    "cuts": [
+      "partial",
+      "full"
+    ]
+  }
+}

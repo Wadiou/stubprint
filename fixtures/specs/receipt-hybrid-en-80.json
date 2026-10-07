@@ -1,0 +1,10 @@
+{
+  "name": "receipt-hybrid-en-80",
+  "kind": "receipt",
+  "receipt": {
+    "lang": "en"
+  },
+  "paper": 80,
+  "mode": "hybrid",
+  "note": "a picture followed by the printer's own barcode and QR code"
+}

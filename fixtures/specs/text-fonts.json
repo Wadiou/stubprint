@@ -1,0 +1,45 @@
+{
+  "name": "text-fonts",
+  "kind": "steps",
+  "note": "font A and font B. The library selects font A as part of initialize, so there are three font commands: 0, 0, 1",
+  "steps": [
+    {
+      "op": "initialize"
+    },
+    {
+      "op": "font",
+      "name": "a"
+    },
+    {
+      "op": "line",
+      "text": "Font A"
+    },
+    {
+      "op": "font",
+      "name": "b"
+    },
+    {
+      "op": "line",
+      "text": "Font B"
+    },
+    {
+      "op": "cut",
+      "mode": "full"
+    }
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "Font A",
+      "Font B"
+    ],
+    "fonts": [
+      0,
+      0,
+      1
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}
