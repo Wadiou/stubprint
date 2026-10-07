@@ -5,8 +5,8 @@
 use std::collections::BTreeMap;
 
 use receipt::{
-    Align, Barcode, Event, FeedAmount, LineSpacing, Pdf417, Position, Qr, Receipt, Style, Symbol,
-    UserCharacter, UserKanji,
+    Align, Barcode, Event, FeedAmount, Layout, LineSpacing, Pdf417, Position, Qr, Receipt, Style,
+    Symbol, UserCharacter, UserKanji,
 };
 
 use crate::Options;
@@ -107,63 +107,64 @@ struct Builder<'a> {
     /// The alignment of the first text of the line being built.
     line_align: Option<Align>,
     align: Align,
-    left_units: u16,
-    width_units: Option<u16>,
-    x_per_inch: u32,
-    y_per_inch: u32,
-    spacing: u32,
-    tab_stops: Vec<u8>,
+    /// The paper settings the events have set, which the core follows.
+    layout: Layout,
 }
 
 impl<'a> Builder<'a> {
     fn new(options: &'a Options) -> Self {
-        let mut builder = Self {
+        Self {
             options,
             document: Document::default(),
             parts: Vec::new(),
             line_align: None,
             align: Align::Left,
-            left_units: 0,
-            width_units: None,
-            x_per_inch: DPI,
-            y_per_inch: DPI,
-            spacing: 0,
-            tab_stops: Vec::new(),
-        };
-        builder.reset();
-        builder
+            layout: Layout::default(),
+        }
     }
 
-    /// The settings a printer has when it is switched on or reset.
-    fn reset(&mut self) {
-        self.align = Align::Left;
-        self.left_units = 0;
-        self.width_units = None;
-        self.x_per_inch = DPI;
-        self.y_per_inch = DPI;
-        self.spacing = DPI / 6;
-        // Every 8 characters, as a printer has them when none are set.
-        self.tab_stops = (1..=31).map(|n| n * 8).collect();
+    fn x_per_inch(&self) -> u32 {
+        match self.layout.motion_units.x {
+            0 => DPI,
+            units => u32::from(units),
+        }
+    }
+
+    fn y_per_inch(&self) -> u32 {
+        match self.layout.motion_units.y {
+            0 => DPI,
+            units => u32::from(units),
+        }
     }
 
     fn horizontal(&self, units: i64) -> i32 {
-        (units * i64::from(DPI) / i64::from(self.x_per_inch)) as i32
+        (units * i64::from(DPI) / i64::from(self.x_per_inch())) as i32
     }
 
     fn vertical(&self, units: i64) -> u32 {
-        (units * i64::from(DPI) / i64::from(self.y_per_inch)).max(0) as u32
+        (units * i64::from(DPI) / i64::from(self.y_per_inch())).max(0) as u32
     }
 
     fn left(&self) -> u32 {
-        (self.horizontal(i64::from(self.left_units)).max(0) as u32).min(self.options.width)
+        (self.horizontal(i64::from(self.layout.margin)).max(0) as u32).min(self.options.width)
     }
 
     fn area(&self) -> u32 {
-        let left = self.left();
-        let room = self.options.width - left;
-        match self.width_units {
+        let room = self.options.width - self.left();
+        match self.layout.print_width {
             Some(units) => (self.horizontal(i64::from(units)).max(1) as u32).min(room),
             None => room,
+        }
+    }
+
+    /// How far apart the lines are, in dots.
+    fn spacing(&self) -> u32 {
+        match self.layout.line_spacing {
+            LineSpacing::Default => DPI / 6,
+            LineSpacing::Units(n) => self.vertical(i64::from(n)),
+            LineSpacing::Sixtieths(n) => u32::from(n) * DPI / 60,
+            LineSpacing::ThreeSixtieths(n) => u32::from(n) * DPI / 360,
+            LineSpacing::Dots(n) => u32::from(n),
         }
     }
 
@@ -193,9 +194,9 @@ impl<'a> Builder<'a> {
             align: self.line_align.take().unwrap_or(self.align),
             left: self.left(),
             area: self.area(),
-            pitch: self.spacing,
+            pitch: self.spacing(),
             ended,
-            tab_stops: self.tab_stops.clone(),
+            tab_stops: self.layout.tab_stops.clone(),
         };
         self.document.blocks.push(Block::Line(line));
     }
@@ -206,11 +207,16 @@ impl<'a> Builder<'a> {
     }
 
     fn event(&mut self, event: &Event) {
+        // Whatever changes where the next line lands ends the line that was being built.
+        if matches!(
+            event,
+            Event::Initialize | Event::Margin(_) | Event::PrintWidth(_)
+        ) {
+            self.end_line(false);
+        }
+        self.layout.apply(event);
         match event {
-            Event::Initialize => {
-                self.end_line(false);
-                self.reset();
-            }
+            Event::Initialize => self.align = Align::Left,
             Event::Align(align) => self.align = *align,
             Event::Text { text, style, align } => {
                 if !text.is_empty() {
@@ -226,33 +232,11 @@ impl<'a> Builder<'a> {
                 let dots = self.horizontal(units);
                 self.parts.push(Part::Move { absolute, dots });
             }
-            Event::Margin(units) => {
-                self.end_line(false);
-                self.left_units = *units;
-            }
-            Event::PrintWidth(units) => {
-                self.end_line(false);
-                self.width_units = Some(*units);
-            }
-            Event::MotionUnits { x, y } => {
-                self.x_per_inch = if *x == 0 { DPI } else { u32::from(*x) };
-                self.y_per_inch = if *y == 0 { DPI } else { u32::from(*y) };
-            }
-            Event::TabStops(stops) => self.tab_stops = stops.clone(),
-            Event::LineSpacing(spacing) => {
-                self.spacing = match spacing {
-                    LineSpacing::Default => DPI / 6,
-                    LineSpacing::Units(n) => self.vertical(i64::from(*n)),
-                    LineSpacing::Sixtieths(n) => u32::from(*n) * DPI / 60,
-                    LineSpacing::ThreeSixtieths(n) => u32::from(*n) * DPI / 360,
-                    LineSpacing::Dots(n) => u32::from(*n),
-                };
-            }
             Event::Feed(feed) => {
                 self.end_line(false);
                 let dots = match feed.amount {
                     _ if feed.reverse => 0,
-                    FeedAmount::Lines(n) => u32::from(n) * self.spacing,
+                    FeedAmount::Lines(n) => u32::from(n) * self.spacing(),
                     FeedAmount::Units(n) => self.vertical(i64::from(n)),
                     FeedAmount::Page => 0,
                 };
