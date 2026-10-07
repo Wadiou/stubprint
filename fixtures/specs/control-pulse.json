@@ -1,7 +1,7 @@
 {
   "name": "control-pulse",
   "kind": "steps",
-  "note": "the cash drawer kick, with the library's defaults and with chosen times",
+  "note": "the cash drawer kick, with the usual default of 100 ms on and 100 ms off, and with chosen times",
   "steps": [
     {
       "op": "initialize"
@@ -33,7 +33,7 @@
       {
         "pin": 0,
         "onMs": 100,
-        "offMs": 500
+        "offMs": 100
       },
       {
         "pin": 1,

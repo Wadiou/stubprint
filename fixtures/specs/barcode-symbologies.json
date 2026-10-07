@@ -1,7 +1,7 @@
 {
   "name": "barcode-symbologies",
   "kind": "steps",
-  "note": "every symbology the library writes: the NUL ended form and the length prefixed form",
+  "note": "every symbology python-escpos writes: the NUL ended form and the length prefixed form",
   "steps": [
     {
       "op": "initialize"

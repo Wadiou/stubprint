@@ -1,7 +1,7 @@
 {
   "name": "text-fonts",
   "kind": "steps",
-  "note": "font A and font B. The library selects font A as part of initialize, so there are three font commands: 0, 0, 1",
+  "note": "font A and font B, each chosen once",
   "steps": [
     {
       "op": "initialize"
@@ -34,7 +34,6 @@
       "Font B"
     ],
     "fonts": [
-      0,
       0,
       1
     ],

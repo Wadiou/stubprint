@@ -1,0 +1,8 @@
+# Exact versions, so a library or font change cannot move a single dot without the lock noticing.
+# python-escpos writes the streams. Pillow draws the picture receipts and the previews.
+# The others are what python-escpos needs, plus pdf417gen for the previews.
+python-escpos==3.1
+Pillow==12.3.0
+qrcode==8.2
+python-barcode==0.16.1
+pdf417gen==0.8.1

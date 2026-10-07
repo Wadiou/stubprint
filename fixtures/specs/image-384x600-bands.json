@@ -2,5 +2,6 @@
   "name": "image-384x600-bands",
   "kind": "pattern",
   "height": 600,
-  "note": "tall enough for the library to split into several raster commands"
+  "note": "tall enough to be sent as several raster commands, of at most 255 rows each",
+  "fragmentHeight": 255
 }

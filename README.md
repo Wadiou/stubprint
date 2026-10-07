@@ -9,8 +9,12 @@ server and the web page are next. See [docs/PLAN.md](docs/PLAN.md) for the plan 
 [docs/ESCPOS.md](docs/ESCPOS.md) for what is decoded.
 
 ```bash
-# generate the fixtures once, then run the tests
-cd fixtures/generate && npm install && npm run generate && cd ../..
+# generate the fixtures once (needs Python 3 with venv), then run the tests
+cd fixtures/generate
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python generate.py
+cd ../..
 cargo test --workspace
 ```
 

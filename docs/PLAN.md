@@ -61,14 +61,15 @@ Crates are local only (`publish = false`). Other projects can use the core by pa
   raster bands, the older column format), control commands (cuts, drawer pulse, alignment, feed),
   one small generic receipt printed three ways (native, picture, picture with native codes) in
   English, French and Arabic, and hand written bytes for edge cases no encoder produces.
-- `npm run generate` in `fixtures/generate` builds `fixtures/out/escpos/` from them with the
-  JavaScript library `@point-of-sale/receipt-printer-encoder`, which writes ESC/POS, StarLine
-  and StarPRNT. What each stream must decode to is written in the spec, or computed from what the
-  spec asks for, never read back from the library.
+- `python generate.py` in `fixtures/generate` builds `fixtures/out/escpos/` from them with the
+  Python library `python-escpos`, which people use to print on real printers. Pictures are drawn
+  with Pillow. What each stream must decode to is written in the spec, or computed from what the
+  spec asks for, never read back from the library. Streams from other encoders are kept in
+  `fixtures/captured/`.
 - `fixtures/fixtures.lock.json` holds a hash of every generated stream, bitmap and expected
   result. The generate step fails when one differs, so a library or font update that moves a
   single dot is reviewed instead of silently changing what the tests check. Accept a reviewed
-  change with `npm run update-lock`.
+  change with `python generate.py --update-lock`.
 - Nothing generated is committed. Previews for browsing go to `fixtures/out/previews/`, with
   `png/`, `hex/` and `text/` folders. Running the Rust tests needs `fixtures/out/escpos/`, so
   they need the generate step first.

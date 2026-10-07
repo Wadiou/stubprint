@@ -1,7 +1,7 @@
 {
   "name": "barcode-options",
   "kind": "steps",
-  "note": "height, module width and where the readable text goes. The library's widths 1 to 3 are written as 2 to 4 dots",
+  "note": "height, module width and where the readable text goes. The widths are the dots the printer receives",
   "steps": [
     {
       "op": "initialize"
@@ -11,7 +11,7 @@
       "value": "ABC",
       "symbology": "code128",
       "height": 40,
-      "width": 1,
+      "width": 2,
       "text": "below"
     },
     {
@@ -19,7 +19,7 @@
       "value": "ABC",
       "symbology": "code128",
       "height": 80,
-      "width": 2,
+      "width": 3,
       "text": "above"
     },
     {
@@ -27,7 +27,7 @@
       "value": "ABC",
       "symbology": "code128",
       "height": 50,
-      "width": 3,
+      "width": 4,
       "text": "both"
     },
     {
@@ -35,7 +35,7 @@
       "value": "ABC",
       "symbology": "code128",
       "height": 30,
-      "width": 2,
+      "width": 3,
       "text": "none"
     },
     {
