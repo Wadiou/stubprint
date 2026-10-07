@@ -1,0 +1,10 @@
+[package]
+name = "receipt-render"
+description = "Draws a receipt as text or as a picture."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+receipt = { version = "0.0.1", path = "../core" }

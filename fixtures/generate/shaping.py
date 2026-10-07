@@ -10,7 +10,7 @@ from pathlib import Path
 
 from PIL import ImageFont, features
 
-FONTS = Path(__file__).resolve().parent / "fonts"
+FONTS = Path(__file__).resolve().parents[2] / "crates" / "render" / "fonts"
 FILES = {
     ("latin", False): "NotoSansMono_400Regular.ttf",
     ("latin", True): "NotoSansMono_700Bold.ttf",

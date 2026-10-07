@@ -671,6 +671,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "receipt-render"
+version = "0.0.1"
+dependencies = [
+ "receipt",
+]
+
+[[package]]
 name = "receipt-server"
 version = "0.0.1"
 dependencies = [
