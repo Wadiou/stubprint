@@ -1318,3 +1318,11 @@ async fn the_live_events_tell_when_a_printer_is_added_or_removed() {
         .unwrap();
     events.until("event: printer_removed").await;
 }
+
+#[tokio::test]
+async fn the_description_can_be_printed_without_starting_a_server_and_is_the_one_served() {
+    let server = Harness::start(&["name=till"]).await;
+    let served = server.json("/api/openapi.json").await;
+    let printed: Value = serde_json::to_value(stubprint_server::api::openapi()).unwrap();
+    assert_eq!(printed, served);
+}

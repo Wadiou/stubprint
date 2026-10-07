@@ -27,6 +27,10 @@ struct Options {
     #[arg(long)]
     web: Option<PathBuf>,
 
+    /// Print the description of the API as an OpenAPI document, and stop.
+    #[arg(long, conflicts_with_all = ["config", "http", "keep", "web", "printer"])]
+    openapi: bool,
+
     /// A printer, as `name=front,listen=127.0.0.1:9100,dialect=escpos,profile=TM-T88IV`. Say it
     /// again for more printers. Without it there is one ESC/POS printer on 127.0.0.1:9100.
     #[arg(long)]
@@ -46,7 +50,18 @@ fn configuration(options: Options) -> Result<Config, String> {
 
 #[tokio::main]
 async fn main() -> ExitCode {
-    let config = match configuration(Options::parse()) {
+    let options = Options::parse();
+    if options.openapi {
+        match stubprint_server::api::openapi().to_pretty_json() {
+            Ok(document) => println!("{document}"),
+            Err(error) => {
+                eprintln!("stubprint: {error}");
+                return ExitCode::FAILURE;
+            }
+        }
+        return ExitCode::SUCCESS;
+    }
+    let config = match configuration(options) {
         Ok(config) => config,
         Err(message) => {
             eprintln!("stubprint: {message}");

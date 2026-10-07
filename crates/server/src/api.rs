@@ -160,7 +160,13 @@ struct ErrorBody {
 /// The description of this API, as an OpenAPI document.
 #[utoipa::path(get, path = "/api/openapi.json", tag = "meta", responses((status = 200, description = "This document", content_type = "application/json")))]
 async fn document() -> Json<utoipa::openapi::OpenApi> {
-    Json(ApiDoc::openapi())
+    Json(openapi())
+}
+
+/// The description of the API as an OpenAPI document, without starting a server. It is what
+/// `GET /api/openapi.json` answers, and what the types of the web page are made from.
+pub fn openapi() -> utoipa::openapi::OpenApi {
+    ApiDoc::openapi()
 }
 
 /// The printer models that a printer can be set to.
