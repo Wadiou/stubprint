@@ -56,6 +56,11 @@ pub(super) struct Kanji {
 }
 
 impl Kanji {
+    /// Two byte characters are being read.
+    pub(super) fn is_on(&self) -> bool {
+        self.on
+    }
+
     /// Two byte characters are read in JIS code, or are no longer read.
     pub fn jis_mode(&mut self, on: bool) {
         self.system = System::Jis;

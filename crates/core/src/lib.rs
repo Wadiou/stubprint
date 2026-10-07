@@ -9,8 +9,10 @@ mod codepage;
 mod decoder;
 mod dialect;
 mod event;
+mod layout;
 mod printer;
 mod profile;
+mod snapshot;
 mod status;
 
 pub use bitmap::Bitmap;
@@ -20,6 +22,8 @@ pub use event::{
     Align, Barcode, CutMode, Event, Feed, FeedAmount, LineSpacing, Page, Pdf417, Position, Pulse,
     Qr, QrLevel, Style, Symbol, SymbolKind, Symbology, TextPosition, UserCharacter, UserKanji,
 };
-pub use printer::{Printer, Receipt};
+pub use layout::{Layout, MotionUnits};
+pub use printer::{Printer, Pushed, Receipt, Step};
 pub use profile::{Identity, KanjiEncoding, Profile};
+pub use snapshot::Snapshot;
 pub use status::{Fault, Paper, PrinterStatus};

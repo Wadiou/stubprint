@@ -20,9 +20,13 @@ use machine::Machine;
 use reader::Input;
 use reader::Step;
 
+use std::sync::Arc;
+
 use crate::dialect::Dialect;
 use crate::event::Event;
+use crate::layout::Layout;
 use crate::profile::Profile;
+use crate::snapshot::Snapshot;
 use crate::status::PrinterStatus;
 
 /// An event, and where in the stream the command that made it ended.
@@ -31,6 +35,8 @@ pub struct Traced {
     pub event: Event,
     /// How many bytes had been read, from the first one ever pushed, when the command was done.
     pub end: usize,
+    /// What the printer believed once the command was done. Commands that change nothing share one.
+    pub state: Arc<Snapshot>,
 }
 
 /// Reads the bytes a printer would receive and says what they ask for. It accepts the bytes in any
@@ -48,6 +54,10 @@ pub struct Decoder {
     pending: Vec<u8>,
     /// How many bytes were consumed before the ones in `pending`.
     consumed: usize,
+    /// The paper settings the events so far have set.
+    layout: Layout,
+    /// What the printer believed after the last command that made an event.
+    state: Arc<Snapshot>,
 }
 
 impl Default for Decoder {
@@ -70,12 +80,16 @@ impl Decoder {
     /// A decoder for a printer that is set to read one command language.
     pub fn with_dialect(dialect: Dialect, profile: Profile) -> Self {
         let language = language::for_dialect(dialect);
+        let machine = Machine::new(profile, language.code_pages());
+        let layout = Layout::default();
         Self {
             dialect,
-            machine: Machine::new(profile, language.code_pages()),
+            state: Arc::new(machine.snapshot(&layout)),
+            machine,
             language,
             pending: Vec::new(),
             consumed: 0,
+            layout,
         }
     }
 
@@ -113,7 +127,7 @@ impl Decoder {
         let mut last = Vec::new();
         self.machine.flush_line(&mut last);
         let end = self.consumed;
-        events.extend(last.into_iter().map(|event| Traced { event, end }));
+        events.extend(self.trace(last, end));
         events
     }
 
@@ -152,33 +166,50 @@ impl Decoder {
                 at_end,
             };
             let mut events = Vec::new();
-            match self.parse(&input, &mut events) {
-                Step::Consumed(length) => position += length,
-                Step::Incomplete => {
-                    traced.extend(events.into_iter().map(|event| Traced {
-                        event,
-                        end: self.consumed + position,
-                    }));
-                    break;
-                }
+            let step = self.parse(&input, &mut events);
+            if let Step::Consumed(length) = step {
+                position += length;
             }
             let end = self.consumed + position;
-            traced.extend(events.into_iter().map(|event| Traced { event, end }));
+            traced.extend(self.trace(events, end));
+            if matches!(step, Step::Incomplete) {
+                break;
+            }
         }
 
         if at_end && position < bytes.len() {
-            traced.push(Traced {
-                event: Event::Unknown {
-                    offset: self.consumed + position,
-                    bytes: bytes[position..].to_vec(),
-                },
-                end: self.consumed + bytes.len(),
-            });
+            let unknown = Event::Unknown {
+                offset: self.consumed + position,
+                bytes: bytes[position..].to_vec(),
+            };
+            traced.extend(self.trace(vec![unknown], self.consumed + bytes.len()));
             position = bytes.len();
         }
         self.consumed += position;
         self.pending = bytes.split_off(position);
         traced
+    }
+
+    /// Marks the events one command made with where it ended and what the printer believed after.
+    fn trace(&mut self, events: Vec<Event>, end: usize) -> Vec<Traced> {
+        if events.is_empty() {
+            return Vec::new();
+        }
+        for event in &events {
+            self.layout.apply(event);
+        }
+        let now = self.machine.snapshot(&self.layout);
+        if *self.state != now {
+            self.state = Arc::new(now);
+        }
+        events
+            .into_iter()
+            .map(|event| Traced {
+                event,
+                end,
+                state: self.state.clone(),
+            })
+            .collect()
     }
 
     /// A byte that answers the list of keys being sent is used up. Any other is for the language.
@@ -291,6 +322,35 @@ mod tests {
                 "{dialect:?}"
             );
         }
+    }
+
+    #[test]
+    fn each_event_comes_with_what_the_printer_believed_after_its_command() {
+        let mut decoder = Decoder::with_profile(Profile::named("TM-T88IV").unwrap());
+        // Code page 2, centred, a margin of 100, then a line of text.
+        let bytes = [ESC, b't', 2, ESC, b'a', 1, GS, b'L', 100, 0, b'x', LF];
+        let mut traced = decoder.push_traced(&bytes);
+        traced.extend(decoder.finish_traced());
+        // The centring is the first event, and the margin is after it.
+        assert!(matches!(
+            traced[0].event,
+            Event::Align(crate::Align::Center)
+        ));
+        assert_eq!(traced[0].state.layout.margin, 0);
+        let first = &traced[1];
+        assert!(matches!(first.event, Event::Margin(100)));
+        let state = &first.state;
+        assert_eq!(
+            (state.code_page_number, state.code_page.as_deref()),
+            (2, Some("CP850"))
+        );
+        assert_eq!(state.align, crate::Align::Center);
+        assert_eq!(state.layout.margin, 100);
+        assert!(!state.utf8 && !state.page_mode && !state.style.bold);
+        // Nothing changed between the text and its line feed, so they share one.
+        let (text, feed) = (&traced[2], &traced[3]);
+        assert!(Arc::ptr_eq(&text.state, &feed.state));
+        assert_eq!(first.state, text.state);
     }
 
     #[test]

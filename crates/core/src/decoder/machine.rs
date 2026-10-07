@@ -10,7 +10,9 @@ use super::reader::MAX_LINE_BYTES;
 use crate::bitmap::Bitmap;
 use crate::codepage::{self, TextContext};
 use crate::event::{Align, Event, Style};
+use crate::layout::Layout;
 use crate::profile::Profile;
+use crate::snapshot::Snapshot;
 use crate::status::PrinterStatus;
 
 /// What a number of the command that picks a code page means. Each language numbers them its own
@@ -163,6 +165,22 @@ impl Machine {
     pub(super) fn discard_line(&mut self) {
         self.line.clear();
         self.line_reported = false;
+    }
+
+    /// What the printer believes now, with the layout settings the events have set.
+    pub(super) fn snapshot(&self, layout: &Layout) -> Snapshot {
+        Snapshot {
+            style: self.state.style.clone(),
+            align: self.state.align,
+            code_page_number: self.state.codepage,
+            code_page: (self.code_pages)(&self.profile, self.state.codepage).map(str::to_string),
+            international: self.state.international,
+            utf8: self.state.utf8,
+            user_characters: self.state.user_characters,
+            kanji: self.state.kanji.is_on(),
+            page_mode: self.state.page_mode,
+            layout: layout.clone(),
+        }
     }
 
     pub(super) fn reply(&mut self, bytes: &[u8]) {
