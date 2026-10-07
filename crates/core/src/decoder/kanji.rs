@@ -3,7 +3,8 @@
 
 use std::collections::BTreeSet;
 
-use super::{Decoder, Input, Step};
+use super::machine::Machine;
+use super::reader::{Input, Step};
 use crate::codepage::TwoByte;
 use crate::event::{Event, UserKanji};
 use crate::profile::KanjiEncoding;
@@ -55,6 +56,18 @@ pub(super) struct Kanji {
 }
 
 impl Kanji {
+    /// Two byte characters are read in JIS code, or are no longer read.
+    pub fn jis_mode(&mut self, on: bool) {
+        self.system = System::Jis;
+        self.on = on;
+    }
+
+    /// Two byte characters are read in Shift JIS, or are no longer read.
+    pub fn shift_jis_mode(&mut self, on: bool) {
+        self.system = System::ShiftJis;
+        self.on = on;
+    }
+
     /// How text is read, when the printer reads two byte characters. `model` is how the profile of
     /// the printer says its two byte characters are encoded, and only a Japanese one, which has
     /// Shift JIS there, has the choice of `FS C`: it reads JIS code until told otherwise, and with
@@ -74,7 +87,7 @@ impl Kanji {
     }
 }
 
-impl Decoder {
+impl Machine {
     /// `FS &` turns two byte characters on and `FS .` turns them off.
     pub(super) fn set_kanji_mode(&mut self, on: bool, events: &mut Vec<Event>) -> Step {
         self.flush_line(events);
@@ -123,19 +136,38 @@ impl Decoder {
         if input.bytes.len() < length {
             return Step::Incomplete;
         }
-        let code = [first, second];
-        if UserKanji::glyph(code).is_none() {
+        let (width, height) = font.size();
+        if !self.store_user_kanji(
+            [first, second],
+            (width, height),
+            &input.bytes[4..length],
+            events,
+        ) {
             return input.fixed_unknown(length, events);
         }
+        Step::Consumed(length)
+    }
+
+    /// Remembers a character a program drew, and reports it. Returns false for a code that a
+    /// printer does not let a program draw.
+    pub(super) fn store_user_kanji(
+        &mut self,
+        code: [u8; 2],
+        (width, height): (u8, u8),
+        data: &[u8],
+        events: &mut Vec<Event>,
+    ) -> bool {
+        if UserKanji::glyph(code).is_none() {
+            return false;
+        }
         self.flush_line(events);
-        let (width, height) = font.size();
         events.push(Event::DefineKanji(UserKanji {
             code,
             width,
             height,
-            data: input.bytes[4..length].to_vec(),
+            data: data.to_vec(),
         }));
         self.state.kanji.drawn.insert(code);
-        Step::Consumed(length)
+        true
     }
 }

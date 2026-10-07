@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use super::CAN;
+use super::reader::CAN;
 use crate::bitmap::Bitmap;
 
 /// The two places `GS ( L` keeps graphics under a key of two characters. What stays when the
@@ -139,6 +139,11 @@ impl Memory {
 
     pub fn bit_image(&self, number: usize) -> Option<&Bitmap> {
         self.bit_images.get(number)
+    }
+
+    /// All the pictures of `FS q`, in order.
+    pub fn bit_images(&self) -> &[Bitmap] {
+        &self.bit_images
     }
 
     pub fn define(&mut self, area: Area, key: (u8, u8), bitmap: Bitmap) {

@@ -39,6 +39,8 @@ pub struct Style {
     pub bold: bool,
     /// 0 is off, 1 is a thin line and 2 is a thick one.
     pub underline: u8,
+    /// A line over the characters, which only the Star languages have.
+    pub overline: bool,
     pub invert: bool,
     /// How many times wider than normal, 1 to 8.
     pub width: u8,
@@ -65,6 +67,7 @@ impl Default for Style {
         Self {
             bold: false,
             underline: 0,
+            overline: false,
             invert: false,
             width: 1,
             height: 1,
@@ -348,6 +351,8 @@ pub enum FeedAmount {
     Lines(u8),
     /// Vertical motion units, or dots in the Star command sets.
     Units(u16),
+    /// To the top of the next page, which a Star form feed asks for.
+    Page,
 }
 
 /// The paper was moved, after what was printed before it.

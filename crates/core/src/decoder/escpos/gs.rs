@@ -1,10 +1,17 @@
 //! The commands that start with `GS`.
 
-use super::{Decoder, Input, Step};
+use super::super::machine::Machine;
+use super::super::reader::{Input, Step};
+use super::EscPos;
 use crate::event::{CutMode, Event, Page, Position, TextPosition};
 
-impl Decoder {
-    pub(super) fn parse_gs(&mut self, input: &Input, events: &mut Vec<Event>) -> Step {
+impl EscPos {
+    pub(super) fn gs(
+        &mut self,
+        machine: &mut Machine,
+        input: &Input,
+        events: &mut Vec<Event>,
+    ) -> Step {
         let (Some(code), Some(third)) = (input.get(1), input.get(2)) else {
             return Step::Incomplete;
         };
@@ -21,7 +28,7 @@ impl Decoder {
                 if input.bytes.len() < length {
                     return Step::Incomplete;
                 }
-                self.flush_line(events);
+                machine.flush_line(events);
                 events.push(Event::Cut(mode));
                 Step::Consumed(length)
             }
@@ -30,18 +37,18 @@ impl Decoder {
                 if third == 0 {
                     return input.fixed_unknown(3, events);
                 }
-                self.state.barcode_height = third;
+                self.barcode.height = third;
                 Step::Consumed(3)
             }
             0x77 => {
                 if third == 0 {
                     return input.fixed_unknown(3, events);
                 }
-                self.state.barcode_width = third;
+                self.barcode.width = third;
                 Step::Consumed(3)
             }
             0x48 => {
-                self.state.barcode_text = match third {
+                self.barcode.text = match third {
                     0 | 48 => TextPosition::None,
                     1 | 49 => TextPosition::Above,
                     2 | 50 => TextPosition::Below,
@@ -51,7 +58,7 @@ impl Decoder {
                 Step::Consumed(3)
             }
             0x66 => {
-                self.state.barcode_font = match third {
+                self.barcode.font = match third {
                     0 | 48 => 0,
                     1 | 49 => 1,
                     _ => return input.fixed_unknown(3, events),
@@ -65,7 +72,7 @@ impl Decoder {
                     return input.fixed_unknown(3, events);
                 }
                 let (width, height) = ((third >> 4) + 1, (third & 0x07) + 1);
-                self.change_style(events, |style| {
+                machine.change_style(events, |style| {
                     style.width = width;
                     style.height = height;
                 });
@@ -73,11 +80,11 @@ impl Decoder {
             }
             // GS B n turns white on black on or off, and GS b n smooths big characters.
             0x42 => {
-                self.change_style(events, |style| style.invert = third & 1 == 1);
+                machine.change_style(events, |style| style.invert = third & 1 == 1);
                 Step::Consumed(3)
             }
             0x62 => {
-                self.change_style(events, |style| style.smooth = third & 1 == 1);
+                machine.change_style(events, |style| style.smooth = third & 1 == 1);
                 Step::Consumed(3)
             }
             // GS | n sets how dark the print is.
@@ -85,7 +92,7 @@ impl Decoder {
                 let Some(density) = density(third) else {
                     return input.fixed_unknown(3, events);
                 };
-                self.flush_line(events);
+                machine.flush_line(events);
                 events.push(Event::Density(density));
                 Step::Consumed(3)
             }
@@ -97,15 +104,15 @@ impl Decoder {
                 let value = u16::from(third) + u16::from(fourth) * 256;
                 match code {
                     0x4c => {
-                        self.flush_line(events);
+                        machine.flush_line(events);
                         events.push(Event::Margin(value));
                     }
                     0x57 => {
-                        self.flush_line(events);
+                        machine.flush_line(events);
                         events.push(Event::PrintWidth(value));
                     }
                     0x50 => {
-                        self.flush_line(events);
+                        machine.flush_line(events);
                         events.push(Event::MotionUnits {
                             x: third,
                             y: fourth,
@@ -113,8 +120,8 @@ impl Decoder {
                     }
                     // GS $ and GS \ move in page mode, and a printer in standard mode ignores them.
                     _ => {
-                        if self.state.page_mode {
-                            self.flush_line(events);
+                        if machine.state.page_mode {
+                            machine.flush_line(events);
                             events.push(Event::Page(Page::Vertical(if code == 0x24 {
                                 Position::Absolute(value)
                             } else {
@@ -127,45 +134,51 @@ impl Decoder {
             }
             // GS a n asks the printer to report its status by itself, and GS r n and GS I n ask for it.
             0x61 => {
-                self.flush_line(events);
-                self.state.automatic_status = third;
+                machine.flush_line(events);
+                self.automatic_status = third;
                 if third != 0 {
-                    let status = self.status.automatic();
-                    self.reply(&status);
+                    let status = machine.status.automatic();
+                    machine.reply(&status);
                 }
                 Step::Consumed(3)
             }
             0x72 => {
-                let Some(answer) = self.status.transmit(third) else {
+                let Some(answer) = machine.status.transmit(third) else {
                     return input.fixed_unknown(3, events);
                 };
-                self.reply(&[answer]);
+                machine.reply(&[answer]);
                 Step::Consumed(3)
             }
             0x49 => {
-                self.printer_id(third);
+                self.printer_id(machine, third);
                 Step::Consumed(3)
             }
-            0x6b => self.parse_barcode(input, events),
-            0x28 => self.parse_gs_function(input, third, events),
+            0x6b => self.parse_barcode(machine, input, events),
+            0x28 => self.parse_gs_function(machine, input, third, events),
             // GS 8 L is the graphics command with a length of four bytes.
-            0x38 if third == b'L' => self.parse_graphics(input, 7, 4, events),
+            0x38 if third == b'L' => machine.parse_graphics(input, 7, 4, events),
             0x38 => input.framed_unknown(3, 4, events),
-            0x76 if third == 0x30 => self.parse_raster(input, events),
-            0x2a => self.parse_download_define(input, events),
-            0x2f => self.parse_download_print(input, events),
+            0x76 if third == 0x30 => machine.parse_raster(input, events),
+            0x2a => machine.parse_download_define(input, events),
+            0x2f => machine.parse_download_print(input, events),
             _ => input.unknown_run(events),
         }
     }
 
     /// `GS ( function pL pH data...`. The functions that only set up the printer's hardware are
     /// read and left alone.
-    fn parse_gs_function(&mut self, input: &Input, function: u8, events: &mut Vec<Event>) -> Step {
+    fn parse_gs_function(
+        &mut self,
+        machine: &mut Machine,
+        input: &Input,
+        function: u8,
+        events: &mut Vec<Event>,
+    ) -> Step {
         match function {
-            b'k' => self.parse_symbol(input, events),
-            b'L' => self.parse_graphics(input, 5, 2, events),
+            b'k' => machine.parse_symbol(input, events),
+            b'L' => machine.parse_graphics(input, 5, 2, events),
             // GS ( H asks the printer to send back a code that identifies the request.
-            b'H' => self.parse_response_request(input, events),
+            b'H' => self.parse_response_request(machine, input, events),
             // Test print, macros, user settings, print control and character colours.
             b'A' | b'C' | b'D' | b'E' | b'K' | b'M' | b'N' => input.framed_ignored(3, 2, events),
             _ => input.framed_unknown(3, 2, events),
@@ -174,8 +187,13 @@ impl Decoder {
 
     /// `GS ( H pL pH fn m d1 d2 d3 d4`: with fn of 48 the printer sends back 0x37, 0x22, the four
     /// bytes it was given, and a NUL.
-    fn parse_response_request(&mut self, input: &Input, events: &mut Vec<Event>) -> Step {
-        use super::Frame;
+    fn parse_response_request(
+        &mut self,
+        machine: &mut Machine,
+        input: &Input,
+        events: &mut Vec<Event>,
+    ) -> Step {
+        use super::super::reader::Frame;
         match input.frame(3, 2) {
             Frame::Need | Frame::Waiting => Step::Incomplete,
             Frame::TooBig => input.unknown_run(events),
@@ -185,7 +203,7 @@ impl Decoder {
                     let mut answer = vec![0x37, 0x22];
                     answer.extend_from_slice(&body[2..6]);
                     answer.push(0);
-                    self.reply(&answer);
+                    machine.reply(&answer);
                 }
                 Step::Consumed(length)
             }
@@ -194,8 +212,8 @@ impl Decoder {
 
     /// `GS I n`: the model, the type and the version as one byte each, or the maker, the model name,
     /// the version and the serial number as text, which starts with `_` and ends with a NUL.
-    fn printer_id(&mut self, n: u8) {
-        let identity = &self.profile.identity;
+    fn printer_id(&mut self, machine: &mut Machine, n: u8) {
+        let identity = &machine.profile.identity;
         let text = |value: &str| -> Vec<u8> {
             let mut answer = vec![0x5f];
             answer.extend_from_slice(value.as_bytes());
@@ -212,7 +230,7 @@ impl Decoder {
             68 => text(&identity.serial),
             _ => return,
         };
-        self.reply(&answer);
+        machine.reply(&answer);
     }
 }
 

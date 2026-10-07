@@ -1,5 +1,6 @@
 use crate::bitmap::Bitmap;
 use crate::decoder::Decoder;
+use crate::dialect::Dialect;
 use crate::event::Event;
 use crate::profile::Profile;
 use crate::status::PrinterStatus;
@@ -69,8 +70,13 @@ impl Printer {
     /// A printer of one model, which decides what the numbers of `ESC t` mean and what it says
     /// about itself.
     pub fn with_profile(profile: Profile) -> Self {
+        Self::with_dialect(Dialect::EscPos, profile)
+    }
+
+    /// A printer of one model that is set to read one command language.
+    pub fn with_dialect(dialect: Dialect, profile: Profile) -> Self {
         Self {
-            decoder: Decoder::with_profile(profile),
+            decoder: Decoder::with_dialect(dialect, profile),
             events: Vec::new(),
         }
     }

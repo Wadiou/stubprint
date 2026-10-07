@@ -1,4 +1,5 @@
 mod epson;
+mod star;
 
 /// How much paper is left, as the paper sensors tell.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

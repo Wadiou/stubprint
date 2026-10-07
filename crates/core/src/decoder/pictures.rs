@@ -1,13 +1,14 @@
 //! Pictures: raster pictures, the pictures a printer keeps in memory, and `GS ( L` graphics.
 
+use super::machine::Machine;
 use super::memory::Area;
-use super::{Decoder, Frame, Input, Step, MAX_COMMAND_BYTES, MAX_STORED_BYTES};
+use super::reader::{Frame, Input, Step, MAX_COMMAND_BYTES, MAX_STORED_BYTES};
 use crate::bitmap::Bitmap;
 use crate::event::Event;
 
 /// How a mode of `GS v 0`, `GS /` and `FS p` repeats dots: normal, double width, double height,
 /// and both. The modes can be written as numbers or as the digits.
-fn print_mode(mode: u8) -> Option<(u32, u32)> {
+pub(super) fn print_mode(mode: u8) -> Option<(u32, u32)> {
     match mode {
         0 | 48 => Some((1, 1)),
         1 | 49 => Some((2, 1)),
@@ -22,9 +23,9 @@ fn magnification(value: u8) -> u32 {
     u32::from(value.clamp(1, 2))
 }
 
-impl Decoder {
+impl Machine {
     /// A picture is printed: the text before it is reported first.
-    fn print_image(&mut self, bitmap: Bitmap, events: &mut Vec<Event>) {
+    pub(super) fn print_image(&mut self, bitmap: Bitmap, events: &mut Vec<Event>) {
         self.flush_line(events);
         events.push(Event::Image(bitmap));
     }

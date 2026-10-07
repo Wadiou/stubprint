@@ -1,13 +1,20 @@
 //! The requests that start with `DLE`, which a printer answers while it prints.
 
-use super::{Decoder, Input, Step};
+use super::super::machine::Machine;
+use super::super::reader::{Input, Step};
+use super::EscPos;
 use crate::event::{Event, Pulse};
 use crate::status::Fault;
 
-impl Decoder {
+impl EscPos {
     /// `DLE EOT n` asks for a status, `DLE ENQ n` asks to recover from an error, and
     /// `DLE DC4 1 m t` kicks the cash drawer.
-    pub(super) fn parse_dle(&mut self, input: &Input, events: &mut Vec<Event>) -> Step {
+    pub(super) fn dle(
+        &mut self,
+        machine: &mut Machine,
+        input: &Input,
+        events: &mut Vec<Event>,
+    ) -> Step {
         let Some(kind) = input.get(1) else {
             return Step::Incomplete;
         };
@@ -17,16 +24,16 @@ impl Decoder {
                     return Step::Incomplete;
                 };
                 if kind == 0x04 {
-                    let Some(answer) = self.status.real_time(n) else {
+                    let Some(answer) = machine.status.real_time(n) else {
                         return input.fixed_unknown(3, events);
                     };
-                    self.reply(&[answer]);
+                    machine.reply(&[answer]);
                 } else if matches!(n, 1 | 2) {
                     // The program asks the printer to go on after an error that can be recovered from.
-                    if self.status.fault == Some(Fault::Recoverable) {
-                        let mut status = self.status;
+                    if machine.status.fault == Some(Fault::Recoverable) {
+                        let mut status = machine.status;
                         status.fault = None;
-                        self.set_status(status);
+                        self.set_status(machine, status);
                     }
                 } else {
                     return input.fixed_unknown(3, events);
@@ -47,7 +54,7 @@ impl Decoder {
                 if function == 1 {
                     let (pin, time) = (input.bytes[3], input.bytes[4]);
                     if matches!(pin, 0 | 1 | 48 | 49) && (1..=8).contains(&time) {
-                        self.flush_line(events);
+                        machine.flush_line(events);
                         events.push(Event::Pulse(Pulse {
                             pin: pin & 1,
                             on_ms: u16::from(time) * 100,

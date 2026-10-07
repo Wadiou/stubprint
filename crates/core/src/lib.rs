@@ -7,6 +7,7 @@
 mod bitmap;
 mod codepage;
 mod decoder;
+mod dialect;
 mod event;
 mod printer;
 mod profile;
@@ -14,6 +15,7 @@ mod status;
 
 pub use bitmap::Bitmap;
 pub use decoder::Decoder;
+pub use dialect::Dialect;
 pub use event::{
     Align, Barcode, CutMode, Event, Feed, FeedAmount, LineSpacing, Page, Pdf417, Position, Pulse,
     Qr, QrLevel, Style, Symbol, SymbolKind, Symbology, TextPosition, UserCharacter, UserKanji,
