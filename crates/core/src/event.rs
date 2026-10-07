@@ -497,6 +497,10 @@ pub enum Event {
         style: Style,
         align: Align,
     },
+    /// A line feed ended the line: the text before it, since the last line feed, is one printed line,
+    /// and what comes next starts a new one. Text that something other than a line feed ended, such
+    /// as a feed or a picture, has no such event.
+    LineFeed,
     /// A picture, or a band of one. Bands of one picture arrive one after the other. The dots are
     /// printer dots, so a picture that prints at half the density is already doubled.
     Image(Bitmap),

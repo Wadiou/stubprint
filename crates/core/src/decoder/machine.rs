@@ -148,6 +148,7 @@ impl Machine {
             });
         }
         self.line_reported = false;
+        events.push(Event::LineFeed);
     }
 
     /// Resets the printer. The pictures it keeps in memory, and what it says about itself, are not

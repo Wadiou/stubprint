@@ -262,6 +262,38 @@ mod tests {
     }
 
     #[test]
+    fn a_line_feed_is_an_event_of_its_own_and_ends_the_line_in_every_language() {
+        let kinds = |dialect: Dialect| -> Vec<String> {
+            let mut decoder = Decoder::with_dialect(dialect, Profile::generic());
+            // "a", bold "b", a line feed, then a blank line. Star turns bold on with `ESC E`.
+            let bold: &[u8] = if dialect.is_star() {
+                &[ESC, b'E']
+            } else {
+                &[ESC, b'E', 1]
+            };
+            let bytes = [b"a", bold, b"b", &[LF, LF]].concat();
+            let mut events = decoder.push(&bytes);
+            events.extend(decoder.finish());
+            events
+                .iter()
+                .map(|event| match event {
+                    Event::Text { text, .. } if text.is_empty() => "blank".to_string(),
+                    Event::Text { text, .. } => text.clone(),
+                    Event::LineFeed => "lf".to_string(),
+                    other => format!("{other:?}"),
+                })
+                .collect()
+        };
+        for dialect in [Dialect::EscPos, Dialect::StarLine, Dialect::StarPrnt] {
+            assert_eq!(
+                kinds(dialect),
+                ["a", "b", "lf", "blank", "lf"],
+                "{dialect:?}"
+            );
+        }
+    }
+
+    #[test]
     fn every_event_says_where_the_command_that_made_it_ended_whatever_the_cuts() {
         let bytes = [b"ab\n".as_slice(), &[GS, b'V', 0x42, 0], b"cd"].concat();
         let ends = |piece: usize| -> Vec<(Event, usize)> {
