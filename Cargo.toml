@@ -10,3 +10,8 @@ license = "MIT"
 authors = ["Abd El-wadoud"]
 homepage = "https://stubprint.dev"
 repository = "https://github.com/Wadiou/stubprint"
+
+# Debug builds keep the lines of code for backtraces and leave out the rest of the debug
+# information, which makes every test program several times smaller.
+[profile.dev]
+debug = "line-tables-only"
