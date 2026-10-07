@@ -1,6 +1,8 @@
 use crate::bitmap::Bitmap;
 use crate::decoder::Decoder;
 use crate::event::Event;
+use crate::profile::Profile;
+use crate::status::PrinterStatus;
 
 /// Everything a printer printed between the start of a job and its cut.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -41,7 +43,11 @@ impl Receipt {
 /// A blank line or a carriage return after a cut prints nothing, so it is not a receipt.
 fn prints_something(events: &[Event]) -> bool {
     events.iter().any(|event| match event {
-        Event::Image(_) | Event::Barcode(_) | Event::Qr(_) | Event::Pdf417(_) => true,
+        Event::Image(_)
+        | Event::Barcode(_)
+        | Event::Qr(_)
+        | Event::Pdf417(_)
+        | Event::Symbol(_) => true,
         Event::Text { text, .. } => !text.trim().is_empty(),
         _ => false,
     })
@@ -58,6 +64,29 @@ pub struct Printer {
 impl Printer {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// A printer of one model, which decides what the numbers of `ESC t` mean and what it says
+    /// about itself.
+    pub fn with_profile(profile: Profile) -> Self {
+        Self {
+            decoder: Decoder::with_profile(profile),
+            events: Vec::new(),
+        }
+    }
+
+    /// The bytes the printer answered with since the last call, to send back to the connection.
+    pub fn take_replies(&mut self) -> Vec<u8> {
+        self.decoder.take_replies()
+    }
+
+    pub fn status(&self) -> &PrinterStatus {
+        self.decoder.status()
+    }
+
+    /// Changes what the printer says about itself, as when the paper runs out.
+    pub fn set_status(&mut self, status: PrinterStatus) {
+        self.decoder.set_status(status);
     }
 
     /// Adds received bytes and returns the receipts they finished.

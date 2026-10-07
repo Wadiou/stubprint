@@ -9,10 +9,15 @@ mod codepage;
 mod decoder;
 mod event;
 mod printer;
+mod profile;
+mod status;
 
 pub use bitmap::Bitmap;
 pub use decoder::Decoder;
 pub use event::{
-    Align, Barcode, CutMode, Event, Pdf417, Pulse, Qr, QrLevel, Style, Symbology, TextPosition,
+    Align, Barcode, CutMode, Event, LineSpacing, Page, Pdf417, Position, Pulse, Qr, QrLevel, Style,
+    Symbol, SymbolKind, Symbology, TextPosition, UserCharacter,
 };
 pub use printer::{Printer, Receipt};
+pub use profile::{Identity, KanjiEncoding, Profile};
+pub use status::{Fault, Paper, PrinterStatus};
