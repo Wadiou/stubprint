@@ -7,4 +7,10 @@ publish.workspace = true
 license.workspace = true
 
 [dependencies]
+ab_glyph = "0.2.32"
+png = "0.18.1"
 receipt = { version = "0.0.1", path = "../core" }
+rxing = "0.9.3"
+
+[dev-dependencies]
+serde_json = "1.0.151"
