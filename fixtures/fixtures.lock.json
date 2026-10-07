@@ -195,8 +195,8 @@
     "expected": "1e79462160209ba95a0ab75312df903cd0abe079effe028111d84272d5f2d24d"
   },
   "profile-arabic-printer": {
-    "bin": "324b2dcb35e45f556997cbc4b7da5b06c128ca284ce8bfbca903669128468081",
-    "expected": "665b6fdf2f35301f6c1bce4044e605baf929040801ca4393773692c710b85312"
+    "bin": "f568433ed8c56c78c22b1c5ee4289e9292bfb9c1f6862afa2d71763b7c9972a6",
+    "expected": "1c4396ff1ae04e65026e524724258a05a0e2654849a8ae44e0c9fe8fcf031403"
   },
   "profile-epson-code-pages": {
     "bin": "8c249a5f384dfb774816d02a652ecb9e37af92091ededf2e849ab65ef01ff71b",
@@ -272,8 +272,8 @@
     "expected": "70e718f8a99f77d04f46d4b1615acda4a430cf31dd43f55757c5fa1d2dc7b114"
   },
   "starline-code-pages": {
-    "bin": "2a520a093e7e9d10b5ce3c07b812aa87726f471457b4194c187e5441735c74ee",
-    "expected": "766f08792f7d9b371e5ff3f6198aa85fbd1e59731467dbabba10a67ae2c2a89c"
+    "bin": "885e5a3843be1b2c25f39760c294ca0fcd57b3efced544588cdeae745f1926e4",
+    "expected": "af4e5dc60d92dbd1b54d7f7afde904602b01153c9b338f616589d7bd758f7592"
   },
   "starline-cuts-drawers-buzzer": {
     "bin": "97dc4eafa261ece7458d88d6223e3f828eac0f6dff77a5758ea21f61aa95c6f4",
@@ -444,8 +444,8 @@
     "expected": "9eee262c71ddca07a75c425b1c316644f10271b11c87d0bcbf0bbaa32a5f0cc5"
   },
   "text-code-pages": {
-    "bin": "a481f43e1d63a550399f897ca9a03c1f48cab4f6ead41b070b5241f5d271a1b3",
-    "expected": "7079a50fc17524b53cf9926fed5323dbe011ec1cd2a6dabf9ca6cb073f18f89b"
+    "bin": "213fc4158ca81a3199671d96a883a019f3f20e6b8b4d9cd074956d35b1c929f4",
+    "expected": "68e0ad91b4ac54d7daa3f26a88af20a9c0fa485144dc7629a3503bb9cb0a639b"
   },
   "text-codepage-cp437": {
     "bin": "f3d0c57fc0c7e38d0e2ae05d998b2a18adb3ef3d28f48480d9a211b726008ad7",

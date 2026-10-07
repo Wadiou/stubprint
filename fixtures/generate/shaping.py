@@ -20,7 +20,11 @@ FILES = {
     # by fonts/make_noto_sans_jp_subset.py, which is also what Chinese text in the fixtures uses.
     ("cjk", False): "NotoSansJP_400Regular_subset.ttf",
     ("cjk", True): "NotoSansJP_400Regular_subset.ttf",
+    ("thai", False): "NotoSansThai_400Regular.ttf",
+    ("thai", True): "NotoSansThai_400Regular.ttf",
 }
+# The fonts tried in turn for a character that the line's own font has no glyph for.
+FALLBACK = ["latin", "thai", "cjk"]
 ANCHORS = {"left": "ls", "center": "ms", "right": "rs"}
 
 
@@ -42,22 +46,60 @@ def is_arabic(text):
     return any("؀" <= c <= "ۿ" or "ݐ" <= c <= "ݿ" or "ﭐ" <= c <= "﻿" for c in text)
 
 
-def _word(word, bold, size):
-    """The font, and the options Pillow needs, to draw one word."""
-    if is_arabic(word):
-        return font("arabic", bold, size), {"direction": "rtl", "language": "ar"}
-    return font("latin", bold, size), {"direction": "ltr"}
+def word_runs(word):
+    """A word as the stretches one font draws, each with the script of its font. The Arabic font
+    draws the Arabic letters and the characters it has that are also in Latin, and another font
+    draws a character the Arabic font has no glyph for."""
+    if not is_arabic(word):
+        return [(word, "latin")]
+    arabic = covered("arabic")
+    out = []
+    for c in word:
+        script = "arabic" if is_arabic(c) or (ord(c) in arabic and script_of(c) == "latin") else script_of(c)
+        if out and out[-1][1] == script:
+            out[-1][0] += c
+        else:
+            out.append([c, script])
+    return [(chunk, script) for chunk, script in out]
+
+
+def _word_runs(word, bold, size):
+    """The runs of a word with the font and the options Pillow needs to draw each."""
+    return [
+        (chunk, font(script, bold, size), {"direction": "rtl", "language": "ar"} if script == "arabic" else {"direction": "ltr"})
+        for chunk, script in word_runs(word)
+    ]
+
+
+@lru_cache(maxsize=None)
+def covered(script):
+    """The characters a font has a glyph for."""
+    from fontTools.ttLib import TTFont
+
+    return frozenset(TTFont(str(FONTS / FILES[(script, False)]), lazy=True).getBestCmap())
+
+
+def invisible(character):
+    """A character that prints nothing: a control code, such as the ones a code page leaves empty."""
+    return ord(character) < 0x20 or 0x7F <= ord(character) <= 0x9F
+
+
+def visible(text):
+    """The text as a printer prints it: positions that hold no character print nothing, and the
+    soft hyphen, which a printer has a glyph for, prints as a hyphen."""
+    return "".join("-" if c == "\u00ad" else c for c in text if not invisible(c) or c == "\t")
 
 
 def script_of(character):
     """Which font draws a character: Japanese, the private use area where the decoder puts the
-    characters a program drew, or Latin for the rest."""
+    characters a program drew, otherwise the first font that has a glyph for it, which is Latin
+    when none has."""
     code = ord(character)
     if 0x3000 <= code <= 0x30FF or 0x4E00 <= code <= 0x9FFF or 0xFF00 <= code <= 0xFFEF:
         return "cjk"
     if 0xE000 <= code <= 0xE1FF:
         return "user"
-    return "latin"
+    return next((script for script in FALLBACK if code in covered(script)), "latin")
 
 
 def runs(text):
@@ -101,6 +143,7 @@ def _draw_user(draw, drawn, character, x, baseline, size):
 def draw_line(draw, text, x, y, align, size, bold=False, rtl=False, drawn=None):
     """Draws `text` with its baseline at y. `align` says which edge of the text is at x. `drawn`
     holds the characters a program drew, by the private use character that stands for each."""
+    text = visible(text)
     if not (rtl or is_arabic(text)):
         pieces = runs(text)
         if len(pieces) == 1 and pieces[0][0] != "user":
@@ -121,10 +164,13 @@ def draw_line(draw, text, x, y, align, size, bold=False, rtl=False, drawn=None):
 
     words = text.split(" ")
     space = font("latin", bold, size).getlength(" ")
-    fonts = [_word(word, bold, size) for word in words]
-    widths = [f.getlength(word, **options) for word, (f, options) in zip(words, fonts)]
+    placed = [[(chunk, f, options, f.getlength(chunk, **options)) for chunk, f, options in _word_runs(word, bold, size)] for word in words]
+    widths = [sum(run[3] for run in runs_) for runs_ in placed]
     total = sum(widths) + space * (len(words) - 1)
     right = {"right": x, "left": x + total, "center": x + total / 2}[align]
-    for word, width, (f, options) in zip(words, widths, fonts):
-        draw.text((right, y), word, font=f, fill=0, anchor="rs", **options)
+    for runs_, width in zip(placed, widths):
+        edge = right
+        for chunk, f, options, run_width in runs_:
+            draw.text((edge, y), chunk, font=f, fill=0, anchor="rs", **options)
+            edge -= run_width
         right -= width + space

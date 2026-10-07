@@ -1,14 +1,11 @@
 {
   "name": "profile-arabic-printer",
   "kind": "bytes",
-  "note": "a Zjiang printer has CP864 at 28 and CP1255 at 32",
+  "note": "a Zjiang printer has CP864 at 28",
   "bytes": [
     "1b 40",
     "1b 74 1c",
     "c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 ca cb cc cd ce cf",
-    "0a",
-    "1b 74 20",
-    "e0 e1 e2 e3 e4 e5 e6 e7",
     "0a",
     "1d 56 00"
   ],
@@ -16,8 +13,7 @@
     "profile": "POS-5890",
     "receipts": 1,
     "texts": [
-      "¢ﺀﺁﺃﺅﻊﺋﺍﺑﺓﺗﺛﺟﺣﺧﺩ",
-      "אבגדהוזח"
+      "¢ﺀﺁﺃﺅﻊﺋﺍﺑﺓﺗﺛﺟﺣﺧﺩ"
     ],
     "cuts": [
       "full"

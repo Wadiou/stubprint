@@ -102,8 +102,7 @@ def _drawn_characters(expected):
                 "height": size * 8,
                 "columns": [data[i * size : (i + 1) * size] for i in range(d["width"])],
             }
-        elif "delete" in event:
-            drawn.pop(chr(0xE000 + event["delete"]), None)
+        # A deleted character stays here: a line printed before the delete still shows it.
     for event in expected.get("userKanji", []):
         index = _kanji_index(bytes.fromhex(event["code"]))
         data = bytes.fromhex(event["data"])
