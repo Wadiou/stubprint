@@ -225,6 +225,42 @@ mod tests {
     }
 
     #[test]
+    fn a_star_printer_reports_its_status_by_itself_when_it_was_asked_to() {
+        use crate::status::Paper;
+        let mut decoder = Decoder::with_dialect(Dialect::StarLine, Profile::generic());
+        let out = PrinterStatus {
+            paper: Paper::End,
+            ..PrinterStatus::default()
+        };
+        // Nothing is sent until the program asks for the status to be sent when it changes.
+        decoder.set_status(out);
+        assert!(decoder.take_replies().is_empty());
+        decoder.set_status(PrinterStatus::default());
+        decoder.push(&[ESC, 0x1e, b'a', 1]);
+        decoder.set_status(out);
+        assert_eq!(
+            decoder.take_replies(),
+            [0x23, 0x06, 0x08, 0, 0, 0x0c, 0, 0, 0]
+        );
+        // The same status again is no change.
+        decoder.set_status(out);
+        assert!(decoder.take_replies().is_empty());
+    }
+
+    #[test]
+    fn the_same_bytes_mean_what_the_language_of_the_printer_says() {
+        // ESC E turns bold on in both, but ENQ is a request in Star Line mode and nothing in ESC/POS.
+        let bytes = [0x05, b'x', LF];
+        let mut star = Decoder::with_dialect(Dialect::StarLine, Profile::generic());
+        star.push(&bytes);
+        assert_eq!(star.take_replies(), [0x00]);
+        let mut epson = Decoder::new();
+        let events = epson.push(&bytes);
+        assert!(epson.take_replies().is_empty());
+        assert!(events.iter().any(|e| matches!(e, Event::Unknown { .. })));
+    }
+
+    #[test]
     fn the_number_of_a_code_page_means_what_the_printer_profile_says() {
         let bytes = [ESC, b't', 2, 0x80, LF];
         let text = |profile: &str| -> String {

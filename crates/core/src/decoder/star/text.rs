@@ -119,6 +119,7 @@ impl Star {
             0x2d => self.argument(machine, input, events, 2, Self::underline),
             0x5f => self.argument(machine, input, events, 2, Self::overline),
             0x24 => self.argument(machine, input, events, 2, Self::shift_jis),
+            0x25 => self.argument(machine, input, events, 2, Self::user_characters),
             0x69 => self.arguments(machine, input, events, Self::size),
             0x73 | 0x74 => self.arguments(machine, input, events, Self::kanji_space),
             // The pitches, which are the room right of a character, and the height of a character
@@ -284,6 +285,17 @@ impl Star {
         };
         machine.flush_line(events);
         machine.state.kanji.shift_jis_mode(on == 1);
+        true
+    }
+
+    /// `ESC % n` turns the characters the program drew on and off.
+    fn user_characters(&mut self, machine: &mut Machine, n: u8, events: &mut Vec<Event>) -> bool {
+        let Some(on) = number(n, 1) else {
+            return false;
+        };
+        machine.flush_line(events);
+        machine.state.user_characters = on == 1;
+        events.push(Event::UserCharacters(on == 1));
         true
     }
 
