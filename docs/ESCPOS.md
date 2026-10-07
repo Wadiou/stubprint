@@ -4,8 +4,11 @@ What `crates/core` decodes. A command that is not here is reported as an unknown
 position and bytes, and decoding goes on. A real printer ignores unknown commands silently, so the
 report is only a hint.
 
-The command definitions come from the Epson command reference, as copied in the manuals of several
-printer makers, and from the streams that real encoders write. The fixtures in `fixtures/specs`
+The command definitions come from the [Epson ESC/POS command
+reference](https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/index.html), as copied in the
+manuals of several printer makers, and from the streams that real encoders write. This page says
+what the decoder does with each command, in our own words, and names the commands as the reference
+does, so a reading can be checked there. The fixtures in `fixtures/specs`
 check each command against those definitions. `fixtures/captured` holds streams written by other
 people's encoders, which must decode without a single unknown command.
 
@@ -29,7 +32,10 @@ people's encoders, which must decode without a single unknown command.
 | Code page | `ESC t n` | how the following text bytes are read, by the printer profile |
 | International set | `ESC R n` | twelve ASCII characters read as the characters of a country, for 0 to 15 |
 | Drawn characters | `ESC & y c1 c2 ...`, `ESC % n`, `ESC ? n` | `DefineCharacter`, `UserCharacters`, `DeleteCharacter`. The text shows a drawn character as a private use character, see `UserCharacter::glyph` |
-| Two byte characters | `FS &`, `FS .` | text is read as Shift JIS, or another encoding the profile says, while they are on |
+| Two byte characters | `FS &`, `FS .` | text is read in pairs of bytes, as the encoding of the printer says, while they are on |
+| Kanji code system | `FS C n` | 0 is JIS code, which is read until it is changed, and 1 and 2 are Shift JIS, in which the lead byte of a character starts one even with `FS &` off. Only a Japanese model, which has Shift JIS in its profile, has the choice. Other values are unknown |
+| Kanji font | `FS ( A` with fn 48 | 0 to 2: font A (24 by 24 dots), B (20 by 24), C (16 by 16). It decides how many bytes `FS 2` takes |
+| Drawn Kanji | `FS 2 c1 c2 d1 ... dk` | `DefineKanji`, with k of 72, 60 or 32 by the font. The text shows a drawn Kanji as a private use character, see `UserKanji::glyph`, and a code that may be drawn and was not as a space. `ESC @` forgets them |
 | UTF-8 text | `FS ( C` with fn 48 and m of 1 or 2 | text is read as UTF-8 until m is 0 |
 | Tab | `HT` | stays in the text as a tab character |
 | Tab stops | `ESC D n1 ... nk NUL` | `TabStops`. They go up, there are at most 32, and a byte that breaks the order ends the list and is read as text |
@@ -45,9 +51,8 @@ people's encoders, which must decode without a single unknown command.
 | Print area width | `GS W nL nH` | `PrintWidth` |
 | Motion units | `GS P x y` | `MotionUnits`: a horizontal unit is 1/x inch and a vertical one 1/y inch |
 | Line spacing | `ESC 2`, `ESC 3 n`, `ESC A n`, `ESC + n` | `LineSpacing` |
-| Feed lines | `ESC d n` | `Feed` |
-| Feed in units | `ESC J n` | `FeedUnits` |
-| Feed back | `ESC e n` | `ReverseFeed` |
+| Feed lines | `ESC d n`, `ESC e n` | `Feed` in lines, forward or back |
+| Feed in units | `ESC J n`, `ESC K n` | `Feed` in motion units, forward or back |
 | Density | `GS \| n` | `Density`, from -500 to 500 tenths of a percent |
 | Line feed, carriage return | `LF`, `CR` | ends a line; a carriage return is ignored |
 
@@ -66,9 +71,15 @@ Positions, margins and the print area are in motion units, which only a printer 
 | Graphics in memory | functions 67 and 68 (define in the kept memory), 69 (print), 66 (delete one), 65 (delete all) | `Image` when printed |
 | Downloaded graphics | functions 83 and 84 (define), 85 (print), 82 and 81 (delete) | `Image` when printed |
 
-Pictures are given in printer dots. The graphics functions that only ask how much memory is left,
-which keys are used or what density the data has (48, 49, 51, 52, 64 and 80) are read, and not
-answered.
+The functions 0 to 4 are other numbers for 48 to 52, and are read as them.
+
+| Function | Result |
+|----------|--------|
+| 49 | `GraphicsDensity`: 180 or 360 dots per inch, from x and y of 50 or 51. Other values are unknown |
+| 48, 51, 52 | The whole size of the NV memory, what is left of it, and what is left of the download memory, as `37 id digits 00`. The sizes are 256 KiB and 12 KiB, as an Epson TM-T88 has by default, and only the bytes of the dots count as taken |
+| 64, 80 | The keys of the graphics in the NV or the download memory, as `37 72` or `37 73`, a status of 0x40 or 0x41, the key pairs and `00`. At most 40 keys go in one answer. While more follow, the program answers with ACK for the next block, NAK for the same one again and CAN to stop. After the last, ACK ends it. Any other byte ends it and is read as usual |
+
+Pictures are given in printer dots.
 
 ## Barcodes and two dimensional codes
 
@@ -80,7 +91,8 @@ answered.
 | PDF417 | `GS ( k`, symbol 48 | `Pdf417`: data, columns, rows, module size, error level and whether it is truncated |
 | Other codes | `GS ( k`, symbols 50 to 54 | `Symbol`: MaxiCode, GS1 DataBar, Composite, Aztec and DataMatrix, with the raw settings |
 
-The size request, function 82, is read and not answered.
+The request for the size of a symbol, function 82, is read and not answered: the size in dots is the
+size of the encoded symbol, and only an encoder knows it.
 
 ## Cuts, drawer and buzzer
 
@@ -157,6 +169,10 @@ least checked.
 ## Not read yet
 
 - The Star command sets, StarLine and StarPRNT. A Star printer in ESC/POS mode works.
-- `ESC 4` and `ESC 5` (italic, which the makers do not agree on), `ESC F`, `ESC K`, `FS 2`.
-- Answers to the graphics functions that ask for memory, and to the size of a two dimensional code.
-- Kanji written with the JIS code system is read as Shift JIS.
+- The size of a two dimensional code, function 82 of `GS ( k`, which an encoder has to tell.
+- Drawing a page of page mode. The decoder reports its events in order, and whoever draws them
+  puts them in the page.
+
+`ESC 4`, `ESC 5` and `ESC F` are not ESC/POS commands. They belong to the dot matrix command sets
+of Epson, where they mean italics and bold, and a printer of the ESC/POS family ignores them, so
+they are reported as unknown here.
