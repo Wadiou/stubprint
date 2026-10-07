@@ -25,6 +25,14 @@ use crate::event::Event;
 use crate::profile::Profile;
 use crate::status::PrinterStatus;
 
+/// An event, and where in the stream the command that made it ended.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Traced {
+    pub event: Event,
+    /// How many bytes had been read, from the first one ever pushed, when the command was done.
+    pub end: usize,
+}
+
 /// Reads the bytes a printer would receive and says what they ask for. It accepts the bytes in any
 /// number of pieces, since a network or Bluetooth link can cut a command anywhere, and holds on to
 /// a half received command until the rest arrives. The same bytes give the same events however
@@ -82,13 +90,30 @@ impl Decoder {
     /// Adds received bytes and returns the events they completed.
     pub fn push(&mut self, chunk: &[u8]) -> Vec<Event> {
         self.run(chunk, false)
+            .into_iter()
+            .map(|t| t.event)
+            .collect()
     }
 
     /// Ends the stream. A line with no line feed is printed, and bytes that never became a whole
     /// command are reported as unknown.
     pub fn finish(&mut self) -> Vec<Event> {
+        self.finish_traced().into_iter().map(|t| t.event).collect()
+    }
+
+    /// As [`Decoder::push`], and each event says where in the stream the command that made it
+    /// ended, counted from the first byte ever pushed.
+    pub fn push_traced(&mut self, chunk: &[u8]) -> Vec<Traced> {
+        self.run(chunk, false)
+    }
+
+    /// As [`Decoder::finish`], with the place in the stream of each event.
+    pub fn finish_traced(&mut self) -> Vec<Traced> {
         let mut events = self.run(&[], true);
-        self.machine.flush_line(&mut events);
+        let mut last = Vec::new();
+        self.machine.flush_line(&mut last);
+        let end = self.consumed;
+        events.extend(last.into_iter().map(|event| Traced { event, end }));
         events
     }
 
@@ -114,11 +139,11 @@ impl Decoder {
         self.language.status_changed(&mut self.machine, &before);
     }
 
-    fn run(&mut self, chunk: &[u8], at_end: bool) -> Vec<Event> {
+    fn run(&mut self, chunk: &[u8], at_end: bool) -> Vec<Traced> {
         let mut bytes = std::mem::take(&mut self.pending);
         bytes.extend_from_slice(chunk);
 
-        let mut events = Vec::new();
+        let mut traced = Vec::new();
         let mut position = 0;
         while position < bytes.len() {
             let input = Input {
@@ -126,22 +151,34 @@ impl Decoder {
                 offset: self.consumed + position,
                 at_end,
             };
+            let mut events = Vec::new();
             match self.parse(&input, &mut events) {
                 Step::Consumed(length) => position += length,
-                Step::Incomplete => break,
+                Step::Incomplete => {
+                    traced.extend(events.into_iter().map(|event| Traced {
+                        event,
+                        end: self.consumed + position,
+                    }));
+                    break;
+                }
             }
+            let end = self.consumed + position;
+            traced.extend(events.into_iter().map(|event| Traced { event, end }));
         }
 
         if at_end && position < bytes.len() {
-            events.push(Event::Unknown {
-                offset: self.consumed + position,
-                bytes: bytes[position..].to_vec(),
+            traced.push(Traced {
+                event: Event::Unknown {
+                    offset: self.consumed + position,
+                    bytes: bytes[position..].to_vec(),
+                },
+                end: self.consumed + bytes.len(),
             });
             position = bytes.len();
         }
         self.consumed += position;
         self.pending = bytes.split_off(position);
-        events
+        traced
     }
 
     /// A byte that answers the list of keys being sent is used up. Any other is for the language.
@@ -222,6 +259,29 @@ mod tests {
             })
             .collect();
         assert_eq!(lengths, vec![MAX_LINE_BYTES, MAX_LINE_BYTES, 1808]);
+    }
+
+    #[test]
+    fn every_event_says_where_the_command_that_made_it_ended_whatever_the_cuts() {
+        let bytes = [b"ab\n".as_slice(), &[GS, b'V', 0x42, 0], b"cd"].concat();
+        let ends = |piece: usize| -> Vec<(Event, usize)> {
+            let mut decoder = Decoder::new();
+            let mut all = Vec::new();
+            for chunk in bytes.chunks(piece) {
+                all.extend(decoder.push_traced(chunk));
+            }
+            all.extend(decoder.finish_traced());
+            all.into_iter().map(|t| (t.event, t.end)).collect()
+        };
+        let whole = ends(100);
+        let cut_end = whole
+            .iter()
+            .find_map(|(e, end)| matches!(e, Event::Cut(_)).then_some(*end));
+        assert_eq!(cut_end, Some(7));
+        assert_eq!(whole.last().map(|(_, end)| *end), Some(9));
+        for piece in [1, 2, 3, 4] {
+            assert_eq!(ends(piece), whole, "pieces of {piece}");
+        }
     }
 
     #[test]
