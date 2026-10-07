@@ -174,7 +174,7 @@ One branch, one commit per step, tests before or with each command. The numbers 
 
 | Stage | What | Closes |
 |-------|------|--------|
-| A | Vendor the captured streams, add the two checks (no unknown, any cut position). They fail on purpose and become the to do list. Then fix: cut with feed, `ESC !`, control bytes, `FS` skipping, size limit, the small bugs | 1 to 7 |
+| A | **Done.** Captured streams and their checks (no unknown commands except a listed gap, no byte left waiting, same events at every cut position). Fixed: cut with feed, `ESC !`, control bytes, `FS` and `DLE` skipping, length framed commands skipped whole, size limits, font numbers, `GS !` sizes, Micro QR. Left from 7: the Code 128 raw data goes with stage D | 1 to 7 |
 | B | Position and text state: new events for position, margins, print width, tabs, line spacing. More style fields: upside down, rotate, double strike, colour, smoothing, italic | 8 to 10 |
 | C | Graphics: `GS ( L`, `GS 8 L`, scaled `GS v 0`, downloaded and stored images (adds printer memory) | 3, 11, 12 |
 | D | Codes: more barcodes, raw Code 128 data, QR micro and size, PDF417 settings, more 2D symbols (numbers checked first) | 14 to 16 |

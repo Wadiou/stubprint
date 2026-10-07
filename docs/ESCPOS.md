@@ -1,31 +1,125 @@
 # ESC/POS coverage
 
-What `crates/core` decodes today. Anything else is reported as an unknown event with its position
-and bytes, and decoding goes on. A real printer ignores unknown commands silently, so the report is
-only a hint.
+What `crates/core` decodes. A command that is not here is reported as an unknown event, with its
+position and bytes, and decoding goes on. A real printer ignores unknown commands silently, so the
+report is only a hint.
+
+The command definitions come from the Epson command reference, as copied in the manuals of several
+printer makers, and from the streams that real encoders write. The fixtures in `fixtures/specs`
+check each command against those definitions. `fixtures/captured` holds streams written by other
+people's encoders, which must decode without a single unknown command.
+
+## Text and style
 
 | Command | Bytes | Result |
 |---------|-------|--------|
 | Initialize | `ESC @` | `Initialize`, and every setting returns to its default |
-| Align | `ESC a n` | `Align`, applied to the text after it |
-| Feed | `ESC d n` | `Feed` of n lines |
+| Print mode | `ESC ! n` | `Font` and text style: font, bold, double height, double width, underline |
 | Bold | `ESC E n` | text style |
-| Underline | `ESC - n` | text style: off, thin or thick |
-| Font | `ESC M n` | `Font`, A or B, and text style |
-| Size | `GS ! n` | text style: width and height from 1 to 8 |
+| Double strike | `ESC G n` | text style |
+| Underline | `ESC - n` | text style: off, thin or thick. Other values are unknown |
+| Size | `GS ! n` | text style: width and height from 1 to 8 times. A value with bits 3 or 7 set is ignored, as a printer does, and reported as unknown |
 | Invert | `GS B n` | text style |
-| Code page | `ESC t n` | how the following text bytes are read |
-| Line spacing | `ESC 2`, `ESC 3 n` | read and ignored |
-| Cancel Kanji | `FS .` | read and ignored |
+| Smoothing | `GS b n` | text style |
+| Font | `ESC M n` | `Font` and text style: fonts A to E, as 0 to 4 or the digits `0` to `4` |
+| Character spacing | `ESC SP n` | text style: space to the right of each character, in motion units |
+| Rotation | `ESC V n` | text style: a quarter turn clockwise |
+| Upside down | `ESC { n` | text style |
+| Second colour | `ESC r n` | text style |
+| Code page | `ESC t n` | how the following text bytes are read, by the printer profile |
+| International set | `ESC R n` | twelve ASCII characters read as the characters of a country, for 0 to 15 |
+| Drawn characters | `ESC & y c1 c2 ...`, `ESC % n`, `ESC ? n` | `DefineCharacter`, `UserCharacters`, `DeleteCharacter`. The text shows a drawn character as a private use character, see `UserCharacter::glyph` |
+| Two byte characters | `FS &`, `FS .` | text is read as Shift JIS, or another encoding the profile says, while they are on |
+| UTF-8 text | `FS ( C` with fn 48 and m of 1 or 2 | text is read as UTF-8 until m is 0 |
+| Tab | `HT` | stays in the text as a tab character |
+| Tab stops | `ESC D n1 ... nk NUL` | `TabStops`. They go up, there are at most 32, and a byte that breaks the order ends the list and is read as text |
+
+## Layout
+
+| Command | Bytes | Result |
+|---------|-------|--------|
+| Align | `ESC a n` | `Align`, applied to the text after it |
+| Absolute position | `ESC $ nL nH` | `Position::Absolute`, in motion units |
+| Relative position | `ESC \ nL nH` | `Position::Relative`, a negative move is the complement of 65536 |
+| Left margin | `GS L nL nH` | `Margin` |
+| Print area width | `GS W nL nH` | `PrintWidth` |
+| Motion units | `GS P x y` | `MotionUnits`: a horizontal unit is 1/x inch and a vertical one 1/y inch |
+| Line spacing | `ESC 2`, `ESC 3 n`, `ESC A n`, `ESC + n` | `LineSpacing` |
+| Feed lines | `ESC d n` | `Feed` |
+| Feed in units | `ESC J n` | `FeedUnits` |
+| Feed back | `ESC e n` | `ReverseFeed` |
+| Density | `GS \| n` | `Density`, from -500 to 500 tenths of a percent |
 | Line feed, carriage return | `LF`, `CR` | ends a line; a carriage return is ignored |
-| Raster picture | `GS v 0` | `Image`, one band per command |
-| Column picture | `ESC * m` | `Image`, one strip per command, modes 0, 1, 32 and 33 |
-| Barcode settings | `GS h`, `GS w`, `GS H`, `GS f` | apply to the next barcode |
-| Barcode | `GS k` | `Barcode`: UPC-A, UPC-E, EAN-13, EAN-8, Code 39, ITF, Codabar, Code 93, Code 128, in both command forms |
-| QR code | `GS ( k`, symbol 49 | `Qr`: model 1 or 2, size, error level, data |
-| PDF417 | `GS ( k`, symbol 48 | `Pdf417`: data. Its columns, rows, size and level are read and ignored |
-| Cash drawer | `ESC p` | `Pulse` in milliseconds |
+
+Positions, margins and the print area are in motion units, which only a printer profile and a
+`GS P` can turn into dots, so the decoder reports them as they were sent.
+
+## Pictures
+
+| Command | Bytes | Result |
+|---------|-------|--------|
+| Raster picture | `GS v 0 m xL xH yL yH d...` | `Image`. Modes 0 to 3 and the digits: double width and double height repeat the dots |
+| Column picture | `ESC * m nL nH d...` | `Image`, modes 0, 1, 32 and 33. The 8 dot modes are repeated 3 times down and the single density modes 2 times across, as the printer prints them |
+| Downloaded picture | `GS * x y d...`, `GS / m` | `Image` when printed. Defining a character takes it back |
+| Pictures in memory | `FS q n ...`, `FS p n m` | `Image` when printed. `ESC @` does not clear them |
+| Graphics | `GS ( L` and `GS 8 L`, functions 112 and 113 (store raster and column), 50 (print) | `Image`. A second colour is laid over the first |
+| Graphics in memory | functions 67 and 68 (define in the kept memory), 69 (print), 66 (delete one), 65 (delete all) | `Image` when printed |
+| Downloaded graphics | functions 83 and 84 (define), 85 (print), 82 and 81 (delete) | `Image` when printed |
+
+Pictures are given in printer dots. The graphics functions that only ask how much memory is left,
+which keys are used or what density the data has (48, 49, 51, 52, 64 and 80) are read, and not
+answered.
+
+## Barcodes and two dimensional codes
+
+| Command | Bytes | Result |
+|---------|-------|--------|
+| Barcode settings | `GS h`, `GS w`, `GS H`, `GS f` | apply to the next barcode. A value that is not allowed is unknown |
+| Barcode | `GS k` | `Barcode`: UPC-A, UPC-E, EAN-13, EAN-8, Code 39, ITF, Codabar, Code 93, Code 128 in both command forms, and GS1-128 and the four GS1 DataBar forms in the form with a length. Code 128 data follows the character sets: set C pairs are written as digits, and `{{` is a brace |
+| QR code | `GS ( k`, symbol 49 | `Qr`: model 1, 2 or 3 (Micro QR), size, error level, data |
+| PDF417 | `GS ( k`, symbol 48 | `Pdf417`: data, columns, rows, module size, error level and whether it is truncated |
+| Other codes | `GS ( k`, symbols 50 to 54 | `Symbol`: MaxiCode, GS1 DataBar, Composite, Aztec and DataMatrix, with the raw settings |
+
+The size request, function 82, is read and not answered.
+
+## Cuts, drawer and buzzer
+
+| Command | Bytes | Result |
+|---------|-------|--------|
 | Cut | `GS V m` | `Cut`, full or partial, for m of 0, 1, 48 and 49 |
+| Cut with feed | `GS V m n` | `Cut` for m of 65, 97 and 103 (full) and 66, 98 and 104 (partial). The feed length is read and ignored |
+| Older cuts | `ESC i`, `ESC m` | `Cut`, partial |
+| Cash drawer | `ESC p m t1 t2`, `DLE DC4 1 m t` | `Pulse`, in milliseconds |
+| Buzzer | `BEL`, `ESC B n t`, `ESC ( A` | `Beep` |
+
+## Page mode
+
+`ESC L` enters page mode and `ESC S` or `FF` leaves it. `ESC T` sets the direction, `ESC W` the page,
+`GS $` and `GS \` move in the other direction, `ESC FF` prints and `CAN` cancels. They are reported
+as `Page` events in order. Drawing a page is for whoever draws the events.
+
+## What the printer says
+
+A program can ask the printer things. The answers wait in `Decoder::take_replies`, or
+`Printer::take_replies`, for the connection to send back. What the printer says comes from a
+`PrinterStatus`, which a program or a person can change with `set_status`.
+
+| Request | Answer |
+|---------|--------|
+| `DLE EOT n` for n of 1 to 4 | one byte: the printer, the off line cause, the error cause, or the roll paper sensor |
+| `DLE ENQ n` | nothing, but a fault that can be recovered from goes away |
+| `GS r n` for n of 1, 2, 49 and 50 | one byte: the paper sensor or the cash drawer |
+| `GS I n` for n of 1 to 3 and 65 to 68 | the model, type and version bytes, or text: the version, maker, model name and serial number |
+| `GS a n` | the four bytes of automatic status back at once when n is not 0, and again whenever a status that n asked for changes |
+| `GS ( H` with fn 48 | `37 22`, the four bytes it was given, and a NUL |
+
+A request with a value that is not allowed is not answered and is reported as unknown.
+
+## Settings that change nothing that is drawn
+
+These are read to their end and ignored, so their parameters do not print as text: `ESC =`, `ESC U`,
+`ESC c`, `ESC <`, `GS ( A`, `GS ( C`, `GS ( D`, `GS ( E`, `GS ( K`, `GS ( M`, `GS ( N`, `FS ( A`,
+`FS ( E`, `FS ( L`, `FS !`, `FS -`, `FS C`, `FS W`, `FS S`.
 
 ## How a stream is read
 
@@ -35,16 +129,34 @@ only a hint.
   current code page.
 - A receipt ends at a cut, or when the stream ends with something unprinted. Blank lines and
   carriage returns after a cut print nothing, so they are not a receipt.
-- An unknown command is reported once, together with the control bytes that follow it.
+- An unknown command is reported once, together with the control bytes that follow it. When the
+  length of a command is known, the whole command is reported, so its data is never read as text.
+
+## Limits
+
+So that a bad stream cannot make the decoder wait or grow without end: a command may take at most
+8 MiB, the data of a barcode may run 4096 bytes before its end byte, text with no line feed is
+reported in pieces of 4096 bytes, and the pictures the printer keeps in memory may take 32 MiB.
+Past those limits the command is reported as unknown.
+
+## Code pages and printers
+
+What `ESC t n` selects depends on the printer. `Decoder::with_profile` takes one of the 24 printer
+profiles of `Profile::named`, or the generic one, and the profile gives the code page for each
+number. A number that the profile does not have is read as Windows 1252.
+
+The pages are read with tables for the IBM pages 437, 720, 737, 775, 850, 852, 855, 857, 858, 860
+to 866, 869 and 874, the Windows pages 1250 to 1258 and the ISO 8859 pages. A few have no table
+and are read as the closest page: CP851, CP853, CP856, CP1098, CP1125, CP772, CP774, RK1048 and
+the Vietnamese pages. Pages that only one maker has, such as Star's CP3012, are read as
+Windows 1252.
+
+The international character sets 0 to 15 are written from the Epson table. Sets 14 and 15 are the
+least checked.
 
 ## Not read yet
 
-Scaled raster pictures (`GS v 0` with a mode above 0), the cut forms with a feed (`GS V 65` and up),
-`ESC !`, margins and print area (`GS L`, `GS W`), tab stops, rotation, DataMatrix and other 2D
-symbols, status replies, and the Star command sets.
-
-## Code pages
-
-The numbers are the Epson table that receipt libraries write: 0 is CP437, 2 CP850, 16 Windows 1252,
-19 CP858, 32 CP720, 37 CP864, 50 Windows 1256, and others. A number that is not known is read as
-Windows 1252.
+- The Star command sets, StarLine and StarPRNT. A Star printer in ESC/POS mode works.
+- `ESC 4` and `ESC 5` (italic, which the makers do not agree on), `ESC F`, `ESC K`, `FS 2`.
+- Answers to the graphics functions that ask for memory, and to the size of a two dimensional code.
+- Kanji written with the JIS code system is read as Shift JIS.
