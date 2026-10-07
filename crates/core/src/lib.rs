@@ -1,5 +1,18 @@
 //! Decodes the bytes a receipt printer receives into a document that can be drawn.
 //!
-//! The crate has no networking and no user interface. A decoder reads bytes, in any number of
-//! pieces, and produces the items a printer would print: text, images, barcodes, QR codes,
-//! feeds and cuts.
+//! The crate has no networking and no user interface. A [`Decoder`] reads bytes, in any number of
+//! pieces, and produces the [`Event`]s a printer would act on: text, pictures, barcodes, QR codes,
+//! feeds and cuts. A [`Printer`] groups those events into [`Receipt`]s.
+
+mod bitmap;
+mod codepage;
+mod decoder;
+mod event;
+mod printer;
+
+pub use bitmap::Bitmap;
+pub use decoder::Decoder;
+pub use event::{
+    Align, Barcode, CutMode, Event, Pdf417, Pulse, Qr, QrLevel, Style, Symbology, TextPosition,
+};
+pub use printer::{Printer, Receipt};
