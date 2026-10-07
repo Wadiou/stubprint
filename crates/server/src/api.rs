@@ -10,7 +10,7 @@ use axum::response::sse::{Event as Sse, KeepAlive};
 use axum::response::{IntoResponse, Response, Sse as SseResponse};
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use receipt::{Event, Fault, Paper, PrinterStatus, Profile};
+use receipt::{Dialect, Event, Fault, Paper, Printer, PrinterStatus, Profile};
 use receipt_render::Options;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::json;
@@ -19,9 +19,11 @@ use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::{Stream, StreamExt};
 use utoipa::{OpenApi, ToSchema};
 
-use crate::hub::{Hub, Notice, Stored};
+use crate::hub::{Connection, Hub, Notice, Stored};
 use crate::session::Session;
-use crate::wire::{hex, PrinterInfo, ReceiptDetail, ReceiptSummary};
+use crate::wire::{
+    hex, trace_of, trace_of_stream, PrinterInfo, ReceiptDetail, ReceiptSummary, TraceItem,
+};
 
 /// The most bytes one `POST /api/print` takes.
 const MAX_PRINT_BYTES: usize = 64 * 1024 * 1024;
@@ -41,6 +43,10 @@ pub fn router(hub: Arc<Hub>) -> Router {
         .route("/api/receipts", get(list).delete(clear))
         .route("/api/receipts/next", get(next))
         .route("/api/receipts/{id}", get(receipt))
+        .route("/api/receipts/{id}/trace", get(trace))
+        .route("/api/connections", get(connections))
+        .route("/api/connections/{id}", get(connection))
+        .route("/api/decode", post(decode))
         .route("/api/print", post(print))
         .route("/api/events", get(events))
         .layer(DefaultBodyLimit::max(MAX_PRINT_BYTES))
@@ -259,15 +265,18 @@ fn parse_receipt(text: &str) -> Reply<(u64, &str)> {
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
-struct PictureQuery {
+struct ViewQuery {
     /// How many times larger the picture is drawn, from 1 to 4.
     scale: Option<u32>,
+    /// Only the first this many events: the paper as it was part of the way through the job.
+    upto: Option<usize>,
 }
 
 /// One receipt. The id can end in `.bin` for the bytes the printer was sent, in `.txt` for the
-/// paper as text, and in `.png` for a picture of the paper.
+/// paper as text, and in `.png` for a picture of the paper. With `upto`, the receipt as it was
+/// after its first events, in every form.
 #[utoipa::path(get, path = "/api/receipts/{id}",
-    params(("id" = String, Path, description = "The id of the receipt, with .json, .bin, .txt or .png after it"), PictureQuery),
+    params(("id" = String, Path, description = "The id of the receipt, with .json, .bin, .txt or .png after it"), ViewQuery),
     responses(
         (status = 200, body = ReceiptDetail),
         (status = 200, description = "With .png", content_type = "image/png"),
@@ -277,14 +286,15 @@ struct PictureQuery {
 async fn receipt(
     State(hub): State<Arc<Hub>>,
     Path(text): Path<String>,
-    Query(picture): Query<PictureQuery>,
+    Query(view): Query<ViewQuery>,
 ) -> Reply<Response> {
     let (id, form) = parse_receipt(&text)?;
     let stored: Arc<Stored> = hub
         .receipt(id)
         .ok_or_else(|| ApiError::not_found(format!("no receipt {id}")))?;
     let mut options = Options::for_profile(&stored.printer.profile);
-    options.scale = picture.scale.unwrap_or(1);
+    options.scale = view.scale.unwrap_or(1);
+    let part = view.upto.map(|count| stored.receipt.until(count));
     match form {
         "json" => Ok(Json(ReceiptDetail::of(&stored)).into_response()),
         "bin" => Ok((
@@ -295,29 +305,117 @@ async fn receipt(
                     format!("inline; filename=\"receipt-{id}.bin\""),
                 ),
             ],
-            stored.receipt.raw().to_vec(),
+            part.as_ref().unwrap_or(&stored.receipt).raw().to_vec(),
         )
             .into_response()),
         "txt" => Ok((
             [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
-            receipt_render::text_of(&stored.receipt, &options),
+            receipt_render::text_of(part.as_ref().unwrap_or(&stored.receipt), &options),
         )
             .into_response()),
         "png" => {
             // Drawing takes a while for a long receipt, so it does not hold up the other requests.
-            let file =
-                tokio::task::spawn_blocking(move || receipt_render::png(&stored.receipt, &options))
-                    .await
-                    .map_err(|error| {
-                        ApiError(StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
-                    })?
-                    .map_err(|error| ApiError(StatusCode::INTERNAL_SERVER_ERROR, error))?;
+            let file = tokio::task::spawn_blocking(move || {
+                receipt_render::png(part.as_ref().unwrap_or(&stored.receipt), &options)
+            })
+            .await
+            .map_err(|error| ApiError(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
+            .map_err(|error| ApiError(StatusCode::INTERNAL_SERVER_ERROR, error))?;
             Ok(([(header::CONTENT_TYPE, "image/png")], file).into_response())
         }
         other => Err(ApiError::not_found(format!(
             "a receipt does not come as .{other}"
         ))),
     }
+}
+
+/// The commands of a receipt, one by one: the bytes of each, what it asked for, and what the
+/// printer believed after it. This is what to look at to see why a line came out as it did.
+#[utoipa::path(get, path = "/api/receipts/{id}/trace", params(("id" = u64, Path, description = "The id of the receipt")),
+    responses((status = 200, body = Vec<TraceItem>), (status = 404, body = ErrorBody)))]
+async fn trace(State(hub): State<Arc<Hub>>, Path(id): Path<u64>) -> Reply<Response> {
+    let stored = hub
+        .receipt(id)
+        .ok_or_else(|| ApiError::not_found(format!("no receipt {id}")))?;
+    Ok(Json(trace_of(&stored.receipt)).into_response())
+}
+
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+struct ConnectionQuery {
+    printer: Option<String>,
+}
+
+/// The programs that connected, oldest first: when, how many bytes in what pieces, what the
+/// printer answered, and which receipts they printed.
+#[utoipa::path(get, path = "/api/connections", params(ConnectionQuery), responses((status = 200, body = Vec<Connection>)))]
+async fn connections(
+    State(hub): State<Arc<Hub>>,
+    Query(query): Query<ConnectionQuery>,
+) -> Json<Vec<Connection>> {
+    Json(hub.connections(query.printer.as_deref()))
+}
+
+#[utoipa::path(get, path = "/api/connections/{id}", params(("id" = u64, Path, description = "The id of the connection")),
+    responses((status = 200, body = Connection), (status = 404, body = ErrorBody)))]
+async fn connection(State(hub): State<Arc<Hub>>, Path(id): Path<u64>) -> Reply<Json<Connection>> {
+    hub.connection(id)
+        .map(Json)
+        .ok_or_else(|| ApiError::not_found(format!("no connection {id}")))
+}
+
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+struct DecodeQuery {
+    /// `escpos`, `starline` or `starprnt`. ESC/POS when left out.
+    dialect: Option<String>,
+    /// The model, as `GET /api/profiles` lists them.
+    profile: Option<String>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+struct Decoded<'a> {
+    dialect: Dialect,
+    profile: String,
+    /// Every command of the bytes.
+    trace: Vec<TraceItem<'a>>,
+    /// What the printer answered, in hexadecimal.
+    replies: String,
+    /// How many receipts the bytes made.
+    receipts: usize,
+}
+
+/// Reads bytes as a printer would and says what they ask for, without keeping anything. Use it to
+/// see what the same bytes mean to another language or another model.
+#[utoipa::path(post, path = "/api/decode", params(DecodeQuery), request_body(content = Vec<u8>, content_type = "application/octet-stream"),
+    responses((status = 200, body = Decoded), (status = 400, body = ErrorBody)))]
+async fn decode(Query(query): Query<DecodeQuery>, body: axum::body::Bytes) -> Reply<Response> {
+    let dialect = match &query.dialect {
+        Some(name) => Dialect::from_name(name)
+            .ok_or_else(|| ApiError(StatusCode::BAD_REQUEST, format!("{name} is not a dialect")))?,
+        None => Dialect::EscPos,
+    };
+    let profile = match &query.profile {
+        Some(name) => Profile::named(name).ok_or_else(|| {
+            ApiError(
+                StatusCode::BAD_REQUEST,
+                format!("{name} is not a printer model"),
+            )
+        })?,
+        None => Profile::generic(),
+    };
+    let profile_name = profile.name.clone();
+    let mut printer = Printer::with_dialect(dialect, profile);
+    let mut pushed = printer.push_traced(&body);
+    let rest = printer.finish_traced();
+    pushed.traced.extend(rest.traced);
+    pushed.receipts.extend(rest.receipts);
+    let answer = Decoded {
+        dialect,
+        profile: profile_name,
+        trace: trace_of_stream(&pushed.traced),
+        replies: hex(&printer.take_replies()),
+        receipts: pushed.receipts.len(),
+    };
+    Ok(Json(answer).into_response())
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
@@ -329,6 +427,8 @@ struct PrintQuery {
 #[derive(Debug, Serialize, ToSchema)]
 struct Printed {
     printer: String,
+    /// The id of the connection it was sent as, in `GET /api/connections`.
+    connection: u64,
     /// The ids of the receipts the bytes made.
     receipts: Vec<u64>,
     /// What the printer answered, in hexadecimal.
@@ -355,25 +455,39 @@ async fn print(
     let mut replies = session.feed(&body);
     replies.extend(session.finish());
     Ok(Json(Printed {
+        connection: session.id(),
         printer: name,
         receipts: session.stored().to_vec(),
         replies: hex(&replies),
     }))
 }
 
-/// The live events, as server sent events: receipt, cleared, status, connection and lagged.
-#[utoipa::path(get, path = "/api/events", responses((status = 200, description = "A stream of events", content_type = "text/event-stream")))]
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+struct EventsQuery {
+    /// `actions` also sends every command as it is read, which a long job makes thousands of.
+    detail: Option<String>,
+}
+
+/// The live events, as server sent events: receipt, cleared, status, connection and lagged, and
+/// with `detail=actions` also action, one for each command as it is read.
+#[utoipa::path(get, path = "/api/events", params(EventsQuery), responses((status = 200, description = "A stream of events", content_type = "text/event-stream")))]
 async fn events(
     State(hub): State<Arc<Hub>>,
+    Query(query): Query<EventsQuery>,
 ) -> SseResponse<impl Stream<Item = Result<Sse, Infallible>>> {
-    let stream = BroadcastStream::new(hub.subscribe()).map(|notice| {
-        Ok(match notice {
-            Ok(notice) => named(&notice),
+    let actions = query.detail.as_deref() == Some("actions");
+    // Commands are only made for the ones who ask, and for as long as the stream is open.
+    let watch = actions.then(|| hub.watch_actions());
+    let stream = BroadcastStream::new(hub.subscribe()).filter_map(move |notice| {
+        let _watching = &watch;
+        match notice {
+            Ok(Notice::Action { .. }) if !actions => None,
+            Ok(notice) => Some(Ok(named(&notice))),
             // The watcher was too slow and missed some. It should ask for the list again.
-            Err(BroadcastStreamRecvError::Lagged(missed)) => Sse::default()
+            Err(BroadcastStreamRecvError::Lagged(missed)) => Some(Ok(Sse::default()
                 .event("lagged")
-                .data(json!({ "missed": missed }).to_string()),
-        })
+                .data(json!({ "missed": missed }).to_string()))),
+        }
     });
     SseResponse::new(stream).keep_alive(KeepAlive::default())
 }

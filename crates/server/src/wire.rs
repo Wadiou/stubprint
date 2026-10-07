@@ -1,6 +1,6 @@
 //! What the API says, as JSON.
 
-use receipt::{Dialect, Event, PrinterStatus};
+use receipt::{Dialect, Event, PrinterStatus, Receipt, Snapshot, Traced};
 use serde::Serialize;
 use utoipa::ToSchema;
 
@@ -92,4 +92,58 @@ impl PrinterInfo {
 /// Bytes as hexadecimal text.
 pub fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+/// One command of a job: its bytes, what it asked for, and what the printer believed after it.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TraceItem<'a> {
+    /// Which event of the receipt it is.
+    pub index: usize,
+    /// Where its bytes start and end. A command that made several events gives each the same.
+    pub start: usize,
+    pub end: usize,
+    pub event: &'a Event,
+    pub state: &'a Snapshot,
+}
+
+/// The commands of a receipt, in order, with the place of their bytes in it.
+pub fn trace_of(receipt: &Receipt) -> Vec<TraceItem<'_>> {
+    let mut start = 0;
+    receipt
+        .events()
+        .iter()
+        .zip(receipt.steps())
+        .enumerate()
+        .map(|(index, (event, step))| {
+            let item = TraceItem {
+                index,
+                start,
+                end: step.end,
+                event,
+                state: &step.state,
+            };
+            start = step.end;
+            item
+        })
+        .collect()
+}
+
+/// The commands of a stream that was read as one, from the first byte.
+pub fn trace_of_stream(traced: &[Traced]) -> Vec<TraceItem<'_>> {
+    let mut start = 0;
+    traced
+        .iter()
+        .enumerate()
+        .map(|(index, item)| {
+            let out = TraceItem {
+                index,
+                start,
+                end: item.end,
+                event: &item.event,
+                state: &item.state,
+            };
+            start = item.end;
+            out
+        })
+        .collect()
 }

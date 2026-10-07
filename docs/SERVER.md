@@ -48,12 +48,16 @@ The description of the API is made from the code and is served at `/api/openapi.
 | `GET /api/receipts/{id}.bin` | the bytes the printer was sent for it |
 | `GET /api/receipts/{id}.txt` | the paper as text. Pictures and codes are tags such as `[qr M: hello]` |
 | `GET /api/receipts/{id}.png` | a picture of the paper. `?scale=1..4` |
+| `?upto=N` on any of the forms | the receipt as it was after its first N events, for stepping through a job |
+| `GET /api/receipts/{id}/trace` | the commands of a receipt one by one: where its bytes start and end, what it asked for, and what the printer believed after it (code page, style, alignment, margins, line spacing, tab stops). It answers why a line came out as it did |
 | `GET /api/receipts/next` | waits for the next receipt: `?timeout=10` seconds, `?printer=`, `?after=<id>`. Answers 204 when none came |
 | `DELETE /api/receipts` | clears them, all or `?printer=` |
 | `POST /api/print` | sends the bytes of the body to a printer (`?printer=`, the first by default) and says which receipts they made and what the printer answered |
 | `GET /api/printers`, `GET /api/printers/{name}` | the printers, their status and how many programs are connected |
 | `POST /api/printers/{name}` | changes what the printer pretends: `online`, `cover_open`, `paper` (`adequate`, `near_end`, `end`), `drawer_open`, `feed_button`, `fault` (`cutter`, `unrecoverable`, `recoverable` or `null`) |
-| `GET /api/events` | live events: `receipt`, `cleared`, `status`, `connection`, and `lagged` when a watcher was too slow |
+| `GET /api/events` | live events: `receipt`, `cleared`, `status`, `connection`, and `lagged` when a watcher was too slow. With `?detail=actions` also `action`, one for each command as it is read, with where its bytes are and what the printer believed after it. Commands are only made while someone watches them |
+| `GET /api/connections`, `GET /api/connections/{id}` | the programs that connected: when, in what pieces and at what times the bytes came, how many bytes the printer answered, and which receipts they printed. The latest 200 are kept |
+| `POST /api/decode` | reads the body as a printer would, in `?dialect=` and `?profile=`, and says every command, the answers and how many receipts. Nothing is kept. It shows what the same bytes mean to another language or model |
 | `GET /api/profiles` | the models a printer can be set to |
 | `GET /api/health` | `{"ok": true}` |
 

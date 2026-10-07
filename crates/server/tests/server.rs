@@ -465,7 +465,8 @@ struct Live {
 }
 
 impl Live {
-    async fn until(&mut self, wanted: &str) {
+    /// Reads until the wanted text shows, and returns what came before it.
+    async fn until(&mut self, wanted: &str) -> String {
         timeout(Duration::from_secs(5), async {
             while !self.seen.contains(wanted) {
                 let chunk = self
@@ -480,7 +481,7 @@ impl Live {
         .await
         .unwrap_or_else(|_| panic!("`{wanted}` never came, only: {}", self.seen));
         let end = self.seen.find(wanted).unwrap() + wanted.len();
-        self.seen.drain(..end);
+        self.seen.drain(..end).collect()
     }
 }
 
@@ -766,4 +767,232 @@ async fn a_receipt_comes_as_text_and_as_a_picture_of_the_paper_of_its_printer() 
         .await
         .unwrap();
     assert_eq!(size(&double), (width * 2, height * 2));
+}
+
+#[tokio::test]
+async fn a_receipt_can_be_read_command_by_command_with_what_the_printer_believed() {
+    let server = Harness::start(&["name=till,profile=TM-T88IV"]).await;
+    // Code page 2, bold, "Hi", a line feed, and the cut.
+    let bytes = [b"\x1bt\x02\x1bE\x01Hi\n".as_slice(), &CUT].concat();
+    server.print("till", &bytes, 100).await;
+    server.after(0).await;
+    let trace = server.json("/api/receipts/1/trace").await;
+    let items = trace.as_array().unwrap();
+    let kinds: Vec<&str> = items
+        .iter()
+        .map(|i| i["event"]["type"].as_str().unwrap())
+        .collect();
+    assert_eq!(kinds, ["text", "line_feed", "cut"]);
+    // The text and the line feed share the bytes from the start to the line feed, and the cut is
+    // the last 4 bytes.
+    let places: Vec<(u64, u64)> = items
+        .iter()
+        .map(|i| (i["start"].as_u64().unwrap(), i["end"].as_u64().unwrap()))
+        .collect();
+    assert_eq!(places, [(0, 9), (9, 9), (9, 13)]);
+    assert_eq!(items[2]["index"], 2);
+    let state = &items[0]["state"];
+    assert_eq!(state["code_page_number"], 2);
+    assert_eq!(state["code_page"], "CP850");
+    assert_eq!(state["style"]["bold"], true);
+    assert_eq!(state["layout"]["margin"], 0);
+    assert_eq!(server.get("/api/receipts/9/trace").await.status(), 404);
+}
+
+#[tokio::test]
+async fn a_receipt_can_be_looked_at_part_of_the_way_through() {
+    let server = Harness::start(&["name=till"]).await;
+    let bytes = [b"one\ntwo\n".as_slice(), &CUT].concat();
+    server.print("till", &bytes, 100).await;
+    server.after(0).await;
+    // Events: text one, line feed, text two, line feed, cut.
+    let text = |upto: u32| format!("/api/receipts/1.txt?upto={upto}");
+    assert_eq!(server.get(&text(2)).await.text().await.unwrap(), "one\n");
+    assert_eq!(
+        server.get(&text(4)).await.text().await.unwrap(),
+        "one\ntwo\n"
+    );
+    assert_eq!(server.get(&text(0)).await.text().await.unwrap().trim(), "");
+    assert_eq!(
+        server
+            .get("/api/receipts/1.bin?upto=2")
+            .await
+            .bytes()
+            .await
+            .unwrap()
+            .as_ref(),
+        b"one\n"
+    );
+    let size = |file: &[u8]| u32::from_be_bytes(file[20..24].try_into().unwrap());
+    let part = server
+        .get("/api/receipts/1.png?upto=2")
+        .await
+        .bytes()
+        .await
+        .unwrap();
+    let whole = server
+        .get("/api/receipts/1.png")
+        .await
+        .bytes()
+        .await
+        .unwrap();
+    assert!(size(&part) < size(&whole));
+}
+
+#[tokio::test]
+async fn bytes_can_be_decoded_without_printing_them_and_in_any_language() {
+    let server = Harness::start(&["name=till"]).await;
+    let decode = |query: &str, body: Vec<u8>| {
+        let request = server
+            .client
+            .post(format!("{}/api/decode{query}", server.base))
+            .body(body);
+        async move { request.send().await.unwrap() }
+    };
+    // ENQ is a question in Star Line mode, which is answered, and nothing in ESC/POS.
+    let star: Value = decode("?dialect=starline", vec![0x05, b'x', b'\n'])
+        .await
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(star["dialect"], "starline");
+    assert_eq!(star["replies"], "00");
+    assert_eq!(star["trace"][0]["event"]["type"], "text");
+    assert_eq!(star["trace"][0]["end"], 3);
+    let epson: Value = decode("", vec![0x05, b'x', b'\n'])
+        .await
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(epson["replies"], "");
+    assert_eq!(epson["trace"][0]["event"]["type"], "unknown");
+
+    let two: Value = decode(
+        "?profile=TM-T88IV",
+        [receipt_bytes("a"), receipt_bytes("b")].concat(),
+    )
+    .await
+    .json()
+    .await
+    .unwrap();
+    assert_eq!(two["receipts"], 2);
+    assert_eq!(two["profile"], "TM-T88IV");
+
+    assert_eq!(decode("?dialect=zpl", vec![]).await.status(), 400);
+    assert_eq!(decode("?profile=nope", vec![]).await.status(), 400);
+    // Nothing was kept.
+    assert!(server.ids().await.is_empty());
+}
+
+#[tokio::test]
+async fn every_connection_is_remembered_with_its_pieces_and_its_receipts() {
+    let server = Harness::start(&["name=till", "name=bar"]).await;
+    // Two pieces, which the printer has to be given time to read separately.
+    let mut stream = TcpStream::connect(server.printer("till")).await.unwrap();
+    stream.write_all(b"a\n").await.unwrap();
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    stream.write_all(&CUT).await.unwrap();
+    stream.shutdown().await.unwrap();
+    server
+        .client
+        .post(format!("{}/api/print?printer=bar", server.base))
+        .body(receipt_bytes("b"))
+        .send()
+        .await
+        .unwrap();
+    // The socket's close is seen by the server a moment later.
+    let mut all = Value::Null;
+    for _ in 0..50 {
+        all = server.json("/api/connections").await;
+        if all.as_array().unwrap().len() == 2 && all[0]["closed_at"] != Value::Null {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    let first = &all[0];
+    // "a\n" and the cut are 6 bytes, in the two pieces they were sent in.
+    assert_eq!(
+        (first["printer"].as_str(), first["bytes_in"].as_u64()),
+        (Some("till"), Some(6))
+    );
+    let sizes: Vec<u64> = first["chunks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["bytes"].as_u64().unwrap())
+        .collect();
+    assert_eq!(sizes, [2, 4]);
+    assert_eq!(first["receipts"], json!([1]));
+    assert!(first["opened_at"].as_u64().unwrap() <= first["closed_at"].as_u64().unwrap());
+    assert_eq!(all[1]["peer"], "http");
+    assert_eq!(all[1]["receipts"], json!([2]));
+
+    let only: Value = server.json("/api/connections?printer=bar").await;
+    assert_eq!(only.as_array().unwrap().len(), 1);
+    assert_eq!(server.json("/api/connections/2").await["printer"], "bar");
+    assert_eq!(server.get("/api/connections/99").await.status(), 404);
+}
+
+#[tokio::test]
+async fn a_status_answer_is_counted_in_the_bytes_the_printer_sent() {
+    let server = Harness::start(&["name=till"]).await;
+    server.print("till", &[0x10, 0x04, 0x01], 10).await;
+    for _ in 0..50 {
+        if server.json("/api/connections/1").await["bytes_out"] == 1 {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    panic!("the answer was never counted");
+}
+
+#[tokio::test]
+async fn each_command_is_told_as_it_is_read_to_those_who_ask_and_costs_nothing_to_the_rest() {
+    let server = Harness::start(&["name=till"]).await;
+    let hub = server.running.hub().clone();
+    assert!(!hub.actions_wanted());
+
+    let plain = server.get("/api/events").await;
+    assert!(
+        !hub.actions_wanted(),
+        "a plain watcher does not ask for commands"
+    );
+    let mut plain = Live {
+        response: plain,
+        seen: String::new(),
+    };
+
+    let response = server.get("/api/events?detail=actions").await;
+    let mut actions = Live {
+        response,
+        seen: String::new(),
+    };
+    assert!(hub.actions_wanted());
+
+    // Half of a line: nothing is told until its line feed arrives.
+    let mut stream = TcpStream::connect(server.printer("till")).await.unwrap();
+    stream.write_all(b"half").await.unwrap();
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    stream.write_all(b" a line\n").await.unwrap();
+    let before = actions.until("event: action").await;
+    assert!(before.contains("event: connection"));
+    let told = actions.until("\"end\":").await;
+    let _ = told;
+    actions.until("\"half a line\"").await;
+
+    // The one who did not ask has the receipt and the connection, and no commands.
+    stream.write_all(&CUT).await.unwrap();
+    let seen = plain.until("event: receipt").await;
+    assert!(!seen.contains("event: action"), "{seen}");
+    actions.until("event: receipt").await;
+
+    // When the watcher goes away the commands stop being made.
+    drop(actions);
+    for _ in 0..50 {
+        if !hub.actions_wanted() {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    panic!("commands are still made for nobody");
 }
