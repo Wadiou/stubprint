@@ -54,7 +54,7 @@ cargo test --workspace
 
 ## Licence
 
-MIT, see [LICENSE](LICENSE). The captured streams in `fixtures/captured` keep the licences of the
+MIT, see [LICENSE](LICENSE). The licences of what it is built from are in [THIRD-PARTY.md](THIRD-PARTY.md). The captured streams in `fixtures/captured` keep the licences of the
 projects they come from, see [NOTICE](fixtures/captured/NOTICE.md). The fonts keep theirs (SIL Open
 Font License, in `crates/render/fonts`).
 
