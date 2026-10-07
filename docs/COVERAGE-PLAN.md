@@ -181,7 +181,7 @@ One branch, one commit per step, tests before or with each command. The numbers 
 | E | **Done.** Printer profiles, per printer code pages, two byte text in JIS, Shift JIS and the Chinese and Korean encodings, UTF-8, `ESC R`, drawn characters and Kanji | 13, 17, 18 |
 | F | **Done.** Replies and printer state | 19 |
 | G | **Done.** Specs built with python-escpos | section 5 |
-| H | Page mode events are **done**; drawing a page belongs to the renderer. Star dialects are still to do | 20, 21 |
+| H | **Done**, except drawing a page, which belongs to the renderer. Page mode events, and the Star dialects in [STAR.md](STAR.md) | 20, 21 |
 
 After this, the order we agreed stays: renderer (events to a picture), server crate (TCP, REST,
 events stream), web page, Tauri shell.

@@ -168,7 +168,8 @@ least checked.
 
 ## Not read yet
 
-- The Star command sets, StarLine and StarPRNT. A Star printer in ESC/POS mode works.
+- The Star command sets are in [STAR.md](STAR.md). A Star printer in ESC/POS mode works with the
+  profile of that printer.
 - The size of a two dimensional code, function 82 of `GS ( k`, which an encoder has to tell.
 - Drawing a page of page mode. The decoder reports its events in order, and whoever draws them
   puts them in the page.
