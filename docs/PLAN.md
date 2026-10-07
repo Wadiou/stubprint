@@ -15,7 +15,8 @@ crates/
   server/    TCP listener, REST API, live events, embedded web page (headless binary)
   app/       Tauri shell around the same server and page (added last)
 web/         the web page, a static single page app that only talks HTTP and events
-fixtures/    real printer byte streams, one folder per dialect
+fixtures/    specs/ recipes (committed), fixtures.lock.json, generate/ (a Node script),
+             out/ the generated streams, expected results and previews (ignored)
 docs/
 ```
 
@@ -53,9 +54,24 @@ Crates are local only (`publish = false`). Other projects can use the core by pa
 - Every fixture is decoded whole and again with the bytes split at every position.
 - A fuzz style test feeds random bytes and must never panic.
 - Server tests send bytes over a real TCP connection and check the REST answers.
-- Fixtures are generated once with the JavaScript library `@point-of-sale/receipt-printer-encoder`,
-  which writes ESC/POS, StarLine and StarPRNT, and committed as binary files. Day to day the
-  project needs no Node.
+- Fixtures are recipes, not binaries, and they cover what the decoder reads, not a shop. The specs
+  in `fixtures/specs/*.json` are grouped by feature: native text (plain, styles, fonts, rules,
+  code pages), barcodes (every symbology the library writes, both command forms, and the height,
+  width and text options), QR and PDF417 codes, pictures (58 and 80 mm, odd heights, several
+  raster bands, the older column format), control commands (cuts, drawer pulse, alignment, feed),
+  one small generic receipt printed three ways (native, picture, picture with native codes) in
+  English, French and Arabic, and hand written bytes for edge cases no encoder produces.
+- `npm run generate` in `fixtures/generate` builds `fixtures/out/escpos/` from them with the
+  JavaScript library `@point-of-sale/receipt-printer-encoder`, which writes ESC/POS, StarLine
+  and StarPRNT. What each stream must decode to is written in the spec, or computed from what the
+  spec asks for, never read back from the library.
+- `fixtures/fixtures.lock.json` holds a hash of every generated stream, bitmap and expected
+  result. The generate step fails when one differs, so a library or font update that moves a
+  single dot is reviewed instead of silently changing what the tests check. Accept a reviewed
+  change with `npm run update-lock`.
+- Nothing generated is committed. Previews for browsing go to `fixtures/out/previews/`, with
+  `png/`, `hex/` and `text/` folders. Running the Rust tests needs `fixtures/out/escpos/`, so
+  they need the generate step first.
 
 ## Stages
 1. `crates/core` with the ESC/POS decoder, fixtures and tests.
