@@ -175,13 +175,13 @@ One branch, one commit per step, tests before or with each command. The numbers 
 | Stage | What | Closes |
 |-------|------|--------|
 | A | **Done.** Captured streams and their checks (no unknown commands except a listed gap, no byte left waiting, same events at every cut position). Fixed: cut with feed, `ESC !`, control bytes, `FS` and `DLE` skipping, length framed commands skipped whole, size limits, font numbers, `GS !` sizes, Micro QR. Left from 7: the Code 128 raw data goes with stage D | 1 to 7 |
-| B | Position and text state: new events for position, margins, print width, tabs, line spacing. More style fields: upside down, rotate, double strike, colour, smoothing, italic | 8 to 10 |
-| C | Graphics: `GS ( L`, `GS 8 L`, scaled `GS v 0`, downloaded and stored images (adds printer memory) | 3, 11, 12 |
-| D | Codes: more barcodes, raw Code 128 data, QR micro and size, PDF417 settings, more 2D symbols (numbers checked first) | 14 to 16 |
-| E | Printer profiles, per printer code pages, multi byte text, `ESC R`, user defined characters | 13, 17, 18 |
-| F | Replies and printer state | 19 |
-| G | Second encoder specs (can run in parallel with B to E) | section 5 |
-| H | Page mode, then Star dialects | 20, 21 |
+| B | **Done.** Position, margin, print width, tab and line spacing events, and the style fields: upside down, rotate, double strike, colour, smoothing. Italic is not ESC/POS, so `ESC 4` and `ESC 5` stay unknown | 8 to 10 |
+| C | **Done.** `GS ( L` and `GS 8 L`, scaled `GS v 0`, downloaded and stored pictures, and the printer memory with its size and key list replies | 3, 11, 12 |
+| D | **Done**, except the size reply of function 82, which needs an encoder. Barcodes, raw Code 128 data, Micro QR, PDF417 settings and the other 2D symbols | 14 to 16 |
+| E | **Done.** Printer profiles, per printer code pages, two byte text in JIS, Shift JIS and the Chinese and Korean encodings, UTF-8, `ESC R`, drawn characters and Kanji | 13, 17, 18 |
+| F | **Done.** Replies and printer state | 19 |
+| G | **Done.** Specs built with python-escpos | section 5 |
+| H | Page mode events are **done**; drawing a page belongs to the renderer. Star dialects are still to do | 20, 21 |
 
 After this, the order we agreed stays: renderer (events to a picture), server crate (TCP, REST,
 events stream), web page, Tauri shell.
