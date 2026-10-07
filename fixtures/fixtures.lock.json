@@ -371,6 +371,10 @@
     "bin": "353c0da31dc759a0963fc0190e15cda8dfac5c1f4d8364ab58a559b87da16b2e",
     "expected": "cf9a8b5c2697d69318c669f54a3fe18920085e1807cc0c278940e314b65f1634"
   },
+  "starline-utf8": {
+    "bin": "93ff302962a46b63c646319dd077793118c6ad5436bcfc16704b2a04932269c9",
+    "expected": "5c041e98f8fb4fe30174adbeabd88105a9d5b323294268f9ad50a9bca4c60953"
+  },
   "starprnt-has-no-line-mode-commands": {
     "bin": "e8f72788d3c7e6b312ad96b1d9c403107ce2d88e25cabcf0cc92746206a48bb6",
     "expected": "15e0e68d5ed02fb4c7b42905bb5913ea6826e7e4fc79d6fb1682b09dee9d0f80"

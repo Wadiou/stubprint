@@ -168,7 +168,7 @@ impl Star {
             0x4b | 0x4c | 0x6b | 0x58 => self.bit_image(machine, input, events),
             0x26 => self.download_characters(machine, input, events),
             0x72 => self.kanji_download(machine, input, events),
-            0x29 => self.esc_paren(input, events),
+            0x29 => self.esc_paren(machine, input, events),
             _ => {
                 if let Some(step) = self.text_command(machine, input, code, events) {
                     return step;
@@ -232,6 +232,7 @@ impl Star {
                 self.raster_graphics(machine, input, events, true)
             }
             // Commands with a length: the settings of the printer, which draw nothing.
+            0x29 if input.get(3) == Some(b'U') => self.unicode(machine, input, events, 4),
             0x29 | 0x4a => self.framed(input, if code == 0x29 { 4 } else { 3 }, events),
             // ESC GS h, c and g, which turn and shrink the page and time the start of printing.
             0x68 => self.fixed(input, 7),
@@ -313,7 +314,10 @@ impl Star {
 
     /// `ESC )` and a letter and a length: the information a printer is asked for, or told, that
     /// draws nothing. `ESC SYN` and a byte or two are the commands of a presenter.
-    fn esc_paren(&mut self, input: &Input, events: &mut Vec<Event>) -> Step {
+    fn esc_paren(&mut self, machine: &mut Machine, input: &Input, events: &mut Vec<Event>) -> Step {
+        if input.get(2) == Some(b'U') {
+            return self.unicode(machine, input, events, 3);
+        }
         self.framed(input, 3, events)
     }
 

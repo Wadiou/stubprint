@@ -358,6 +358,26 @@ impl Star {
         true
     }
 
+    /// `ESC GS ) U pL pH 48 m` and `ESC ) U pL pH 48 m` turn the reading of UTF-8 on and off, as the
+    /// code page 128 does. The other functions of Unicode set how wide the letters of some
+    /// alphabets are, and nothing here draws those differently. `length_at` is where pL is.
+    pub(super) fn unicode(
+        &mut self,
+        machine: &mut Machine,
+        input: &Input,
+        events: &mut Vec<Event>,
+        length_at: usize,
+    ) -> Step {
+        let step = input.framed_ignored(length_at, 2, events);
+        if let Step::Consumed(length) = step {
+            if let [48, m @ (0 | 1)] = input.bytes[length_at + 2..length] {
+                machine.flush_line(events);
+                machine.state.utf8 = m == 1;
+            }
+        }
+        step
+    }
+
     /// `ESC GS = n1 n2 d...` writes a page the program draws, with n1 + n2 x 256 bytes of dots.
     pub(super) fn blank_code_page(&mut self, input: &Input, events: &mut Vec<Event>) -> Step {
         input.framed_ignored(3, 2, events)

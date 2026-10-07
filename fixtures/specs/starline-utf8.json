@@ -1,0 +1,34 @@
+{
+  "name": "starline-utf8",
+  "kind": "bytes",
+  "note": "ESC GS ) U and ESC ) U with function 48 turn the reading of UTF-8 on and off, and the other functions of Unicode are read and leave it as it is",
+  "bytes": [
+    "1b 40",
+    "1b 1d 29 55 02 00 30 01",
+    "c3 a9 e4 b8 ad",
+    "0a",
+    "1b 1d 29 55 02 00 30 00",
+    "82",
+    "0a",
+    "1b 29 55 02 00 30 01",
+    "d8 b9",
+    "0a",
+    "1b 1d 29 55 02 00 40 00",
+    "c3 bc",
+    "0a",
+    "1b 64 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "é中",
+      "é",
+      "ع",
+      "ü"
+    ],
+    "cuts": [
+      "full"
+    ],
+    "dialect": "starline"
+  }
+}
