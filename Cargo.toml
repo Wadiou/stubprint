@@ -8,3 +8,4 @@ edition = "2021"
 publish = false
 license = "MIT"
 homepage = "https://stubprint.dev"
+repository = "https://github.com/Wadiou/stubprint"
