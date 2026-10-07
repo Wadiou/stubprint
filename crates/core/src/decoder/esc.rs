@@ -2,7 +2,9 @@
 
 use super::{Decoder, Frame, Input, Step, MAX_COMMAND_BYTES};
 use crate::bitmap::Bitmap;
-use crate::event::{Align, CutMode, Event, LineSpacing, Page, Position, Pulse, UserCharacter};
+use crate::event::{
+    Align, CutMode, Event, Feed, FeedAmount, LineSpacing, Page, Position, Pulse, UserCharacter,
+};
 
 /// The most tab stops a printer remembers.
 const MAX_TAB_STOPS: usize = 32;
@@ -169,7 +171,7 @@ impl Decoder {
             }
             // The commands that take one byte.
             0x20 | 0x21 | 0x25 | 0x2b | 0x2d | 0x33 | 0x3d | 0x3f | 0x41 | 0x45 | 0x47 | 0x4a
-            | 0x4d | 0x52 | 0x54 | 0x55 | 0x56 | 0x61 | 0x64 | 0x65 | 0x72 | 0x74 | 0x7b => {
+            | 0x4b | 0x4d | 0x52 | 0x54 | 0x55 | 0x56 | 0x61 | 0x64 | 0x65 | 0x72 | 0x74 | 0x7b => {
                 let Some(value) = input.get(2) else {
                     return Step::Incomplete;
                 };
@@ -245,9 +247,13 @@ impl Decoder {
             }
             0x45 => self.change_style(events, |style| style.bold = value & 1 == 1),
             0x47 => self.change_style(events, |style| style.double_strike = value & 1 == 1),
-            0x4a => {
+            // ESC J n and ESC K n print what is in the buffer and feed n motion units, forward or back.
+            0x4a | 0x4b => {
                 self.flush_line(events);
-                events.push(Event::FeedUnits(u16::from(value)));
+                events.push(Event::Feed(Feed {
+                    amount: FeedAmount::Units(u16::from(value)),
+                    reverse: code == 0x4b,
+                }));
             }
             // ESC M n picks font A to E, as 0 to 4 or as the digits '0' to '4'.
             0x4d => {
@@ -295,13 +301,13 @@ impl Decoder {
                 self.state.align = align;
                 events.push(Event::Align(align));
             }
-            0x64 => {
+            // ESC d n and ESC e n print what is in the buffer and feed n lines, forward or back.
+            0x64 | 0x65 => {
                 self.flush_line(events);
-                events.push(Event::Feed(value));
-            }
-            0x65 => {
-                self.flush_line(events);
-                events.push(Event::ReverseFeed(value));
+                events.push(Event::Feed(Feed {
+                    amount: FeedAmount::Lines(value),
+                    reverse: code == 0x65,
+                }));
             }
             // ESC r n picks the first or the second colour.
             0x72 => {

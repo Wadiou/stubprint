@@ -319,12 +319,7 @@ pub enum Event {
     Align(Align),
     /// The font was chosen: 0 is font A, 1 is font B, and up to 4 is font E.
     Font(u8),
-    /// The paper was fed by this many lines.
-    Feed(u8),
-    /// The paper was fed by this many vertical motion units, or dots in the Star command sets.
-    FeedUnits(u16),
-    /// The paper was fed backwards by this many lines.
-    ReverseFeed(u8),
+    Feed(Feed),
     LineSpacing(LineSpacing),
     /// The print position moved along the line, so what follows starts there.
     Position(Position),
@@ -342,6 +337,22 @@ pub enum Event {
     TabStops(Vec<u8>),
     /// How dark the print is, in tenths of a percent from the usual, from -500 to 500.
     Density(i16),
+/// How far the paper was fed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FeedAmount {
+    Lines(u8),
+    /// Vertical motion units, or dots in the Star command sets.
+    Units(u16),
+}
+
+/// The paper was moved, after what was printed before it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Feed {
+    pub amount: FeedAmount,
+    /// The paper went backwards.
+    pub reverse: bool,
+}
+
     /// A line, or the part of a line printed in one style. A blank line has empty text.
     Text {
         text: String,

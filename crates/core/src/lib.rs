@@ -15,8 +15,8 @@ mod status;
 pub use bitmap::Bitmap;
 pub use decoder::Decoder;
 pub use event::{
-    Align, Barcode, CutMode, Event, LineSpacing, Page, Pdf417, Position, Pulse, Qr, QrLevel, Style,
-    Symbol, SymbolKind, Symbology, TextPosition, UserCharacter,
+    Align, Barcode, CutMode, Event, Feed, FeedAmount, LineSpacing, Page, Pdf417, Position, Pulse,
+    Qr, QrLevel, Style, Symbol, SymbolKind, Symbology, TextPosition, UserCharacter, UserKanji,
 };
 pub use printer::{Printer, Receipt};
 pub use profile::{Identity, KanjiEncoding, Profile};
