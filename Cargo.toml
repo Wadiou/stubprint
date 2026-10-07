@@ -7,5 +7,6 @@ version = "0.0.1"
 edition = "2021"
 publish = false
 license = "MIT"
+authors = ["Abd El-wadoud"]
 homepage = "https://stubprint.dev"
 repository = "https://github.com/Wadiou/stubprint"
