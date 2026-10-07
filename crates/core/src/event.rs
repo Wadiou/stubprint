@@ -43,6 +43,8 @@ pub(crate) mod hex {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "openapi", schema(rename_all = "lowercase"))]
 pub enum Align {
     #[default]
     Left,
@@ -61,6 +63,8 @@ impl Align {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "openapi", schema(rename_all = "lowercase"))]
 pub enum CutMode {
     Full,
     Partial,
@@ -77,6 +81,7 @@ impl CutMode {
 
 /// How text is drawn, as the printer was set when the text arrived.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Style {
     pub bold: bool,
     /// 0 is off, 1 is a thin line and 2 is a thick one.
@@ -125,20 +130,35 @@ impl Default for Style {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub enum Symbology {
+    #[cfg_attr(feature = "openapi", schema(rename = "upca"))]
     UpcA,
+    #[cfg_attr(feature = "openapi", schema(rename = "upce"))]
     UpcE,
+    #[cfg_attr(feature = "openapi", schema(rename = "ean13"))]
     Ean13,
+    #[cfg_attr(feature = "openapi", schema(rename = "ean8"))]
     Ean8,
+    #[cfg_attr(feature = "openapi", schema(rename = "code39"))]
     Code39,
+    #[cfg_attr(feature = "openapi", schema(rename = "itf"))]
     Itf,
+    #[cfg_attr(feature = "openapi", schema(rename = "codabar"))]
     Codabar,
+    #[cfg_attr(feature = "openapi", schema(rename = "code93"))]
     Code93,
+    #[cfg_attr(feature = "openapi", schema(rename = "code128"))]
     Code128,
+    #[cfg_attr(feature = "openapi", schema(rename = "gs1-128"))]
     Gs1_128,
+    #[cfg_attr(feature = "openapi", schema(rename = "gs1-databar-omnidirectional"))]
     Gs1DataBarOmnidirectional,
+    #[cfg_attr(feature = "openapi", schema(rename = "gs1-databar-truncated"))]
     Gs1DataBarTruncated,
+    #[cfg_attr(feature = "openapi", schema(rename = "gs1-databar-limited"))]
     Gs1DataBarLimited,
+    #[cfg_attr(feature = "openapi", schema(rename = "gs1-databar-expanded"))]
     Gs1DataBarExpanded,
 }
 
@@ -165,6 +185,8 @@ impl Symbology {
 
 /// Where the readable text of a barcode goes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "openapi", schema(rename_all = "lowercase"))]
 pub enum TextPosition {
     None,
     Above,
@@ -184,6 +206,7 @@ impl TextPosition {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Barcode {
     pub symbology: Symbology,
     /// What is encoded, as text. For Code 128 the character set selectors such as `{B` are left
@@ -191,6 +214,7 @@ pub struct Barcode {
     pub data: String,
     /// The bytes as they were sent after the length or before the end byte, selectors included.
     #[serde(serialize_with = "hex::serialize")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub raw: Vec<u8>,
     /// Height of the bars in dots.
     pub height: u8,
@@ -202,6 +226,8 @@ pub struct Barcode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "openapi", schema(rename_all = "UPPERCASE"))]
 pub enum QrLevel {
     L,
     M,
@@ -221,6 +247,7 @@ impl QrLevel {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Qr {
     pub data: String,
     /// 1 or 2, or 3 for a Micro QR code.
@@ -231,6 +258,7 @@ pub struct Qr {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Pdf417 {
     pub data: String,
     /// How many columns of data, or 0 to pick the number from the data.
@@ -250,11 +278,17 @@ pub struct Pdf417 {
 
 /// The two dimensional codes other than QR and PDF417.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub enum SymbolKind {
+    #[cfg_attr(feature = "openapi", schema(rename = "maxicode"))]
     MaxiCode,
+    #[cfg_attr(feature = "openapi", schema(rename = "gs1-databar-2d"))]
     Gs1DataBar,
+    #[cfg_attr(feature = "openapi", schema(rename = "composite"))]
     Composite,
+    #[cfg_attr(feature = "openapi", schema(rename = "aztec"))]
     Aztec,
+    #[cfg_attr(feature = "openapi", schema(rename = "datamatrix"))]
     DataMatrix,
 }
 
@@ -273,11 +307,14 @@ impl SymbolKind {
 /// A two dimensional code that is not QR or PDF417, with the settings sent before its data. The
 /// settings are the raw bytes of each `GS ( k` function, by function number.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Symbol {
     pub kind: SymbolKind,
     #[serde(serialize_with = "hex::serialize")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub data: Vec<u8>,
     #[serde(serialize_with = "hex::serialize_pairs")]
+    #[cfg_attr(feature = "openapi", schema(value_type = Vec<(u8, String)>))]
     pub settings: Vec<(u8, Vec<u8>)>,
 }
 
@@ -285,6 +322,7 @@ serialize_as_name!(Align, CutMode, Symbology, TextPosition, QrLevel, SymbolKind)
 
 /// The cash drawer kick.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Pulse {
     /// Which drawer connector, 0 or 1.
     pub pin: u8,
@@ -294,6 +332,7 @@ pub struct Pulse {
 
 /// A move of the print position along the line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Position {
     /// From the left edge of the print area, in horizontal motion units.
@@ -304,6 +343,7 @@ pub enum Position {
 
 /// How far apart the lines are.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum LineSpacing {
     /// A sixth of an inch.
@@ -320,6 +360,7 @@ pub enum LineSpacing {
 
 /// A character that was drawn by the program that sent it, with `ESC &`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct UserCharacter {
     /// The character code, from 32 to 126, that prints it.
     pub code: u8,
@@ -329,6 +370,7 @@ pub struct UserCharacter {
     pub column_bytes: u8,
     /// The columns, left to right, the top dot in the highest bit of each byte.
     #[serde(serialize_with = "hex::serialize")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub data: Vec<u8>,
 }
 
@@ -342,6 +384,7 @@ impl UserCharacter {
 
 /// A Kanji character that was drawn by the program that sent it, with `FS 2`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct UserKanji {
     /// The first and the second byte of the code that prints it, as they were sent.
     pub code: [u8; 2],
@@ -351,6 +394,7 @@ pub struct UserKanji {
     pub height: u8,
     /// The columns, left to right, each `height / 8` bytes with the top dot in the highest bit.
     #[serde(serialize_with = "hex::serialize")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub data: Vec<u8>,
 }
 
@@ -374,6 +418,7 @@ impl UserKanji {
 
 /// What page mode does. In page mode the printer lays out a page in a box and prints it at once.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Page {
     /// `ESC L`: page mode begins.
@@ -399,6 +444,7 @@ pub enum Page {
 
 /// How far the paper was fed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum FeedAmount {
     Lines(u8),
@@ -410,6 +456,7 @@ pub enum FeedAmount {
 
 /// The paper was moved, after what was printed before it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Feed {
     pub amount: FeedAmount,
     /// The paper went backwards.
@@ -418,6 +465,7 @@ pub struct Feed {
 
 /// One thing a printer was asked to do, in the order the bytes asked for it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum Event {
     /// The printer was reset to its power on settings.
@@ -480,6 +528,7 @@ pub enum Event {
     Unknown {
         offset: usize,
         #[serde(serialize_with = "hex::serialize")]
+        #[cfg_attr(feature = "openapi", schema(value_type = String))]
         bytes: Vec<u8>,
     },
 }

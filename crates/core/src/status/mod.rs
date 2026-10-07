@@ -1,10 +1,11 @@
 mod epson;
 mod star;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// How much paper is left, as the paper sensors tell.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Paper {
     #[default]
@@ -14,7 +15,8 @@ pub enum Paper {
 }
 
 /// What went wrong, if something did.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Fault {
     /// The cutter is stuck.
@@ -29,6 +31,7 @@ pub enum Fault {
 /// What a printer would say about itself when it is asked. A program that talks to a printer
 /// reads these answers, and sets this to see how the program behaves when the paper runs out.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct PrinterStatus {
     pub online: bool,
     pub cover_open: bool,

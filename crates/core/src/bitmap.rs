@@ -6,10 +6,13 @@ use serde::{Serialize, Serializer};
 /// A 1-bit image laid out the way a printer reads it: each row is `row_bytes` bytes, the leftmost
 /// dot is the highest bit of the first byte, and a set bit is a black dot.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Bitmap {
     width: u32,
     height: u32,
     row_bytes: usize,
+    /// In base64 when written as JSON.
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
     data: Vec<u8>,
 }
 

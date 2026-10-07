@@ -1,6 +1,8 @@
 /// The command language a printer reads. The same bytes mean different things in each, so a
 /// listening port is set to one, like the emulation setting of a real printer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "openapi", schema(rename_all = "lowercase"))]
 pub enum Dialect {
     /// Epson's language, which most printers copy.
     #[default]

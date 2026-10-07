@@ -23,6 +23,7 @@ pub enum KanjiEncoding {
 /// What a printer answers when it is asked who it is, with `GS I`. The values are only as real as
 /// the profile: a model id such as `0x20` is not looked up for each printer.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Identity {
     pub manufacturer: String,
     pub model: String,

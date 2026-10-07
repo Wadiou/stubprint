@@ -10,7 +10,7 @@ use crate::dialect::Dialect;
 use crate::event::Event;
 use crate::status::PrinterStatus;
 
-pub(super) trait Language: std::fmt::Debug {
+pub(super) trait Language: std::fmt::Debug + Send {
     /// Reads the command at the start of the bytes, or the text up to the next command, and does
     /// what it says to the machine. An unfinished command asks for more bytes.
     fn parse(&mut self, machine: &mut Machine, input: &Input, events: &mut Vec<Event>) -> Step;
