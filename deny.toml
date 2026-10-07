@@ -1,0 +1,29 @@
+# Checked by `cargo deny check` and by the licences job of CI.
+
+[graph]
+all-features = true
+
+[licenses]
+# Licences of the packages Stubprint is built from. All of them let it be used, changed and
+# redistributed under the MIT licence, as long as their notices are kept (THIRD-PARTY.md).
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-3-Clause",
+    "Unicode-3.0",
+    "Zlib",
+    "Unlicense",
+    "0BSD",
+    "BSL-1.0",
+]
+confidence-threshold = 0.9
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
