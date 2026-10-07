@@ -1,9 +1,9 @@
 # Plan for Stubprint
 
 ## Why
-Printing from an app can't be tested without a printer. Existing emulators either draw nothing from
-network input, have no API for agents, or support only one command language. This one is a library
-plus a small server, so tests, people and agents can all see exactly what was printed.
+Printing from an app cannot be tested without a printer. Stubprint is a library and a small server
+that behave like a network receipt printer, so tests, people and agents can all see exactly what
+was printed, in the command language the printer is set to.
 
 ## Layout
 A Cargo workspace, one repo. Folders have no prefix. The packages are named `stubprint-core`,
@@ -16,7 +16,7 @@ crates/
   server/    TCP listener, REST API, live events (headless binary), see docs/SERVER.md
   app/       Tauri shell around the same server and page (added last)
 web/         the web page, a static single page app that only talks HTTP and events
-fixtures/    specs/ recipes (committed), fixtures.lock.json, generate/ (a Node script),
+fixtures/    specs/ recipes (committed), fixtures.lock.json, generate/ (a Python script),
              out/ the generated streams, expected results and previews (ignored)
 docs/
 ```
@@ -27,9 +27,8 @@ Crates are local only (`publish = false`). Other projects can use the core by pa
 - Rust backend. Decoding and serving in one small binary, no runtime needed.
 - The page is a static app, so the same files work in a browser and in the Tauri window. It must
   not use Tauri only calls. It talks to the server over HTTP and server sent events.
-- The page is React with Vite and TypeScript, for the size of its ecosystem and because the
-  author already works in it. Its types and its API client are made from the server's OpenAPI
-  document, so the two cannot drift apart.
+- The page is React with Vite and TypeScript, for the size of its ecosystem. Its types and its API
+  client are made from the server's OpenAPI document, so the two cannot drift apart.
 - Stubprint behaves like the printers it copies. It adds nothing a real printer does not do. The
   extras that real printers do have, such as print speed and a receive buffer, are settings of a
   printer, come from documented behaviour, and are off by default so tests stay fast.
