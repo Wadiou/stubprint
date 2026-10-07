@@ -69,7 +69,7 @@ impl<'a> ReceiptDetail<'a> {
 }
 
 /// A printer, and how it is doing.
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct PrinterInfo {
     /// What the API calls the printer.
     pub name: String,

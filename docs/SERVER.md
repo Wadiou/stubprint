@@ -58,8 +58,10 @@ the code and is served at `/api/openapi.json`, with every route, parameter and f
 | `DELETE /api/receipts` | clears them, all or `?printer=` |
 | `POST /api/print` | sends the bytes of the body to a printer (`?printer=`, the first by default) and says which receipts they made and what the printer answered |
 | `GET /api/printers`, `GET /api/printers/{name}` | the printers, their status and how many programs are connected |
+| `POST /api/printers` | adds a printer while the server runs, from the same settings as `--printer` (`name`, `listen`, `dialect`, `profile`), and opens its port at once. 409 when the name or the address is taken |
+| `DELETE /api/printers/{name}` | removes a printer: its port and its connections close, and the receipts it printed stay |
 | `POST /api/printers/{name}` | changes what the printer pretends: `online`, `cover_open`, `paper` (`adequate`, `near_end`, `end`), `drawer_open`, `feed_button`, `fault` (`cutter`, `unrecoverable`, `recoverable` or `null`) |
-| `GET /api/events` | live events: `receipt`, `cleared`, `status`, `connection`, and `lagged` when a watcher was too slow. With `?detail=actions` also `action`, one for each command as it is read, with where its bytes are and what the printer believed after it. Commands are only made while someone watches them |
+| `GET /api/events` | live events: `receipt`, `cleared`, `status`, `connection`, `printer_added`, `printer_removed`, and `lagged` when a watcher was too slow. With `?detail=actions` also `action`, one for each command as it is read, with where its bytes are and what the printer believed after it. Commands are only made while someone watches them |
 | `GET /api/connections`, `GET /api/connections/{id}` | the programs that connected: when, in what pieces and at what times the bytes came, how many bytes the printer answered, and which receipts they printed. The latest 200 are kept |
 | `POST /api/decode` | reads the body as a printer would, in `?dialect=` and `?profile=`, and says every command, the answers and how many receipts. Nothing is kept. It shows what the same bytes mean to another language or model |
 | `GET /api/profiles` | the models a printer can be set to |

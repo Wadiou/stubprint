@@ -21,12 +21,8 @@ const MAX_CONNECTION_BYTES: usize = 256 * 1024 * 1024;
 const WRITE_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Takes the connections of one printer until told to stop.
-pub async fn listen(
-    hub: Arc<Hub>,
-    printer: Arc<VirtualPrinter>,
-    listener: TcpListener,
-    mut stop: watch::Receiver<bool>,
-) {
+pub async fn listen(hub: Arc<Hub>, printer: Arc<VirtualPrinter>, listener: TcpListener) {
+    let mut stop = printer.stopped();
     let room = Arc::new(Semaphore::new(MAX_CONNECTIONS));
     loop {
         tokio::select! {

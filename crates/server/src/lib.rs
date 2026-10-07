@@ -30,7 +30,7 @@ pub struct Running {
     hub: Arc<Hub>,
     http: SocketAddr,
     stop: watch::Sender<bool>,
-    tasks: Vec<JoinHandle<()>>,
+    api: JoinHandle<()>,
 }
 
 impl Running {
@@ -50,10 +50,9 @@ impl Running {
 
     /// Stops listening, closes the connections and waits until they are done.
     pub async fn stop(self) {
+        self.hub.stop_printers().await;
         let _ = self.stop.send(true);
-        for task in self.tasks {
-            let _ = task.await;
-        }
+        let _ = self.api.await;
     }
 }
 
@@ -63,25 +62,6 @@ pub async fn serve(config: Config) -> io::Result<Running> {
         .check()
         .map_err(|message| io::Error::new(io::ErrorKind::InvalidInput, message))?;
 
-    let mut bound = Vec::new();
-    for settings in &config.printers {
-        let socket = TcpListener::bind(settings.listen).await.map_err(|error| {
-            io::Error::new(
-                error.kind(),
-                format!(
-                    "printer {} cannot listen on {}: {error}",
-                    settings.name, settings.listen
-                ),
-            )
-        })?;
-        let printer = Arc::new(VirtualPrinter::new(
-            settings.name.clone(),
-            settings.dialect,
-            settings.profile.clone(),
-            socket.local_addr()?,
-        ));
-        bound.push((printer, socket));
-    }
     let web = TcpListener::bind(config.http).await.map_err(|error| {
         io::Error::new(
             error.kind(),
@@ -90,34 +70,27 @@ pub async fn serve(config: Config) -> io::Result<Running> {
     })?;
     let http = web.local_addr()?;
 
-    let hub = Arc::new(Hub::new(
-        bound.iter().map(|(printer, _)| printer.clone()).collect(),
-        config.keep,
-    ));
-    let (stop, stopped) = watch::channel(false);
-    let mut tasks = Vec::new();
-    for (printer, socket) in bound {
-        tasks.push(tokio::spawn(listener::listen(
-            hub.clone(),
-            printer,
-            socket,
-            stopped.clone(),
-        )));
+    let hub = Arc::new(Hub::new(config.keep));
+    for settings in config.printers {
+        if let Err(error) = hub.add_printer(settings).await {
+            hub.stop_printers().await;
+            return Err(error);
+        }
     }
-    let mut api_stop = stopped.clone();
+    let (stop, mut stopped) = watch::channel(false);
     let app = api::router(hub.clone(), config.web.as_deref());
-    tasks.push(tokio::spawn(async move {
+    let api = tokio::spawn(async move {
         let _ = axum::serve(web, app)
             .with_graceful_shutdown(async move {
-                let _ = api_stop.changed().await;
+                let _ = stopped.changed().await;
             })
             .await;
-    }));
+    });
     Ok(Running {
         hub,
         http,
         stop,
-        tasks,
+        api,
     })
 }
 

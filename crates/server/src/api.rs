@@ -20,6 +20,7 @@ use tokio_stream::{Stream, StreamExt};
 use tower_http::services::{ServeDir, ServeFile};
 use utoipa::{OpenApi, ToSchema};
 
+use crate::config::PrinterSettings;
 use crate::hub::{Connection, Hub, Notice, Stored};
 use crate::session::Session;
 use crate::wire::{
@@ -42,8 +43,11 @@ pub fn router(hub: Arc<Hub>, web: Option<&std::path::Path>) -> Router {
         .route("/api/health", get(health))
         .route("/api/openapi.json", get(document))
         .route("/api/profiles", get(profiles))
-        .route("/api/printers", get(printers))
-        .route("/api/printers/{name}", get(printer).post(set_printer))
+        .route("/api/printers", get(printers).post(add_printer))
+        .route(
+            "/api/printers/{name}",
+            get(printer).post(set_printer).delete(remove_printer),
+        )
         .route("/api/receipts", get(list).delete(clear))
         .route("/api/receipts/next", get(next))
         .route("/api/receipts/{id}", get(receipt))
@@ -141,7 +145,7 @@ async fn health() -> Json<serde_json::Value> {
         print,
         events
     ),
-    components(schemas(Notice, Event, Printed, StatusChange))
+    components(schemas(Notice, Event, Printed, StatusChange, PrinterSettings))
 )]
 struct ApiDoc;
 
@@ -171,6 +175,52 @@ async fn printers(State(hub): State<Arc<Hub>>) -> Json<Vec<PrinterInfo>> {
     Json(hub.printers().iter().map(|p| PrinterInfo::of(p)).collect())
 }
 
+/// Adds a printer while the server runs: it opens its TCP port at once. What is left out is the
+/// default of a printer: `printer`, `127.0.0.1:9100`, `escpos` and the `generic` model.
+#[utoipa::path(post, path = "/api/printers", tag = "printers", request_body = PrinterSettings,
+    responses(
+        (status = 201, description = "The printer, listening", body = PrinterInfo),
+        (status = 400, description = "The request is not valid, as `error` says", body = ErrorBody),
+        (status = 409, description = "The name or the address is taken, as `error` says", body = ErrorBody)))]
+async fn add_printer(
+    State(hub): State<Arc<Hub>>,
+    Json(settings): Json<PrinterSettings>,
+) -> Reply<(StatusCode, Json<PrinterInfo>)> {
+    let settings = settings
+        .build()
+        .map_err(|message| ApiError(StatusCode::BAD_REQUEST, message))?;
+    let printer = hub.add_printer(settings).await.map_err(|error| {
+        let status = match error.kind() {
+            std::io::ErrorKind::InvalidInput => StatusCode::BAD_REQUEST,
+            std::io::ErrorKind::AlreadyExists | std::io::ErrorKind::AddrInUse => {
+                StatusCode::CONFLICT
+            }
+            std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::AddrNotAvailable => {
+                StatusCode::BAD_REQUEST
+            }
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        };
+        ApiError(status, error.to_string())
+    })?;
+    Ok((StatusCode::CREATED, Json(PrinterInfo::of(&printer))))
+}
+
+/// Removes a printer: its port and its connections close. The receipts it printed are kept.
+#[utoipa::path(delete, path = "/api/printers/{name}", tag = "printers", params(("name" = String, Path, description = "The name of the printer")),
+    responses(
+        (status = 204, description = "The printer is gone"),
+        (status = 404, description = "There is no such printer, as `error` says", body = ErrorBody)))]
+async fn remove_printer(
+    State(hub): State<Arc<Hub>>,
+    Path(name): Path<String>,
+) -> Reply<StatusCode> {
+    if hub.remove_printer(&name).await {
+        Ok(StatusCode::NO_CONTENT)
+    } else {
+        Err(ApiError::not_found(format!("no printer called {name}")))
+    }
+}
+
 /// One virtual printer.
 #[utoipa::path(get, path = "/api/printers/{name}", tag = "printers", params(("name" = String, Path, description = "The name of the printer")),
     responses((status = 200, description = "The printer", body = PrinterInfo), (status = 404, description = "There is no such printer, receipt or connection, as `error` says", body = ErrorBody)))]
@@ -181,7 +231,7 @@ async fn printer(
     let printer = hub
         .printer(&name)
         .ok_or_else(|| ApiError::not_found(format!("no printer called {name}")))?;
-    Ok(Json(PrinterInfo::of(printer)))
+    Ok(Json(PrinterInfo::of(&printer)))
 }
 
 /// What a request changes about the state of a printer. What is left out stays as it is, and a
@@ -240,7 +290,7 @@ async fn set_printer(
         printer: printer.name.clone(),
         status,
     });
-    Ok(Json(PrinterInfo::of(printer)))
+    Ok(Json(PrinterInfo::of(&printer)))
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
@@ -507,9 +557,13 @@ async fn print(
         Some(name) => hub
             .printer(name)
             .ok_or_else(|| ApiError::not_found(format!("no printer called {name}")))?,
-        None => &hub.printers()[0],
-    }
-    .clone();
+        None => hub.printers().first().cloned().ok_or_else(|| {
+            ApiError(
+                StatusCode::BAD_REQUEST,
+                "there is no printer to print to".into(),
+            )
+        })?,
+    };
     let name = printer.name.clone();
     let mut session = Session::open(hub.clone(), printer, "http".into());
     let mut replies = session.feed(&body);

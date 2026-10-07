@@ -1,16 +1,20 @@
 use std::collections::VecDeque;
+use std::io;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 use stubprint_core::{Event, PrinterStatus, Receipt, Snapshot};
+use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tokio::time::Instant;
 use utoipa::ToSchema;
 
+use crate::config::PrinterConfig;
+use crate::listener;
 use crate::printer::VirtualPrinter;
-use crate::wire::ReceiptSummary;
+use crate::wire::{PrinterInfo, ReceiptSummary};
 
 /// A receipt the server keeps, and where it came from.
 #[derive(Debug)]
@@ -71,6 +75,12 @@ pub enum Notice {
         peer: String,
         open: bool,
     },
+    /// A printer was added while the server runs, or at its start.
+    PrinterAdded(PrinterInfo),
+    /// A printer was removed, and its receipts were kept.
+    PrinterRemoved {
+        name: String,
+    },
     /// A command was read, while the job is still being sent. Only sent to those who ask for the
     /// actions, since a long job makes thousands.
     Action {
@@ -95,6 +105,8 @@ impl Notice {
             Notice::Status { .. } => "status",
             Notice::Connection { .. } => "connection",
             Notice::Action { .. } => "action",
+            Notice::PrinterAdded(_) => "printer_added",
+            Notice::PrinterRemoved { .. } => "printer_removed",
         }
     }
 }
@@ -116,7 +128,7 @@ struct Shelf {
 /// the notices about it.
 #[derive(Debug)]
 pub struct Hub {
-    printers: Vec<Arc<VirtualPrinter>>,
+    printers: RwLock<Vec<Arc<VirtualPrinter>>>,
     keep: usize,
     shelf: Mutex<Shelf>,
     log: Mutex<Log>,
@@ -126,9 +138,10 @@ pub struct Hub {
 }
 
 impl Hub {
-    pub fn new(printers: Vec<Arc<VirtualPrinter>>, keep: usize) -> Self {
+    /// A hub with no printers. [`Hub::add_printer`] gives it some.
+    pub fn new(keep: usize) -> Self {
         Self {
-            printers,
+            printers: RwLock::new(Vec::new()),
             keep,
             shelf: Mutex::new(Shelf {
                 receipts: VecDeque::new(),
@@ -143,12 +156,106 @@ impl Hub {
         }
     }
 
-    pub fn printers(&self) -> &[Arc<VirtualPrinter>] {
-        &self.printers
+    pub fn printers(&self) -> Vec<Arc<VirtualPrinter>> {
+        self.printers
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone()
     }
 
-    pub fn printer(&self, name: &str) -> Option<&Arc<VirtualPrinter>> {
-        self.printers.iter().find(|printer| printer.name == name)
+    pub fn printer(&self, name: &str) -> Option<Arc<VirtualPrinter>> {
+        self.printers()
+            .into_iter()
+            .find(|printer| printer.name == name)
+    }
+
+    /// Opens the port of a printer and starts taking its connections. Fails with
+    /// `InvalidInput` for a name that cannot be used, `AlreadyExists` for a name or an address that
+    /// is taken, and the error of the system for a port that cannot be opened.
+    pub async fn add_printer(
+        self: &Arc<Self>,
+        settings: PrinterConfig,
+    ) -> io::Result<Arc<VirtualPrinter>> {
+        PrinterConfig::check_name(&settings.name)
+            .map_err(|message| io::Error::new(io::ErrorKind::InvalidInput, message))?;
+        if self.printer(&settings.name).is_some() {
+            return Err(io::Error::new(
+                io::ErrorKind::AlreadyExists,
+                format!("there is already a printer called {}", settings.name),
+            ));
+        }
+        let socket = TcpListener::bind(settings.listen).await.map_err(|error| {
+            io::Error::new(
+                error.kind(),
+                format!(
+                    "printer {} cannot listen on {}: {error}",
+                    settings.name, settings.listen
+                ),
+            )
+        })?;
+        let printer = Arc::new(VirtualPrinter::new(
+            settings.name,
+            settings.dialect,
+            settings.profile,
+            socket.local_addr()?,
+        ));
+        {
+            let mut printers = self
+                .printers
+                .write()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            // Another request may have taken the name while the port was being opened.
+            if printers.iter().any(|other| other.name == printer.name) {
+                return Err(io::Error::new(
+                    io::ErrorKind::AlreadyExists,
+                    format!("there is already a printer called {}", printer.name),
+                ));
+            }
+            printers.push(printer.clone());
+        }
+        printer.listening(tokio::spawn(listener::listen(
+            self.clone(),
+            printer.clone(),
+            socket,
+        )));
+        self.notify(Notice::PrinterAdded(PrinterInfo::of(&printer)));
+        Ok(printer)
+    }
+
+    /// Closes a printer's port and its connections. The receipts it printed are kept. Returns
+    /// whether there was such a printer.
+    pub async fn remove_printer(&self, name: &str) -> bool {
+        let removed = {
+            let mut printers = self
+                .printers
+                .write()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            printers
+                .iter()
+                .position(|printer| printer.name == name)
+                .map(|at| printers.remove(at))
+        };
+        let Some(printer) = removed else {
+            return false;
+        };
+        printer.shut().await;
+        self.notify(Notice::PrinterRemoved {
+            name: name.to_string(),
+        });
+        true
+    }
+
+    /// Closes every port and every connection, and waits until they are done.
+    pub async fn stop_printers(&self) {
+        let printers = std::mem::take(
+            &mut *self
+                .printers
+                .write()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()),
+        );
+        for printer in printers {
+            printer.shut().await;
+        }
     }
 
     pub fn subscribe(&self) -> broadcast::Receiver<Notice> {

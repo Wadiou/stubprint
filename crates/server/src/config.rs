@@ -49,15 +49,24 @@ impl Default for PrinterConfig {
     }
 }
 
-/// How a printer is written in a configuration file, and how a `--printer` option is written once
-/// it is read as `key=value` pairs.
-#[derive(Debug, Deserialize)]
+/// A printer as it is written in a configuration file or in a request, where what is left out is
+/// the default.
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 #[serde(deny_unknown_fields)]
-struct PrinterSettings {
-    name: Option<String>,
-    listen: Option<String>,
-    dialect: Option<String>,
-    profile: Option<String>,
+pub struct PrinterSettings {
+    /// What the API calls it: letters, digits, `-` and `_`. `printer` when left out.
+    #[schema(example = "till")]
+    pub name: Option<String>,
+    /// The address of its TCP port, such as `127.0.0.1:9100`. Port 0 picks a free one.
+    #[schema(example = "127.0.0.1:9100")]
+    pub listen: Option<String>,
+    /// The command language it reads: `escpos`, `starline` or `starprnt`.
+    #[schema(example = "escpos")]
+    pub dialect: Option<String>,
+    /// The printer model, as `GET /api/profiles` lists them. It decides the code pages, the
+    /// columns and the answers.
+    #[schema(example = "TM-T88IV")]
+    pub profile: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -93,7 +102,7 @@ impl PrinterSettings {
         Ok(settings)
     }
 
-    fn build(self) -> Result<PrinterConfig, String> {
+    pub(crate) fn build(self) -> Result<PrinterConfig, String> {
         let mut printer = PrinterConfig::default();
         if let Some(name) = self.name {
             printer.name = name;
@@ -120,6 +129,20 @@ fn address(text: &str) -> Result<SocketAddr, String> {
 }
 
 impl PrinterConfig {
+    /// Says what is wrong with a printer name, if something is.
+    pub fn check_name(name: &str) -> Result<(), String> {
+        if name.is_empty()
+            || !name
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        {
+            return Err(format!(
+                "the printer name `{name}` should be letters, digits, - and _"
+            ));
+        }
+        Ok(())
+    }
+
     /// A printer written as `name=front,listen=127.0.0.1:9100,dialect=escpos,profile=TM-T88IV`.
     /// What is left out is the default of [`PrinterConfig::default`].
     pub fn parse(text: &str) -> Result<Self, String> {
@@ -186,15 +209,7 @@ impl Config {
         }
         for (index, printer) in self.printers.iter().enumerate() {
             let name = &printer.name;
-            if name.is_empty()
-                || !name
-                    .chars()
-                    .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-            {
-                return Err(format!(
-                    "the printer name `{name}` should be letters, digits, - and _"
-                ));
-            }
+            PrinterConfig::check_name(name)?;
             for other in &self.printers[..index] {
                 if other.name == *name {
                     return Err(format!("two printers are called `{name}`"));

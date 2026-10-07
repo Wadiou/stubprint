@@ -1124,3 +1124,197 @@ async fn the_entry_point_says_what_this_is_and_where_its_description_is() {
         200
     );
 }
+
+impl Harness {
+    async fn post_json(&self, path: &str, body: Value) -> reqwest::Response {
+        self.client
+            .post(format!("{}{path}", self.base))
+            .json(&body)
+            .send()
+            .await
+            .unwrap()
+    }
+}
+
+#[tokio::test]
+async fn a_printer_can_be_added_while_the_server_runs_and_prints_at_once() {
+    let server = Harness::start(&["name=till"]).await;
+    let added = server
+        .post_json(
+            "/api/printers",
+            json!({"name": "bar", "listen": "127.0.0.1:0", "dialect": "starline", "profile": "SP2000"}),
+        )
+        .await;
+    assert_eq!(added.status(), 201);
+    let info: Value = added.json().await.unwrap();
+    assert_eq!(
+        (info["name"].as_str(), info["dialect"].as_str()),
+        (Some("bar"), Some("starline"))
+    );
+    assert_eq!(info["profile"], "SP2000");
+    // Port 0 picked a free port, which the answer tells.
+    let address: SocketAddr = info["listen"].as_str().unwrap().parse().unwrap();
+    assert_ne!(address.port(), 0);
+
+    // ENQ is a Star Line question, so this port is Star Line mode and answers it.
+    let mut stream = TcpStream::connect(address).await.unwrap();
+    stream.write_all(&[0x05, b'x', b'\n']).await.unwrap();
+    stream.shutdown().await.unwrap();
+    let mut answer = Vec::new();
+    timeout(Duration::from_secs(5), stream.read_to_end(&mut answer))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(answer, [0x00]);
+
+    let names: Vec<String> = server
+        .json("/api/printers")
+        .await
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| p["name"].as_str().unwrap().to_string())
+        .collect();
+    assert_eq!(names, ["till", "bar"]);
+}
+
+#[tokio::test]
+async fn a_printer_that_cannot_be_added_says_why() {
+    let server = Harness::start(&["name=till"]).await;
+    let taken = server.printer("till");
+    let cases = [
+        (
+            json!({"name": "till", "listen": "127.0.0.1:0"}),
+            409,
+            "already",
+        ),
+        (
+            json!({"name": "a/b", "listen": "127.0.0.1:0"}),
+            400,
+            "letters",
+        ),
+        (
+            json!({"name": "x", "listen": "127.0.0.1:0", "dialect": "zpl"}),
+            400,
+            "dialect",
+        ),
+        (
+            json!({"name": "x", "listen": "127.0.0.1:0", "profile": "nope"}),
+            400,
+            "profile",
+        ),
+        (json!({"name": "x", "listen": "somewhere"}), 400, "address"),
+        (
+            json!({"name": "x", "listen": taken.to_string()}),
+            409,
+            "cannot listen",
+        ),
+        (json!({"name": "x", "colour": "red"}), 422, ""),
+    ];
+    for (body, status, about) in cases {
+        let answer = server.post_json("/api/printers", body.clone()).await;
+        assert_eq!(answer.status(), status, "{body}");
+        if !about.is_empty() {
+            let message: Value = answer.json().await.unwrap();
+            assert!(
+                message["error"].as_str().unwrap().contains(about),
+                "{body}: {message}"
+            );
+        }
+    }
+    // None of them was added.
+    assert_eq!(
+        server.json("/api/printers").await.as_array().unwrap().len(),
+        1
+    );
+}
+
+#[tokio::test]
+async fn a_printer_can_be_removed_and_its_receipts_stay() {
+    let server = Harness::start(&["name=till", "name=bar"]).await;
+    let bar = server.printer("bar");
+    server.print("bar", &receipt_bytes("kept"), 100).await;
+    server.after(0).await;
+
+    // A program that is connected when the printer goes is disconnected.
+    let mut open = TcpStream::connect(bar).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let removed = server
+        .client
+        .delete(format!("{}/api/printers/bar", server.base))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(removed.status(), 204);
+    let mut rest = Vec::new();
+    timeout(Duration::from_secs(5), open.read_to_end(&mut rest))
+        .await
+        .expect("the connection is closed")
+        .unwrap();
+    assert!(TcpStream::connect(bar).await.is_err(), "the port is closed");
+
+    assert_eq!(server.get("/api/printers/bar").await.status(), 404);
+    assert_eq!(server.json("/api/receipts/1").await["printer"], "bar");
+    let again = server
+        .client
+        .delete(format!("{}/api/printers/bar", server.base))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(again.status(), 404);
+
+    // The name and the port can be used again.
+    let back = server
+        .post_json(
+            "/api/printers",
+            json!({"name": "bar", "listen": bar.to_string()}),
+        )
+        .await;
+    assert_eq!(back.status(), 201);
+}
+
+#[tokio::test]
+async fn with_no_printer_there_is_nothing_to_print_to_and_the_rest_still_works() {
+    let server = Harness::start(&["name=till"]).await;
+    server
+        .client
+        .delete(format!("{}/api/printers/till", server.base))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(server.json("/api/printers").await, json!([]));
+    let print = server
+        .client
+        .post(format!("{}/api/print", server.base))
+        .body("x")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(print.status(), 400);
+    assert_eq!(server.get("/api/health").await.status(), 200);
+}
+
+#[tokio::test]
+async fn the_live_events_tell_when_a_printer_is_added_or_removed() {
+    let server = Harness::start(&["name=till"]).await;
+    let response = server.get("/api/events").await;
+    let mut events = Live {
+        response,
+        seen: String::new(),
+    };
+    server
+        .post_json(
+            "/api/printers",
+            json!({"name": "bar", "listen": "127.0.0.1:0"}),
+        )
+        .await;
+    events.until("event: printer_added").await;
+    events.until("\"name\":\"bar\"").await;
+    server
+        .client
+        .delete(format!("{}/api/printers/bar", server.base))
+        .send()
+        .await
+        .unwrap();
+    events.until("event: printer_removed").await;
+}
