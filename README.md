@@ -13,3 +13,7 @@ server and the web page are next. See [docs/PLAN.md](docs/PLAN.md) for the plan 
 cd fixtures/generate && npm install && npm run generate && cd ../..
 cargo test --workspace
 ```
+
+## Licence
+
+MIT, see [LICENSE](LICENSE). The captured streams in `fixtures/captured` keep the licences of the projects they come from, see [NOTICE](fixtures/captured/NOTICE.md).
