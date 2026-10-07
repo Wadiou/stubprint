@@ -80,5 +80,4 @@ pretend state is set with `POST /api/printers/{name}`.
 6. Tauri shell, WebAssembly build, Docker image.
 
 ## Open
-- License.
 - Frontend framework: Svelte 5 with Vite unless React is preferred.
