@@ -1,0 +1,36 @@
+{
+  "name": "control-bytes",
+  "kind": "bytes",
+  "note": "a tab stays in the text, NUL and BS print nothing, BEL sounds the buzzer and FF prints the line so far",
+  "bytes": [
+    "1b 40",
+    "text:A",
+    "09",
+    "text:B",
+    "00",
+    "07",
+    "08",
+    "text:C",
+    "0c",
+    "text:D",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "A\tB",
+      "C",
+      "D"
+    ],
+    "cuts": [
+      "full"
+    ],
+    "beeps": [
+      {
+        "times": 1,
+        "duration": 0
+      }
+    ]
+  }
+}

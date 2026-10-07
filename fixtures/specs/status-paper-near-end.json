@@ -1,0 +1,27 @@
+{
+  "name": "status-paper-near-end",
+  "kind": "bytes",
+  "note": "a printer with little paper left says so",
+  "bytes": [
+    "1b 40",
+    "10 04 04",
+    "1d 72 01",
+    "10 04 02",
+    "text:ok",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "status": {
+      "paper": "nearEnd"
+    },
+    "replies": "1e 03 12",
+    "receipts": 1,
+    "texts": [
+      "ok"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

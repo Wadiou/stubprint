@@ -1,0 +1,34 @@
+{
+  "name": "control-fs-skipped",
+  "kind": "bytes",
+  "note": "FS commands for two byte characters are read to their end, so their parameters do not print",
+  "bytes": [
+    "1b 40",
+    "text:A",
+    "0a",
+    "1c 26",
+    "1c 2e",
+    "1c 21 41",
+    "1c 2d 42",
+    "1c 43 43",
+    "1c 57 44",
+    "1c 53 45 46",
+    "text:B",
+    "0a",
+    "1c 28 41 04 00 30 47 48 49",
+    "text:C",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "A",
+      "B",
+      "C"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "status-recoverable-fault",
+  "kind": "bytes",
+  "note": "a fault that can be recovered from is reported, then gone after DLE ENQ",
+  "bytes": [
+    "1b 40",
+    "10 04 03",
+    "10 04 02",
+    "10 05 01",
+    "10 04 03",
+    "10 04 02",
+    "text:ok",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "status": {
+      "fault": "recoverable"
+    },
+    "replies": "52 52 12 12",
+    "receipts": 1,
+    "texts": [
+      "ok"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

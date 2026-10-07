@@ -1,0 +1,42 @@
+{
+  "name": "barcode-gs1",
+  "kind": "bytes",
+  "note": "the GS1 barcodes of the newer command",
+  "bytes": [
+    "1b 40",
+    "1d 6b 4a 0f 7b 42 30 31 32 33 34 35 36 37 38 39 30 31 32",
+    "1d 6b 4b 0d 30 31 32 33 34 35 36 37 38 39 30 31 32",
+    "1d 6b 4c 0d 30 31 32 33 34 35 36 37 38 39 30 31 32",
+    "1d 6b 4d 0d 30 31 32 33 34 35 36 37 38 39 30 31 32",
+    "1d 6b 4e 0d 30 31 32 33 34 35 36 37 38 39 30 31 32",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "barcodes": [
+      {
+        "symbology": "gs1-128",
+        "data": "0123456789012"
+      },
+      {
+        "symbology": "gs1-databar-omnidirectional",
+        "data": "0123456789012"
+      },
+      {
+        "symbology": "gs1-databar-truncated",
+        "data": "0123456789012"
+      },
+      {
+        "symbology": "gs1-databar-limited",
+        "data": "0123456789012"
+      },
+      {
+        "symbology": "gs1-databar-expanded",
+        "data": "0123456789012"
+      }
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

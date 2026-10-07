@@ -1,0 +1,27 @@
+{
+  "name": "status-automatic-paper-end",
+  "kind": "bytes",
+  "note": "the four bytes with no paper and the cover open",
+  "bytes": [
+    "1b 40",
+    "1d 61 08",
+    "text:ok",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "status": {
+      "paper": "end",
+      "online": false,
+      "coverOpen": true
+    },
+    "replies": "38 00 0f 00",
+    "receipts": 1,
+    "texts": [
+      "ok"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

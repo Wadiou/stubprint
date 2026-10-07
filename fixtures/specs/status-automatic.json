@@ -1,0 +1,24 @@
+{
+  "name": "status-automatic",
+  "kind": "bytes",
+  "note": "automatic status back: asking for it sends the four bytes at once, and a request for nothing sends none",
+  "bytes": [
+    "1b 40",
+    "1d 61 00",
+    "1d 61 0f",
+    "1d 61 00",
+    "text:ok",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "replies": "10 00 00 00",
+    "receipts": 1,
+    "texts": [
+      "ok"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "name": "text-size-max",
+  "kind": "bytes",
+  "note": "the largest character size, 8 times wide and 8 times high",
+  "bytes": [
+    "1b 40",
+    "1d 21 77",
+    "text:HUGE",
+    "0a",
+    "1d 21 00",
+    "text:SMALL",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "HUGE",
+      "SMALL"
+    ],
+    "styles": [
+      {
+        "text": "HUGE",
+        "width": 8,
+        "height": 8
+      },
+      {
+        "text": "SMALL"
+      }
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

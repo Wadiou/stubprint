@@ -1,0 +1,22 @@
+{
+  "name": "status-response-request",
+  "kind": "bytes",
+  "note": "GS ( H: the printer sends back the four bytes it was given",
+  "bytes": [
+    "1b 40",
+    "1d 28 48 06 00 30 30 11 22 33 44",
+    "text:ok",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "replies": "37 22 11 22 33 44 00",
+    "receipts": 1,
+    "texts": [
+      "ok"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

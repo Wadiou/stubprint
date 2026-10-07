@@ -1,0 +1,57 @@
+{
+  "name": "control-cut-feed",
+  "kind": "bytes",
+  "note": "the cut forms that feed first: m of 65 and 66, 97 and 98, 103 and 104, each with its length n",
+  "bytes": [
+    "1b 40",
+    "text:A",
+    "0a",
+    "1d 56 41 03",
+    "text:B",
+    "0a",
+    "1d 56 42 00",
+    "text:C",
+    "0a",
+    "1d 56 61 05",
+    "text:D",
+    "0a",
+    "1d 56 62 05",
+    "text:E",
+    "0a",
+    "1d 56 67 02",
+    "text:F",
+    "0a",
+    "1d 56 68 02"
+  ],
+  "expect": {
+    "receipts": 6,
+    "receiptTexts": [
+      [
+        "A"
+      ],
+      [
+        "B"
+      ],
+      [
+        "C"
+      ],
+      [
+        "D"
+      ],
+      [
+        "E"
+      ],
+      [
+        "F"
+      ]
+    ],
+    "cuts": [
+      "full",
+      "partial",
+      "full",
+      "partial",
+      "full",
+      "partial"
+    ]
+  }
+}

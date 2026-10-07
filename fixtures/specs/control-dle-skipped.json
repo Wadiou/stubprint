@@ -1,0 +1,33 @@
+{
+  "name": "control-dle-skipped",
+  "kind": "bytes",
+  "note": "real time requests are read to their end: the status requests print nothing, and DLE DC4 1 kicks the drawer",
+  "bytes": [
+    "1b 40",
+    "text:A",
+    "0a",
+    "10 04 01",
+    "10 05 01",
+    "10 14 01 31 08",
+    "text:B",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "A",
+      "B"
+    ],
+    "cuts": [
+      "full"
+    ],
+    "pulses": [
+      {
+        "pin": 1,
+        "onMs": 800,
+        "offMs": 800
+      }
+    ]
+  }
+}

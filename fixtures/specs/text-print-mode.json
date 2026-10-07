@@ -1,0 +1,87 @@
+{
+  "name": "text-print-mode",
+  "kind": "bytes",
+  "note": "ESC ! sets font, bold, double height, double width and underline in one byte",
+  "bytes": [
+    "1b 40",
+    "1b 21 08",
+    "text:BOLD",
+    "0a",
+    "1b 21 80",
+    "text:UNDER",
+    "0a",
+    "1b 21 10",
+    "text:TALL",
+    "0a",
+    "1b 21 20",
+    "text:WIDE",
+    "0a",
+    "1b 21 01",
+    "text:FONTB",
+    "0a",
+    "1b 21 00",
+    "text:PLAIN",
+    "0a",
+    "1b 21 b9",
+    "text:ALL",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "BOLD",
+      "UNDER",
+      "TALL",
+      "WIDE",
+      "FONTB",
+      "PLAIN",
+      "ALL"
+    ],
+    "styles": [
+      {
+        "text": "BOLD",
+        "bold": true
+      },
+      {
+        "text": "UNDER",
+        "underline": true
+      },
+      {
+        "text": "TALL",
+        "height": 2
+      },
+      {
+        "text": "WIDE",
+        "width": 2
+      },
+      {
+        "text": "FONTB",
+        "font": 1
+      },
+      {
+        "text": "PLAIN"
+      },
+      {
+        "text": "ALL",
+        "bold": true,
+        "underline": true,
+        "width": 2,
+        "height": 2,
+        "font": 1
+      }
+    ],
+    "fonts": [
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      1
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

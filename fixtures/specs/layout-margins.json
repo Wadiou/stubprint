@@ -1,0 +1,40 @@
+{
+  "name": "layout-margins",
+  "kind": "bytes",
+  "note": "the left margin, the width of the print area and the size of a motion unit",
+  "bytes": [
+    "1b 40",
+    "1d 4c 28 00",
+    "1d 57 00 02",
+    "1d 50 b4 b4",
+    "1d 50 00 00",
+    "text:x",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "x"
+    ],
+    "margins": [
+      40
+    ],
+    "printWidths": [
+      512
+    ],
+    "motionUnits": [
+      {
+        "x": 180,
+        "y": 180
+      },
+      {
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

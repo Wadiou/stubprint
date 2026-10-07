@@ -1,0 +1,25 @@
+{
+  "name": "text-utf8",
+  "kind": "bytes",
+  "note": "text in UTF-8 after FS ( C chooses it, and in the code page again after it chooses that",
+  "bytes": [
+    "1b 40",
+    "1c 28 43 02 00 30 02",
+    "c3 a9 e4 b8 ad d8 b9",
+    "0a",
+    "1c 28 43 02 00 30 00",
+    "82",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "é中ع",
+      "é"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

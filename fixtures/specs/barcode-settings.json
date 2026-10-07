@@ -1,0 +1,35 @@
+{
+  "name": "barcode-settings",
+  "kind": "bytes",
+  "note": "the settings of a barcode as digits, and values that are not allowed",
+  "bytes": [
+    "1b 40",
+    "1d 68 00",
+    "1d 48 09",
+    "1d 77 00",
+    "1d 66 02",
+    "1d 68 50",
+    "1d 77 02",
+    "1d 48 32",
+    "1d 66 31",
+    "1d 6b 04 41 42 43 00",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "barcodes": [
+      {
+        "symbology": "code39",
+        "data": "ABC",
+        "height": 80,
+        "width": 2,
+        "text": "below",
+        "font": 1
+      }
+    ],
+    "unknown": 4,
+    "cuts": [
+      "full"
+    ]
+  }
+}

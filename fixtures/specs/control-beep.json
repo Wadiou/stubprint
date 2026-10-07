@@ -1,0 +1,37 @@
+{
+  "name": "control-beep",
+  "kind": "bytes",
+  "note": "the buzzer: BEL, ESC B with a count and a duration, and ESC ( A",
+  "bytes": [
+    "1b 40",
+    "07",
+    "1b 42 03 02",
+    "1b 28 41 03 00 61 01 02",
+    "text:x",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "x"
+    ],
+    "beeps": [
+      {
+        "times": 1,
+        "duration": 0
+      },
+      {
+        "times": 3,
+        "duration": 2
+      },
+      {
+        "times": 1,
+        "duration": 0
+      }
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

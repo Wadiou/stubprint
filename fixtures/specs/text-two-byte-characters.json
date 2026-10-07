@@ -1,0 +1,33 @@
+{
+  "name": "text-two-byte-characters",
+  "kind": "bytes",
+  "note": "Shift JIS characters between ASCII, whose second byte can look like ASCII, a lead byte of 0xE0, a half width katakana, after FS & and not after FS .",
+  "bytes": [
+    "1b 40",
+    "1c 26",
+    "text:a",
+    "93 fa 96 7b 8c ea",
+    "text:b",
+    "0a",
+    "text:x",
+    "e0 a1",
+    "b1",
+    "text:y",
+    "0a",
+    "1c 2e",
+    "text:c",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "a日本語b",
+      "x爍ｱy",
+      "c"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

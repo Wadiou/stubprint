@@ -1,0 +1,38 @@
+{
+  "name": "text-international",
+  "kind": "bytes",
+  "note": "the international character sets replace twelve ASCII characters",
+  "bytes": [
+    "1b 40",
+    "1b 52 01",
+    "text:#$@[\\]^`{|}~",
+    "0a",
+    "1b 52 02",
+    "text:[\\]{|}~",
+    "0a",
+    "1b 52 03",
+    "text:#",
+    "0a",
+    "1b 52 00",
+    "text:#[\\]",
+    "0a",
+    "1b 52 63",
+    "text:x",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "#$à°ç§^`éùè¨",
+      "ÄÖÜäöüß",
+      "£",
+      "#[\\]",
+      "x"
+    ],
+    "unknown": 1,
+    "cuts": [
+      "full"
+    ]
+  }
+}

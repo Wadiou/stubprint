@@ -1,0 +1,61 @@
+{
+  "name": "page-mode",
+  "kind": "bytes",
+  "note": "page mode: the page, the direction, moving in the other direction, printing, cancelling, and the same commands in standard mode",
+  "bytes": [
+    "1b 40",
+    "1b 4c",
+    "1b 54 01",
+    "1b 57 00 00 00 00 c8 00 64 00",
+    "text:A",
+    "1d 24 20 00",
+    "1d 5c f0 ff",
+    "1b 0c",
+    "text:B",
+    "18",
+    "0c",
+    "1d 24 10 00",
+    "1b 53",
+    "1b 57 00 00 00 00 00 00 00 00",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "A",
+      "B"
+    ],
+    "page": [
+      "enter",
+      {
+        "direction": 1
+      },
+      {
+        "area": {
+          "x": 0,
+          "y": 0,
+          "width": 200,
+          "height": 100
+        }
+      },
+      {
+        "vertical": {
+          "absolute": 32
+        }
+      },
+      {
+        "vertical": {
+          "relative": -16
+        }
+      },
+      "print",
+      "cancel",
+      "print",
+      "standard"
+    ],
+    "unknown": 1,
+    "cuts": [
+      "full"
+    ]
+  }
+}

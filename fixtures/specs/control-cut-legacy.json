@@ -1,0 +1,29 @@
+{
+  "name": "control-cut-legacy",
+  "kind": "bytes",
+  "note": "the cuts of older printers: ESC i and ESC m are both partial cuts",
+  "bytes": [
+    "1b 40",
+    "text:A",
+    "0a",
+    "1b 69",
+    "text:B",
+    "0a",
+    "1b 6d"
+  ],
+  "expect": {
+    "receipts": 2,
+    "receiptTexts": [
+      [
+        "A"
+      ],
+      [
+        "B"
+      ]
+    ],
+    "cuts": [
+      "partial",
+      "partial"
+    ]
+  }
+}

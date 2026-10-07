@@ -1,0 +1,27 @@
+{
+  "name": "status-paper-end",
+  "kind": "bytes",
+  "note": "a printer with no paper says so in the off line cause, the paper sensor and the paper status",
+  "bytes": [
+    "1b 40",
+    "10 04 02",
+    "10 04 04",
+    "1d 72 01",
+    "text:ok",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "status": {
+      "paper": "end"
+    },
+    "replies": "32 7e 0f",
+    "receipts": 1,
+    "texts": [
+      "ok"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

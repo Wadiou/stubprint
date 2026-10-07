@@ -1,0 +1,36 @@
+{
+  "name": "qr-settings",
+  "kind": "bytes",
+  "note": "a QR code with no settings, then with the first model, the biggest size and the highest level",
+  "bytes": [
+    "1b 40",
+    "1d 28 6b 04 00 31 50 30 61",
+    "1d 28 6b 03 00 31 51 30",
+    "1d 28 6b 04 00 31 41 31 00",
+    "1d 28 6b 03 00 31 43 10",
+    "1d 28 6b 03 00 31 45 33",
+    "1d 28 6b 04 00 31 50 30 62",
+    "1d 28 6b 03 00 31 51 30",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "qrs": [
+      {
+        "data": "a",
+        "model": 2,
+        "size": 3,
+        "level": "L"
+      },
+      {
+        "data": "b",
+        "model": 1,
+        "size": 16,
+        "level": "H"
+      }
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

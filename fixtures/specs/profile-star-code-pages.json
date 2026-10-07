@@ -1,0 +1,30 @@
+{
+  "name": "profile-star-code-pages",
+  "kind": "bytes",
+  "note": "the same number is another code page on a Star printer: 4 is CP858, 3 is CP437 and 32 is Windows 1252",
+  "bytes": [
+    "1b 40",
+    "1b 74 04",
+    "d5",
+    "0a",
+    "1b 74 03",
+    "82",
+    "0a",
+    "1b 74 20",
+    "80",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "profile": "SP2000",
+    "receipts": 1,
+    "texts": [
+      "€",
+      "é",
+      "€"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

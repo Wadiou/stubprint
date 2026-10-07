@@ -1,0 +1,27 @@
+{
+  "name": "status-cover-open",
+  "kind": "bytes",
+  "note": "an open cover makes the printer off line",
+  "bytes": [
+    "1b 40",
+    "10 04 01",
+    "10 04 02",
+    "text:ok",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "status": {
+      "online": false,
+      "coverOpen": true
+    },
+    "replies": "1a 16",
+    "receipts": 1,
+    "texts": [
+      "ok"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

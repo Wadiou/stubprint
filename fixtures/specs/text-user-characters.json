@@ -1,0 +1,55 @@
+{
+  "name": "text-user-characters",
+  "kind": "bytes",
+  "note": "a character the program draws replaces the font's own while it is turned on",
+  "bytes": [
+    "1b 40",
+    "1b 26 03 41 41 02 80 00 00 00 00 01",
+    "1b 25 01",
+    "text:A",
+    "0a",
+    "1b 25 00",
+    "text:A",
+    "0a",
+    "1b 25 01",
+    "1b 3f 41",
+    "text:A",
+    "0a",
+    "1b 3f 10",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "",
+      "A",
+      "A"
+    ],
+    "userCharacters": [
+      {
+        "define": {
+          "code": 65,
+          "width": 2,
+          "columnBytes": 3,
+          "data": "80 00 00 00 00 01"
+        }
+      },
+      {
+        "use": true
+      },
+      {
+        "use": false
+      },
+      {
+        "use": true
+      },
+      {
+        "delete": 65
+      }
+    ],
+    "unknown": 1,
+    "cuts": [
+      "full"
+    ]
+  }
+}

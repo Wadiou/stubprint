@@ -1,0 +1,32 @@
+{
+  "name": "barcode-code128-sets",
+  "kind": "bytes",
+  "note": "Code 128 data: the character sets, set C as bytes of 0 to 99, a brace, and a function character",
+  "bytes": [
+    "1b 40",
+    "1d 6b 49 0a 7b 42 4e 6f 2e 7b 43 0c 22 38",
+    "1d 6b 49 06 7b 42 41 7b 7b 42",
+    "1d 6b 49 08 7b 41 49 44 7b 31 34 32",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "barcodes": [
+      {
+        "symbology": "code128",
+        "data": "No.123456"
+      },
+      {
+        "symbology": "code128",
+        "data": "A{B"
+      },
+      {
+        "symbology": "code128",
+        "data": "ID42"
+      }
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

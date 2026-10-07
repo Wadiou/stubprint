@@ -1,0 +1,28 @@
+{
+  "name": "control-ignored-settings",
+  "kind": "bytes",
+  "note": "settings that change nothing that is drawn are read to their end: device, direction, sensors, test print, user settings",
+  "bytes": [
+    "1b 40",
+    "1b 3d 01",
+    "1b 55 01",
+    "1b 63 35 01",
+    "1b 3c",
+    "1d 28 41 02 00 00 01",
+    "1d 28 45 03 00 01 02 03",
+    "1d 28 4b 02 00 30 02",
+    "1c 28 41 02 00 31 02",
+    "text:ok",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "ok"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "qr-micro",
+  "kind": "bytes",
+  "note": "a Micro QR code: the model byte 51",
+  "bytes": [
+    "1b 40",
+    "1d 28 6b 04 00 31 41 33 00",
+    "1d 28 6b 03 00 31 43 04",
+    "1d 28 6b 03 00 31 45 30",
+    "1d 28 6b 05 00 31 50 30",
+    "text:hi",
+    "1d 28 6b 03 00 31 51 30",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "qrs": [
+      {
+        "data": "hi",
+        "model": 3,
+        "size": 4,
+        "level": "L"
+      }
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

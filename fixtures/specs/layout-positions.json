@@ -1,0 +1,51 @@
+{
+  "name": "layout-positions",
+  "kind": "bytes",
+  "note": "the print position moves along the line: absolute, forward and back, and the space after each character",
+  "bytes": [
+    "1b 40",
+    "1b 24 78 00",
+    "text:A",
+    "1b 5c 0a 00",
+    "text:B",
+    "1b 5c f6 ff",
+    "text:C",
+    "0a",
+    "1b 20 03",
+    "text:D",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "positions": [
+      {
+        "absolute": 120
+      },
+      {
+        "relative": 10
+      },
+      {
+        "relative": -10
+      }
+    ],
+    "styles": [
+      {
+        "text": "A"
+      },
+      {
+        "text": "D",
+        "spacing": 3
+      }
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

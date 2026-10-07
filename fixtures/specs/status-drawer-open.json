@@ -1,0 +1,27 @@
+{
+  "name": "status-drawer-open",
+  "kind": "bytes",
+  "note": "the level of the cash drawer connector, as the printer status and as the drawer status",
+  "bytes": [
+    "1b 40",
+    "10 04 01",
+    "1d 72 02",
+    "1d 72 32",
+    "text:ok",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "status": {
+      "drawerOpen": true
+    },
+    "replies": "16 01 01",
+    "receipts": 1,
+    "texts": [
+      "ok"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

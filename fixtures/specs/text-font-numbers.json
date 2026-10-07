@@ -1,0 +1,43 @@
+{
+  "name": "text-font-numbers",
+  "kind": "bytes",
+  "note": "fonts A to E as 0 to 4 or as the digits. Other values are ignored by a printer, and reported here as unknown commands",
+  "bytes": [
+    "1b 40",
+    "1b 4d 02",
+    "text:C",
+    "0a",
+    "1b 4d 04",
+    "text:E",
+    "0a",
+    "1b 4d 31",
+    "text:B",
+    "0a",
+    "1b 4d 05",
+    "text:IGNORED",
+    "0a",
+    "1b 4d 61",
+    "text:IGNORED2",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "C",
+      "E",
+      "B",
+      "IGNORED",
+      "IGNORED2"
+    ],
+    "fonts": [
+      2,
+      4,
+      1
+    ],
+    "cuts": [
+      "full"
+    ],
+    "unknown": 2
+  }
+}

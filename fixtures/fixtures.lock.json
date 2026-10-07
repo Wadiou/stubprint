@@ -1,7 +1,19 @@
 {
+  "barcode-code128-sets": {
+    "bin": "402c8f4e7ec4a5ecf02f6d9384d2f32e7b212c5cc16ba01563587f8147eee8b3",
+    "expected": "e61d37ef1784bb28433181908aa3c7673796c1270c243f08cc2868e8828491eb"
+  },
+  "barcode-gs1": {
+    "bin": "125c73370cd5169bf4fbe66f9a47ccaa44da626b68c6f9a42fd28183006c287e",
+    "expected": "79d37bb7bcf507356a2113e125314371520dcd2e60df63d199fe734037a176b3"
+  },
   "barcode-options": {
     "bin": "beb19be7fe21108031582cd8d59ed8a52796067bfe252340fe40f42ba3153f8e",
     "expected": "609984c5e9b116969bf92c5f0fcb8f4757f26d89aaa5f4d062deaf7d115d79ad"
+  },
+  "barcode-settings": {
+    "bin": "4f622c15bba55acab1ff0112610ee5bd7f201ad490f17566e7f51163e5790307",
+    "expected": "3e6b8deb2c82e2c74da6e4dc3c706bbc4621c019d8b52e65856333c82d8fccfa"
   },
   "barcode-symbologies": {
     "bin": "78352057cbf68a028e5cc514c0472d9288f816bcbbb08b9866995a36fc5d4f8d",
@@ -11,9 +23,41 @@
     "bin": "22a0c7a2188f8558e3c5a50189b4f9207d2b8d8f053affb8e6e1b3b8de9cfbaa",
     "expected": "a651482b8e7e600103816e9da466921d09adb1597217974d831761c11b3a1295"
   },
+  "control-beep": {
+    "bin": "24cc986db3558e01aaf8b47cc15d14a98390b3661e8874eab4e649a02557cf29",
+    "expected": "89c98f8d6383a90a6413e59359bf72075476e3abf8d5f118a761bd94f32a16ee"
+  },
+  "control-bytes": {
+    "bin": "e6d1f3c6248bdde1c626b1b27e8921006dcd5f4227d0432e3e133e81ad08ee00",
+    "expected": "45505e750100013fc6d3ed1e0dd0b0e4a9853b556d60966294708fb76b21a030"
+  },
+  "control-cut-feed": {
+    "bin": "88a4dc3c58aa165f41e875e88018976cff1556488d779fe9c812bcb73d690aee",
+    "expected": "e2f50454eff540c7db31b5bff1f2492b84ebeb18b20a0334c1be213da9641c23"
+  },
+  "control-cut-legacy": {
+    "bin": "229c8d5f80bc98f835fcc8ce0a57a5ed18aacb3b8d46b53ed2eb6414bd7fb693",
+    "expected": "68d2a30c21109b14fbafc236aee254773b317ac8cf0b81460bccb604724d9087"
+  },
   "control-cut-modes": {
     "bin": "ec33ac08dc4b5c0ba8064814abaf03985db7b7e27e6c36d55e2b5378db9ff056",
     "expected": "80ee0098c49e83de2599a3e96c2fb95bc69b2b3b80453a443d0ecc9d009a8d1c"
+  },
+  "control-density": {
+    "bin": "d5401f0b1b540279b41045fb47e0954f497683ea55a1c869b7b4b3fe3692d452",
+    "expected": "05dd3a26ac292145b139de67797d5b6095ff87a155d5540eaa80f927a2b5bec7"
+  },
+  "control-dle-skipped": {
+    "bin": "f15cf9e138c4c15af40d4657991133bf24e3aad58665c1d4e5e6875f4cf5fd82",
+    "expected": "9c17d60024aac17867319e0556505b53dba190c39cd4daa4d635475ded387b79"
+  },
+  "control-fs-skipped": {
+    "bin": "7b3089a32f0374be996ef17740e7ef56f03f46310e27ddfa6b48bbc68316da0d",
+    "expected": "24ca8805c39c274b005ca1148d516172112bb89ebf11994fe15dba15813c6db4"
+  },
+  "control-ignored-settings": {
+    "bin": "bbd0020c54a1b3ece1ba629e058460e539fa65e118f06218547736b805ff423e",
+    "expected": "3ab85c302bad5542ce53bb84941b0a17828dbc30e2ba8c861069b92b46806499"
   },
   "control-pulse": {
     "bin": "27274f5c52cbd14dec14df9e8c04ff48dccfa22f9950eef15817119ce84bb1c3",
@@ -22,6 +66,10 @@
   "edge-blank-after-cut": {
     "bin": "e69d20da3f46dbb0ce5169ed064701df1d4da97fd342eb7926fa3a4010f22a56",
     "expected": "d3670a811ae6b4e134da7eb0fd82406c773b63b3d6f67719fe229e2aab308dcc"
+  },
+  "edge-length-framed-unknown": {
+    "bin": "f29bec715a7d1f051d1134fc92c1b2671f2d51ca7ec049a5ad419147d20ed795",
+    "expected": "84dd6c16d9b01a78b67af2614f5a1b57b5ffe1467ae0f9dc3b4f8611bae7c8b9"
   },
   "edge-no-line-feed": {
     "bin": "03178d84aa36fa39719755fce3f867042d18594f69857ff44641c5c878052eda",
@@ -34,6 +82,30 @@
   "edge-unknown-command": {
     "bin": "b268aa13fbf33daffaa180d6aadbd6ea4013b1c1b5231379587343e097855467",
     "expected": "b94f7ec6b28b6678b4a32099b672cba8e81ab2010f7854a46a0022209572f566"
+  },
+  "graphics-column-modes": {
+    "bin": "3db08229ac6233706ada87cf283207671a1f640ab8ecdadcdf935997afc59c84",
+    "expected": "b6a7743096045fdfdca43558bf1d1a72e32062035d157e8719dff4ace01155a3"
+  },
+  "graphics-downloaded": {
+    "bin": "abe1415f537ba9d4b938486d1a2af2db3ebafbba8b1574f22af58bffd78ebef7",
+    "expected": "11f50302f464984194f05bcdb7ed17a4e07fcdc6d8121d136a79b37cd2c6c972"
+  },
+  "graphics-gs-l-buffer": {
+    "bin": "78d123d75467162c6f80ed02cd05266358af0059f4197bd6a214a5b4a64993f0",
+    "expected": "21d18d3e9b7466d07deac9b9358aa62b8d020382910161ce9747b7056f60b203"
+  },
+  "graphics-gs-l-memory": {
+    "bin": "247ef8da828af7e734bc314a5d19882a62eabbe0a858b6297edf7eac533586ea",
+    "expected": "0632198bc7bd36fb53172136e13b2e8a9002fd7c79632b49842057b22b5df8aa"
+  },
+  "graphics-nv-bit-images": {
+    "bin": "dcf4fc60f28a6e824730005db13a1980c8e917a5b91db8599bf9a73d3bd57e4e",
+    "expected": "8cc9ebde15eb840f8428cfbbd2cc1707a53457d0fc6df3cca8db171bec9f3c1a"
+  },
+  "graphics-raster-modes": {
+    "bin": "1daa4125849e51cea40365cd073b240716652bc1eb75111d12db0df8ca1c26f9",
+    "expected": "e362985abc4bbac5ff84207935032a339721060f5f675f75c298bad92ae18079"
   },
   "image-384x600-bands": {
     "bin": "15a4458c31d59b3d71965a1e1e6d1adab69c2db282529f6cfe548efab9c7d074",
@@ -70,13 +142,57 @@
     "expected": "32a91a4c08028a1769726199e35440d5671674bb832c82e4510b41e067ae3eae",
     "bitmap": "47f708376f615b6e268e261c65c18209db71d79b342e9bb5b0d1054db2c9e3bb"
   },
+  "layout-line-spacing": {
+    "bin": "80377a01d655e488ed40570357dc8fed9f5677f01f34cb1ee59216910f2aeef2",
+    "expected": "8ce2a65010b1eb188815de927522771c9a2389e5d830edbc07f91b4d4b75fa81"
+  },
+  "layout-margins": {
+    "bin": "3ce3006f305a53607f625e6be5ee0699ee940c1e02b2cb2f412423186c1a4a9c",
+    "expected": "4d36084143769bd5e54dfa454f2061aef517253a20585cd7e9ca4221ad94d4ac"
+  },
+  "layout-positions": {
+    "bin": "0fa355cd95bc9706ff175b2c0ac750c341c1ceaadc3c6442257a5b749845d0ca",
+    "expected": "cb47b1a7dae234b33dc6881a02d616396e37330d355af38a9ad5585a4d98bb43"
+  },
+  "layout-tab-stops": {
+    "bin": "b2794d70a53caf7388b7f2dc95ad3ccd6ead8a32dbe9baa4254989536c33f01a",
+    "expected": "7cadf0d2cd5bf1b46b2253ee198050bbcb4595b3b7221823dd7a7cceddab0373"
+  },
+  "page-mode": {
+    "bin": "e953a835387e168429dbc96a6a9fc858e95c5fda620c116ce347e8e11c896528",
+    "expected": "ee7d74da8800e70cfa6835d51099f8f9bcefceb197fcd2139021d08c295c3290"
+  },
+  "pdf417-settings": {
+    "bin": "72060d82ddab774ea0f6fb3490b0c18926edbc77ac42d7ac5f4451e4243cdcce",
+    "expected": "988b59ec4f94510b3a4c46bc6eee8048cc0b05aaf4cd76cf3db7876e88666494"
+  },
   "pdf417": {
     "bin": "86959bdc3bb1bafb74340f7aad9beafa58f2d332390194a2eb8152397c1cfefa",
     "expected": "1e79462160209ba95a0ab75312df903cd0abe079effe028111d84272d5f2d24d"
   },
+  "profile-arabic-printer": {
+    "bin": "324b2dcb35e45f556997cbc4b7da5b06c128ca284ce8bfbca903669128468081",
+    "expected": "665b6fdf2f35301f6c1bce4044e605baf929040801ca4393773692c710b85312"
+  },
+  "profile-epson-code-pages": {
+    "bin": "8c249a5f384dfb774816d02a652ecb9e37af92091ededf2e849ab65ef01ff71b",
+    "expected": "2c8c25d9b7c7573712213df28c40f229c040e977ee9fe40fe050b01b5f619e80"
+  },
+  "profile-star-code-pages": {
+    "bin": "2333f31b06741d3bdbd165ee06a9b44ae5eec6dd91fcc5f2094a53d1d5d477ad",
+    "expected": "fcb12a95900e7aff8622a553bd6735ebcd9c3a1f4607aae1492e2ac468aa9093"
+  },
+  "qr-micro": {
+    "bin": "cac2c4e1704af6394483584100cddca6ae2feca2e06833e76b14d014ae391c1e",
+    "expected": "6adee50646ee42e3ed00489db1d301c3a5740e6a847e1557b2237f2682b0e5eb"
+  },
   "qr-models-levels": {
     "bin": "5d55efe9b533e4b2b4f6b4c65740a27d51b41a95935ee00365ebbe8cbadd1fa2",
     "expected": "d42b4b1cf91ac90bdb9c2fe709c87da08b0178117f8daf9c11b1c416dd80cff9"
+  },
+  "qr-settings": {
+    "bin": "71ca5a6ccd2f10de1e53cc95998ae7b15bfffea75c6d53dacbef19ac048b07cf",
+    "expected": "fadc13d2646709cf53899755b687012c5f6d66b07d0dc456ba2b894646d1b693"
   },
   "qr-url": {
     "bin": "705549419a7eb7c8917f9abaf9d6bdcbdb7b529e17cbe20c80a94f0e5498e90a",
@@ -123,6 +239,66 @@
     "expected": "8a92021d35c030ebe02ef5014505c2fddb1f722481abcd93acd8cf9c03824552",
     "bitmap": "c308c08565a9356f9cf119b1a1189dbc0aa128188b11103a061f92e85b06064e"
   },
+  "status-automatic-paper-end": {
+    "bin": "7677f4c6bba832ac11c05ec04de1819b0403d333fa9531a5680b7b0f03f47b80",
+    "expected": "97ef2b870b87e4cf0ff2d437fab4d5cfcec3c63aaf6103a1394eb801422e35d6"
+  },
+  "status-automatic": {
+    "bin": "4fd7fe5b155ca4bc27faccb4c1c2b08b15646c987d75905ccbe06a6c0c209995",
+    "expected": "d17e71e4a35c015c482dceee67b9aa02f667a8ab13e7af05d9a55d9ed873afbd"
+  },
+  "status-cover-open": {
+    "bin": "fffcff9aec446c55eeb64f03dcc6918bb41f1af719bd038d397e4cfcee7b80c0",
+    "expected": "4d055dd26bdadff51604202a8ecc84cd906ce1190cc0802eaa004e2d1a2fa640"
+  },
+  "status-cutter-fault": {
+    "bin": "a3dbd79ff9ee2f0f98c87f22f03cd2e440e1a8ea8e3836fc099d0e3bdb6ff436",
+    "expected": "df013c49c9df2a22ec7c7615d8271fd8c03d0695b7db113234027672a3dd148f"
+  },
+  "status-drawer-open": {
+    "bin": "8a80dcb3ab8561531748d77e6a71dc0cfe5a17ec7026b80cbc20fc63423d4bea",
+    "expected": "3a2cc667c0c34164d306ca263fe920a5c4b4bcd27d534f0e2f47ebed159d35ba"
+  },
+  "status-healthy": {
+    "bin": "6fa3b9e3ae667cc83419e013c80e0183dd2b0076f51cd177c024c9e1457094ca",
+    "expected": "dcd3a52dc9739ac5d78ebc8dc9b37c269f8a1c884f8086e5ddd20bfb50921a87"
+  },
+  "status-invalid-requests": {
+    "bin": "56351bd3c337c0a92dc4a4b7723e51ad2759e84c0ec8ef27b375197547c0e513",
+    "expected": "3d5c5cb689db289924daf843f8434adcd58e61a3ebd0a599fbc8dd4d2c105046"
+  },
+  "status-paper-end": {
+    "bin": "f76beb1bc8c1eab883c0ffa9d8b5e97f849afe28878e7b7905fca553a2fdf805",
+    "expected": "8ea6d9db6d769a0d199a81a77415c929436aea9a609c42eaf5c43c2887ce9cc6"
+  },
+  "status-paper-near-end": {
+    "bin": "c9da2e52cdbe596364c464b971c800f915c36c6efeddf80980baef881212753f",
+    "expected": "32b22e7ca78f16a56573d3d3022609dd8a5f4667cd5774ce564057563b6efe29"
+  },
+  "status-recoverable-fault": {
+    "bin": "0c9a3db642de27d1c81d6b7e4161a356cf341a9c354a8f0f0cb5b7c99c41de8a",
+    "expected": "5b54c1de20a0587a274533c5d631279a78e270b7fb54450b800064cdf41779b9"
+  },
+  "status-response-request": {
+    "bin": "0e6361f9a7c628d1157d465c46a07058c5959d0f3c453f3cf675c4a113e2fd74",
+    "expected": "d29c18531cdd56340d558c4dc2d79965cc84a7fcd692c230584ad31e20c8b833"
+  },
+  "status-unrecoverable-fault": {
+    "bin": "476ba3906a31be325ba3de70c7fb7de71ae56778e303f6bd648b502458fd16fe",
+    "expected": "ff2c1686d63da875e762089f494af03af06ed060c1b7699c364571dea3e74c38"
+  },
+  "style-extra": {
+    "bin": "0ba96e325279e1a0013f19b923e1c8f4a2210ae04c8a6dcedcc85b0798559086",
+    "expected": "01debc839e2ea6a5c90763990fb35d77d4d4788ad76cd231c2146184528dc3af"
+  },
+  "symbols-2d": {
+    "bin": "da9a713d8b87090207a83fab6c2fa5ff8eea31c9e4c1cee7638391d7b1466072",
+    "expected": "9eee262c71ddca07a75c425b1c316644f10271b11c87d0bcbf0bbaa32a5f0cc5"
+  },
+  "text-code-pages": {
+    "bin": "a481f43e1d63a550399f897ca9a03c1f48cab4f6ead41b070b5241f5d271a1b3",
+    "expected": "7079a50fc17524b53cf9926fed5323dbe011ec1cd2a6dabf9ca6cb073f18f89b"
+  },
   "text-codepage-cp437": {
     "bin": "f3d0c57fc0c7e38d0e2ae05d998b2a18adb3ef3d28f48480d9a211b726008ad7",
     "expected": "76206c4e19f20ad767f7659cca7b2654a1b6d10e3b81bb3a3dd9084a998a3783"
@@ -135,20 +311,48 @@
     "bin": "330e151fba1db2bd0bb3d58c2d7f5715e1879f436e8d82ae9bcadbcc9075fc96",
     "expected": "acf0022223322907683e64361ae6683b0ca5c764f719c72195e0ef0fcf211437"
   },
+  "text-font-numbers": {
+    "bin": "278c467fdb603d3ad863837a3283999e48167adfac2997a291d5fdabff8987e8",
+    "expected": "d67e19ccd8a8a9fd294423032859b8cf9c8a0a80cba997b53588a6dd69852dcf"
+  },
   "text-fonts": {
     "bin": "b6efa9f7dd8577890125dfaf6b3bdf769c331800018a62351cc25c0b43ede586",
     "expected": "7ccee7f0c64ce18fb13c29eed8089dd08813234071e8e1474aac9e4782c3b33e"
+  },
+  "text-international": {
+    "bin": "94a12caf563e2f04d2816d99e955640fe33c91256e8bc11eff5bcf1f2d84b3af",
+    "expected": "2707de9ec542d612d9a0afb8e7a47bb744031556b5f138faf23d67bc5287cf06"
   },
   "text-plain": {
     "bin": "3a90285b441a7f9f854f8df9ed2223f683f079316c3630ee28d4d2b2ff91091a",
     "expected": "290d946120df2a10d47a1caced9ce5cd8524d36ad86bfc0013e20737d4fd253b"
   },
+  "text-print-mode": {
+    "bin": "a21230bd63ad012ac48ef0c3db9e4dc8cac8013aa19c439586866942a7f31750",
+    "expected": "6c9ba561dfdd5ae73bc0c646e635cf64f4f926e344e35e318fd98960ad7b0634"
+  },
   "text-rules": {
     "bin": "aebba0870d7933816bcdc77400a44f5c82f154e7bff3d7f3a33c37bb642c9085",
     "expected": "6d86eb40bd7e59d75ecb6ef16187531dff9436fd74183a8ad20b1a779a9597bb"
   },
+  "text-size-max": {
+    "bin": "26fd523db498e937619ee1be62d102154d3bd725eb5eec674d9b92daa3c4c919",
+    "expected": "faee3ee4dda54188743aef9944ad7471162dbf0182921a1e798c5ddf7a4003c1"
+  },
   "text-styles": {
     "bin": "c4f5abda8d2be4c9e1dcb28585d73f730a82831ee56c329492f74ddefebf88d5",
     "expected": "c16c1bd2bf49f828fa9524839fe9fcfa43d9619f184fd32b0f887445742e7cb5"
+  },
+  "text-two-byte-characters": {
+    "bin": "e212a174436915cd4cb74d4f3f493fcf2e1bbe387943f1dcdcd8258117a2bd9d",
+    "expected": "c7e3aecab979990551f77c47aa87b50c5907aa9cf5963f90cbe1eedf8c9f7f5e"
+  },
+  "text-user-characters": {
+    "bin": "0586511aa73edf49614f003d62fa06f29d9fe1702c71986935d17231ace378fb",
+    "expected": "0b1584d7505a74a8c9f9e4004cb6eb4b29a0351bbbb8f9506358ca89e476b77f"
+  },
+  "text-utf8": {
+    "bin": "244e12d0781c22d2a5ef28f50cec92528bb4e3669d2b5c70965363778820ddbb",
+    "expected": "f772cdec6b6e2534007bb890b13babb7e4fd7b5c72263f867f8b261bf2db1803"
   }
 }

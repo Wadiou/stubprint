@@ -1,0 +1,43 @@
+{
+  "name": "edge-length-framed-unknown",
+  "kind": "bytes",
+  "note": "parameters and data are never printed as text: a position, a margin and a character the program draws, and graphics that are cut short are one unknown command",
+  "bytes": [
+    "1b 40",
+    "1d 28 4c 05 00 30 70 41 42 43",
+    "1b 24 44 45",
+    "1d 4c 46 47",
+    "1b 26 03 48 48 02 58 58 58 58 58 58",
+    "text:Z",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "Z"
+    ],
+    "unknown": 1,
+    "positions": [
+      {
+        "absolute": 17732
+      }
+    ],
+    "margins": [
+      18246
+    ],
+    "userCharacters": [
+      {
+        "define": {
+          "code": 72,
+          "width": 2,
+          "columnBytes": 3,
+          "data": "58 58 58 58 58 58"
+        }
+      }
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

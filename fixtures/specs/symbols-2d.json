@@ -1,0 +1,67 @@
+{
+  "name": "symbols-2d",
+  "kind": "bytes",
+  "note": "the two dimensional codes besides QR and PDF417: settings, stored data, print, a size request and a symbol that does not exist",
+  "bytes": [
+    "1b 40",
+    "1d 28 6b 03 00 36 43 08",
+    "1d 28 6b 05 00 36 50 30 68 69",
+    "1d 28 6b 03 00 36 51 30",
+    "1d 28 6b 05 00 35 50 30 61 7a",
+    "1d 28 6b 03 00 35 51 30",
+    "1d 28 6b 03 00 32 41 32",
+    "1d 28 6b 05 00 32 50 30 6d 63",
+    "1d 28 6b 03 00 32 51 30",
+    "1d 28 6b 05 00 33 50 30 64 62",
+    "1d 28 6b 03 00 33 51 30",
+    "1d 28 6b 05 00 34 50 30 63 70",
+    "1d 28 6b 03 00 34 51 30",
+    "1d 28 6b 03 00 36 52 30",
+    "1d 28 6b 03 00 37 50 30",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "symbols": [
+      {
+        "kind": "datamatrix",
+        "data": "hi",
+        "settings": [
+          {
+            "function": 67,
+            "bytes": "08"
+          }
+        ]
+      },
+      {
+        "kind": "aztec",
+        "data": "az",
+        "settings": []
+      },
+      {
+        "kind": "maxicode",
+        "data": "mc",
+        "settings": [
+          {
+            "function": 65,
+            "bytes": "32"
+          }
+        ]
+      },
+      {
+        "kind": "gs1-databar-2d",
+        "data": "db",
+        "settings": []
+      },
+      {
+        "kind": "composite",
+        "data": "cp",
+        "settings": []
+      }
+    ],
+    "unknown": 1,
+    "cuts": [
+      "full"
+    ]
+  }
+}

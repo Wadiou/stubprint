@@ -1,0 +1,66 @@
+{
+  "name": "graphics-raster-modes",
+  "kind": "bytes",
+  "note": "a raster picture in the four print modes, as numbers and as a digit: double width and height repeat each dot",
+  "bytes": [
+    "1b 40",
+    "1d 76 30 00 01 00 02 00 aa 55",
+    "1d 76 30 01 01 00 02 00 aa 55",
+    "1d 76 30 02 01 00 02 00 aa 55",
+    "1d 76 30 03 01 00 02 00 aa 55",
+    "1d 76 30 30 01 00 02 00 aa 55",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "images": [
+      {
+        "width": 8,
+        "height": 2,
+        "rows": [
+          "#.#.#.#.",
+          ".#.#.#.#"
+        ]
+      },
+      {
+        "width": 16,
+        "height": 2,
+        "rows": [
+          "##..##..##..##..",
+          "..##..##..##..##"
+        ]
+      },
+      {
+        "width": 8,
+        "height": 4,
+        "rows": [
+          "#.#.#.#.",
+          "#.#.#.#.",
+          ".#.#.#.#",
+          ".#.#.#.#"
+        ]
+      },
+      {
+        "width": 16,
+        "height": 4,
+        "rows": [
+          "##..##..##..##..",
+          "##..##..##..##..",
+          "..##..##..##..##",
+          "..##..##..##..##"
+        ]
+      },
+      {
+        "width": 8,
+        "height": 2,
+        "rows": [
+          "#.#.#.#.",
+          ".#.#.#.#"
+        ]
+      }
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

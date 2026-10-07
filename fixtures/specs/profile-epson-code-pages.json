@@ -1,0 +1,30 @@
+{
+  "name": "profile-epson-code-pages",
+  "kind": "bytes",
+  "note": "on an Epson 19 is CP858 and 4 is CP863, and a number it does not have is read as Windows 1252",
+  "bytes": [
+    "1b 40",
+    "1b 74 13",
+    "d5",
+    "0a",
+    "1b 74 04",
+    "82",
+    "0a",
+    "1b 74 32",
+    "80",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "profile": "TM-T88IV",
+    "receipts": 1,
+    "texts": [
+      "€",
+      "é",
+      "€"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

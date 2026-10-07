@@ -1,0 +1,31 @@
+{
+  "name": "status-healthy",
+  "kind": "bytes",
+  "note": "the answers of a healthy printer: the four real time statuses, the paper and drawer statuses, and who it is",
+  "bytes": [
+    "1b 40",
+    "10 04 01",
+    "10 04 02",
+    "10 04 03",
+    "10 04 04",
+    "1d 72 01",
+    "1d 72 02",
+    "1d 72 31",
+    "1d 49 42",
+    "1d 49 43",
+    "text:ok",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "profile": "TM-T88IV",
+    "replies": "12 12 12 12 00 00 00 5f 45 50 53 4f 4e 00 5f 54 4d 2d 54 38 38 49 56 00",
+    "receipts": 1,
+    "texts": [
+      "ok"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

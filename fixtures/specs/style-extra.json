@@ -1,0 +1,73 @@
+{
+  "name": "style-extra",
+  "kind": "bytes",
+  "note": "double strike, upside down, rotated, second colour and smoothing, each on and off, and values that are not allowed",
+  "bytes": [
+    "1b 40",
+    "1b 47 01",
+    "text:DS",
+    "0a",
+    "1b 47 00",
+    "1b 7b 01",
+    "text:UP",
+    "0a",
+    "1b 7b 00",
+    "1b 56 01",
+    "text:ROT",
+    "0a",
+    "1b 56 30",
+    "1b 72 01",
+    "text:RED",
+    "0a",
+    "1b 72 30",
+    "1d 62 01",
+    "text:SMOOTH",
+    "0a",
+    "1d 62 00",
+    "1b 56 02",
+    "1b 72 02",
+    "text:END",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "DS",
+      "UP",
+      "ROT",
+      "RED",
+      "SMOOTH",
+      "END"
+    ],
+    "styles": [
+      {
+        "text": "DS",
+        "doubleStrike": true
+      },
+      {
+        "text": "UP",
+        "upsideDown": true
+      },
+      {
+        "text": "ROT",
+        "rotated": true
+      },
+      {
+        "text": "RED",
+        "color": 1
+      },
+      {
+        "text": "SMOOTH",
+        "smooth": true
+      },
+      {
+        "text": "END"
+      }
+    ],
+    "unknown": 2,
+    "cuts": [
+      "full"
+    ]
+  }
+}

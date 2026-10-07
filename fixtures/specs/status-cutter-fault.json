@@ -1,0 +1,25 @@
+{
+  "name": "status-cutter-fault",
+  "kind": "bytes",
+  "note": "a stuck cutter",
+  "bytes": [
+    "1b 40",
+    "10 04 03",
+    "text:ok",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "status": {
+      "fault": "cutter"
+    },
+    "replies": "1a",
+    "receipts": 1,
+    "texts": [
+      "ok"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}
