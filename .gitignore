@@ -26,7 +26,6 @@
 # Generated fixtures: streams, expected results and previews. Rebuilt from fixtures/specs
 /fixtures/out
 /fixtures/generate/.venv
-/fixtures/generate/node_modules
 __pycache__/
 
 # Other people's projects, cloned to read and never committed
