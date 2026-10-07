@@ -1,5 +1,37 @@
+# Rust
 /target
+**/*.rs.bk
+
+# Web page
 /web/node_modules
 /web/dist
+/web/build
+/web/.svelte-kit
+/web/.vite
+
+# Tauri
+/crates/app/gen
+/crates/app/target
+
+# Builds and packaged apps
+/dist
+/build
 /out
+*.exe
+*.msi
+*.dmg
+*.AppImage
+*.deb
+
+# Generated fixtures: streams, expected results and previews. Rebuilt from fixtures/specs
+/fixtures/out
+/fixtures/generate/node_modules
+
+# Draft plan files, never staged
+.github/commit-plan.md
+.github/pr-plan.md
+
+# Editors and system files
 .DS_Store
+.idea/
+.vscode/
