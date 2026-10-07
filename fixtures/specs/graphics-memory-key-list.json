@@ -1,0 +1,30 @@
+{
+  "name": "graphics-memory-key-list",
+  "kind": "bytes",
+  "note": "GS ( L fn 64 and 80 list the keys: 37 72 (NV) or 37 73 (download), status 40 or 41, key pairs in order of key, NUL. Nothing defined is a list of nothing, and a command that does not say 'KC' is unknown",
+  "bytes": [
+    "1b 40",
+    "1d 28 4c 04 00 30 50 4b 43",
+    "1d 28 4c 04 00 30 40 4b 43",
+    "1d 28 4c 0d 00 30 43 30 41 42 01 08 00 02 00 31 aa 55",
+    "1d 28 4c 0d 00 30 43 30 30 31 01 08 00 02 00 31 aa 55",
+    "1d 28 4c 0d 00 30 53 30 7e 20 01 08 00 02 00 31 aa 55",
+    "1d 28 4c 04 00 30 40 4b 43",
+    "1d 28 4c 04 00 30 50 4b 43",
+    "1d 28 4c 04 00 30 40 4b 44",
+    "text:ok",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "replies": "37 73 40 00 37 72 40 00 37 72 40 30 31 41 42 00 37 73 40 7e 20 00",
+    "receipts": 1,
+    "texts": [
+      "ok"
+    ],
+    "unknown": 1,
+    "cuts": [
+      "full"
+    ]
+  }
+}

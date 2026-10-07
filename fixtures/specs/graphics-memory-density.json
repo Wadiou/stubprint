@@ -1,0 +1,31 @@
+{
+  "name": "graphics-memory-density",
+  "kind": "bytes",
+  "note": "GS ( L fn 49 picks the density that graphics are made for: 180 or 360 dots per inch, and nothing else",
+  "bytes": [
+    "1b 40",
+    "1d 28 4c 04 00 30 31 32 32",
+    "1d 28 4c 04 00 30 31 33 33",
+    "1d 28 4c 04 00 30 01 32 32",
+    "1d 28 4c 04 00 30 31 32 33",
+    "1d 28 4c 04 00 30 31 31 31",
+    "text:ok",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "graphicsDensities": [
+      180,
+      360,
+      180
+    ],
+    "receipts": 1,
+    "texts": [
+      "ok"
+    ],
+    "unknown": 2,
+    "cuts": [
+      "full"
+    ]
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "graphics-memory-key-list-ended",
+  "kind": "bytes",
+  "note": "any byte but ACK, NAK and CAN ends the list at once and is read as it would be at any other time, so a stray ACK after it is an unknown command",
+  "bytes": [
+    "1b 40",
+    "1d 28 4c 0d 00 30 43 30 41 42 01 08 00 02 00 31 aa 55",
+    "1d 28 4c 04 00 30 40 4b 43",
+    "text:x",
+    "0a",
+    "06",
+    "06",
+    "text:ok",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "replies": "37 72 40 41 42 00",
+    "receipts": 1,
+    "texts": [
+      "x",
+      "ok"
+    ],
+    "unknown": 1,
+    "cuts": [
+      "full"
+    ]
+  }
+}

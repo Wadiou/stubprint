@@ -1,0 +1,37 @@
+{
+  "name": "page-mode-repeats",
+  "kind": "bytes",
+  "note": "ESC FF and ESC S in standard mode do nothing, ESC L in page mode is not a second page, and ESC T takes the digits too",
+  "bytes": [
+    "1b 40",
+    "1b 0c",
+    "1b 4c",
+    "1b 4c",
+    "1b 54 33",
+    "1b 54 30",
+    "text:x",
+    "1b 53",
+    "1b 53",
+    "1b 0c",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "x"
+    ],
+    "page": [
+      "enter",
+      {
+        "direction": 3
+      },
+      {
+        "direction": 0
+      },
+      "standard"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

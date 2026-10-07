@@ -1,0 +1,43 @@
+{
+  "name": "text-kanji-systems",
+  "kind": "bytes",
+  "note": "FS C 1 and 2 pick Shift JIS, in which a lead byte starts a character without FS &, and FS C 0 and the digits go back to JIS. A value that is not a system is unknown",
+  "bytes": [
+    "1b 40",
+    "1c 43 01",
+    "text:x",
+    "93 fa 96 7b 8c ea",
+    "text:y",
+    "0a",
+    "1c 43 32",
+    "93 fa",
+    "0a",
+    "1c 43 00",
+    "text:AB",
+    "0a",
+    "1c 26",
+    "46 7c",
+    "1c 2e",
+    "0a",
+    "1c 43 31",
+    "text:z",
+    "96 7b",
+    "0a",
+    "1c 43 05",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "x日本語y",
+      "日",
+      "AB",
+      "日",
+      "z本"
+    ],
+    "unknown": 1,
+    "cuts": [
+      "full"
+    ]
+  }
+}

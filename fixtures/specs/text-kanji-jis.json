@@ -1,0 +1,27 @@
+{
+  "name": "text-kanji-jis",
+  "kind": "bytes",
+  "note": "a Japanese model reads JIS code until FS C says otherwise: both bytes of a character are 0x21 to 0x7E, so ASCII between FS & and FS . is read in pairs too",
+  "bytes": [
+    "1b 40",
+    "1c 26",
+    "46 7c 4b 5c 38 6c",
+    "21 21",
+    "text:AB",
+    "0a",
+    "1c 2e",
+    "text:AB",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "日本語　疎",
+      "AB"
+    ],
+    "cuts": [
+      "full"
+    ]
+  }
+}

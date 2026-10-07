@@ -125,7 +125,26 @@ fn strings(value: &Value) -> Vec<String> {
         .collect()
 }
 
-/// Every key a spec may use. A key not listed here fails, so nothing is quietly left unchecked.
+/// The keys of the events that a spec checks as a list, in the order they happened. See `extra`.
+const EVENT_KEYS: &[&str] = &[
+    "beeps",
+    "positions",
+    "margins",
+    "printWidths",
+    "motionUnits",
+    "tabStops",
+    "lineSpacings",
+    "feeds",
+    "densities",
+    "graphicsDensities",
+    "symbols",
+    "userCharacters",
+    "userKanji",
+    "page",
+];
+
+/// The other keys a spec may use. A key in neither list fails, so nothing is quietly left
+/// unchecked.
 const KNOWN_KEYS: &[&str] = &[
     "receipts",
     "receiptTexts",
@@ -143,22 +162,8 @@ const KNOWN_KEYS: &[&str] = &[
     "cuts",
     "fonts",
     "aligns",
-    "feeds",
     "pulses",
     "unknown",
-    "beeps",
-    "positions",
-    "margins",
-    "printWidths",
-    "motionUnits",
-    "tabStops",
-    "lineSpacings",
-    "feedUnits",
-    "reverseFeeds",
-    "densities",
-    "symbols",
-    "userCharacters",
-    "page",
     "images",
     "replies",
     "profile",
@@ -194,7 +199,7 @@ fn position_json(position: &Position) -> Value {
 
 /// The events that a spec checks as a list of JSON, by the key it uses for them.
 fn extra(event: &Event) -> Option<(&'static str, Value)> {
-    use receipt::LineSpacing;
+    use receipt::{FeedAmount, LineSpacing};
     Some(match event {
         Event::Beep { times, duration } => {
             ("beeps", json!({ "times": times, "duration": duration }))
@@ -214,8 +219,16 @@ fn extra(event: &Event) -> Option<(&'static str, Value)> {
                 LineSpacing::Dots(n) => json!({ "dots": n }),
             },
         ),
-        Event::FeedUnits(n) => ("feedUnits", json!(n)),
-        Event::ReverseFeed(n) => ("reverseFeeds", json!(n)),
+        Event::Feed(feed) => {
+            let mut value = match feed.amount {
+                FeedAmount::Lines(n) => json!({ "lines": n }),
+                FeedAmount::Units(n) => json!({ "units": n }),
+            };
+            if feed.reverse {
+                value["reverse"] = json!(true);
+            }
+            ("feeds", value)
+        }
         Event::Density(value) => ("densities", json!(value)),
         Event::Symbol(symbol) => (
             "symbols",
@@ -239,6 +252,16 @@ fn extra(event: &Event) -> Option<(&'static str, Value)> {
             } }),
         ),
         Event::DeleteCharacter(code) => ("userCharacters", json!({ "delete": code })),
+        Event::DefineKanji(kanji) => (
+            "userKanji",
+            json!({
+                "code": hex(&kanji.code),
+                "width": kanji.width,
+                "height": kanji.height,
+                "data": hex(&kanji.data),
+            }),
+        ),
+        Event::GraphicsDensity(dpi) => ("graphicsDensities", json!(dpi)),
         Event::UserCharacters(on) => ("userCharacters", json!({ "use": on })),
         Event::Page(page) => (
             "page",
@@ -274,7 +297,7 @@ fn problems(fixture: &Fixture, decoded: &Decoded) -> Vec<String> {
 
     for key in expected.keys() {
         check(
-            KNOWN_KEYS.contains(&key.as_str()),
+            KNOWN_KEYS.contains(&key.as_str()) || EVENT_KEYS.contains(&key.as_str()),
             format!("the spec uses an unchecked key: {key}"),
         );
     }
@@ -516,25 +539,6 @@ fn problems(fixture: &Fixture, decoded: &Decoded) -> Vec<String> {
         );
     }
 
-    if let Some(feeds) = expected.get("feeds") {
-        let got: Vec<u64> = events(receipts)
-            .filter_map(|event| match event {
-                Event::Feed(lines) => Some(u64::from(*lines)),
-                _ => None,
-            })
-            .collect();
-        let want: Vec<u64> = feeds
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|f| f.as_u64().unwrap())
-            .collect();
-        check(
-            got == want,
-            format!("feeds: expected {want:?}, got {got:?}"),
-        );
-    }
-
     if let Some(pulses) = expected.get("pulses") {
         let got: Vec<(u64, u64, u64)> = events(receipts)
             .filter_map(|event| match event {
@@ -571,22 +575,8 @@ fn problems(fixture: &Fixture, decoded: &Decoded) -> Vec<String> {
             extras.entry(key).or_default().push(value);
         }
     }
-    for key in [
-        "beeps",
-        "positions",
-        "margins",
-        "printWidths",
-        "motionUnits",
-        "tabStops",
-        "lineSpacings",
-        "feedUnits",
-        "reverseFeeds",
-        "densities",
-        "symbols",
-        "userCharacters",
-        "page",
-    ] {
-        if let Some(want) = expected.get(key) {
+    for key in EVENT_KEYS {
+        if let Some(want) = expected.get(*key) {
             let got = Value::Array(extras.get(key).cloned().unwrap_or_default());
             check(&got == want, format!("{key}: expected {want}, got {got}"));
         }

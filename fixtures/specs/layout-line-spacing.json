@@ -1,7 +1,7 @@
 {
   "name": "layout-line-spacing",
   "kind": "bytes",
-  "note": "line spacing in the three units, feeding in dots, feeding backwards and feeding lines",
+  "note": "line spacing in the three units, feeding in dots, feeding backwards and feeding lines and ESC K feeds back in units too",
   "bytes": [
     "1b 40",
     "1b 32",
@@ -10,6 +10,7 @@
     "1b 2b 1e",
     "1b 4a 30",
     "1b 65 02",
+    "1b 4b 05",
     "text:a",
     "1b 64 03",
     "1d 56 00"
@@ -31,14 +32,21 @@
         "threeSixtieths": 30
       }
     ],
-    "feedUnits": [
-      48
-    ],
-    "reverseFeeds": [
-      2
-    ],
     "feeds": [
-      3
+      {
+        "units": 48
+      },
+      {
+        "lines": 2,
+        "reverse": true
+      },
+      {
+        "units": 5,
+        "reverse": true
+      },
+      {
+        "lines": 3
+      }
     ],
     "cuts": [
       "full"

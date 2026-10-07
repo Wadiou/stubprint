@@ -21,7 +21,7 @@
   },
   "control-align-feed": {
     "bin": "22a0c7a2188f8558e3c5a50189b4f9207d2b8d8f053affb8e6e1b3b8de9cfbaa",
-    "expected": "a651482b8e7e600103816e9da466921d09adb1597217974d831761c11b3a1295"
+    "expected": "294cdb38386c220a2fc02dda9f26573b24422f677ed9bea40352037573203be1"
   },
   "control-beep": {
     "bin": "24cc986db3558e01aaf8b47cc15d14a98390b3661e8874eab4e649a02557cf29",
@@ -52,11 +52,11 @@
     "expected": "9c17d60024aac17867319e0556505b53dba190c39cd4daa4d635475ded387b79"
   },
   "control-fs-skipped": {
-    "bin": "7b3089a32f0374be996ef17740e7ef56f03f46310e27ddfa6b48bbc68316da0d",
+    "bin": "c744ca7968490e812086ede3dadd30befa77dfd83d1413fa38b3198ab0596bc1",
     "expected": "24ca8805c39c274b005ca1148d516172112bb89ebf11994fe15dba15813c6db4"
   },
   "control-ignored-settings": {
-    "bin": "bbd0020c54a1b3ece1ba629e058460e539fa65e118f06218547736b805ff423e",
+    "bin": "72b934d7fdcbe85bf0696e6b93ecbfd019c308f776958beefd312f686b5b55ea",
     "expected": "3ab85c302bad5542ce53bb84941b0a17828dbc30e2ba8c861069b92b46806499"
   },
   "control-pulse": {
@@ -98,6 +98,26 @@
   "graphics-gs-l-memory": {
     "bin": "247ef8da828af7e734bc314a5d19882a62eabbe0a858b6297edf7eac533586ea",
     "expected": "0632198bc7bd36fb53172136e13b2e8a9002fd7c79632b49842057b22b5df8aa"
+  },
+  "graphics-memory-density": {
+    "bin": "b7171fcc38f06ec8b847d4a1761d18cb23254a069afe6c9ca64c8850fabbf31a",
+    "expected": "23715ac5481b8abe2e25fe73a78ece63e37af6a7b3b65b1ce2c018372769cdd8"
+  },
+  "graphics-memory-key-blocks": {
+    "bin": "6717272e4fded4c57f4fb1eb821a993a28d1340a05377f9135adff94e3ebfe48",
+    "expected": "506e3d1e48b198e952555ebdcf3a691f6f659d36d1fff43ba6b00649ac6fb705"
+  },
+  "graphics-memory-key-list-ended": {
+    "bin": "7eb908953129f53abf94096a36669a96fe9f5b06875cbc3420cfb3bff346c8a2",
+    "expected": "ada558c795979fdfb06dc6b57393cde57e4f29519021d25d55c527599b007d6a"
+  },
+  "graphics-memory-key-list": {
+    "bin": "48d759ac5b9a673f1c8ae774751ea74091571d693f98c303ecddd44329cd9f1a",
+    "expected": "2b7f02f083b324fa62e95101417d42a4f814e44ea0cbee1f5f4aee059d8c6ea2"
+  },
+  "graphics-memory-sizes": {
+    "bin": "8c4846714ee266ef1db6b8355b0dc767c54b72701c09384cccbb162f0b905b1b",
+    "expected": "8d8db32c1083f3a433b80f7e70eb68d4771188d5b3e608b9ad83481268ef9709"
   },
   "graphics-nv-bit-images": {
     "bin": "dcf4fc60f28a6e824730005db13a1980c8e917a5b91db8599bf9a73d3bd57e4e",
@@ -143,8 +163,8 @@
     "bitmap": "47f708376f615b6e268e261c65c18209db71d79b342e9bb5b0d1054db2c9e3bb"
   },
   "layout-line-spacing": {
-    "bin": "80377a01d655e488ed40570357dc8fed9f5677f01f34cb1ee59216910f2aeef2",
-    "expected": "8ce2a65010b1eb188815de927522771c9a2389e5d830edbc07f91b4d4b75fa81"
+    "bin": "a9392cb3ac8893e3e1cf458f5bb1433bd79c3ec00316b0a6c9e8725f16b8accf",
+    "expected": "b016f062c343fe3167ed8addd7cb39b47279911c94c5f4b97709316ff544ae01"
   },
   "layout-margins": {
     "bin": "3ce3006f305a53607f625e6be5ee0699ee940c1e02b2cb2f412423186c1a4a9c",
@@ -155,8 +175,12 @@
     "expected": "cb47b1a7dae234b33dc6881a02d616396e37330d355af38a9ad5585a4d98bb43"
   },
   "layout-tab-stops": {
-    "bin": "b2794d70a53caf7388b7f2dc95ad3ccd6ead8a32dbe9baa4254989536c33f01a",
-    "expected": "7cadf0d2cd5bf1b46b2253ee198050bbcb4595b3b7221823dd7a7cceddab0373"
+    "bin": "94a768bbca54fbe06ec63897a063cd13a20d42f2eeb634cf05ac9eca48e64de8",
+    "expected": "83eb65d210b73c47c727c40df4be2493446acd2b7987920e8962c4247997bfd1"
+  },
+  "page-mode-repeats": {
+    "bin": "55b8aebb61514a17ccb822bedd610ea6742fb3ace5894dcdd6fe98808afb1c89",
+    "expected": "42e8eeb9cfba88b56f68a3952fe5642c0abcb94c8063d313a732fa90d69688fc"
   },
   "page-mode": {
     "bin": "e953a835387e168429dbc96a6a9fc858e95c5fda620c116ce347e8e11c896528",
@@ -323,6 +347,14 @@
     "bin": "94a12caf563e2f04d2816d99e955640fe33c91256e8bc11eff5bcf1f2d84b3af",
     "expected": "2707de9ec542d612d9a0afb8e7a47bb744031556b5f138faf23d67bc5287cf06"
   },
+  "text-kanji-jis": {
+    "bin": "8f812040512561f3fb8393a4fce577561c70511a34101e281caf045f5a02bd9b",
+    "expected": "7c5de0eb93ee6022d15fea5400ddb9cbf44a35b6a3f8f00ddbc3c036a562f7f6"
+  },
+  "text-kanji-systems": {
+    "bin": "31d71e9044e208d2870f1ab8058cd7ab824c0e8c6994a3b473233a388f392e72",
+    "expected": "6f2fe239807e3e3fed281e25cee96c399d5ffa383d2dd5d0273cc65f1c1ff52c"
+  },
   "text-plain": {
     "bin": "3a90285b441a7f9f854f8df9ed2223f683f079316c3630ee28d4d2b2ff91091a",
     "expected": "290d946120df2a10d47a1caced9ce5cd8524d36ad86bfc0013e20737d4fd253b"
@@ -344,12 +376,16 @@
     "expected": "c16c1bd2bf49f828fa9524839fe9fcfa43d9619f184fd32b0f887445742e7cb5"
   },
   "text-two-byte-characters": {
-    "bin": "e212a174436915cd4cb74d4f3f493fcf2e1bbe387943f1dcdcd8258117a2bd9d",
+    "bin": "6afb53f55a26908ac76fed509be99b1c3a4c47020f1d57a94eeebaa91fd48b52",
     "expected": "c7e3aecab979990551f77c47aa87b50c5907aa9cf5963f90cbe1eedf8c9f7f5e"
   },
   "text-user-characters": {
     "bin": "0586511aa73edf49614f003d62fa06f29d9fe1702c71986935d17231ace378fb",
     "expected": "0b1584d7505a74a8c9f9e4004cb6eb4b29a0351bbbb8f9506358ca89e476b77f"
+  },
+  "text-user-kanji": {
+    "bin": "6678623c1ef1ecce878e5fcd24a46843d894f6b151e02a983d57c0a5b1f74537",
+    "expected": "c499f862ccb9f48e16a2bead787073a3258d26aa80992400295d9ea830ddc482"
   },
   "text-utf8": {
     "bin": "244e12d0781c22d2a5ef28f50cec92528bb4e3669d2b5c70965363778820ddbb",

@@ -1,9 +1,10 @@
 {
   "name": "text-two-byte-characters",
   "kind": "bytes",
-  "note": "Shift JIS characters between ASCII, whose second byte can look like ASCII, a lead byte of 0xE0, a half width katakana, after FS & and not after FS .",
+  "note": "Shift JIS (FS C 1) characters between ASCII, whose second byte can look like ASCII, a lead byte of 0xE0, a half width katakana, after FS & and not after FS .",
   "bytes": [
     "1b 40",
+    "1c 43 01",
     "1c 26",
     "text:a",
     "93 fa 96 7b 8c ea",

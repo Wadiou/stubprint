@@ -1,0 +1,33 @@
+{
+  "name": "graphics-memory-sizes",
+  "kind": "bytes",
+  "note": "GS ( L fn 48, 51 and 52 (also written 0, 3 and 4): the whole NV memory, what is left of it and of the download memory, as digits between 0x37 id and NUL. Two bytes of graphics in each take two bytes",
+  "bytes": [
+    "1b 40",
+    "1d 28 4c 02 00 30 30",
+    "1d 28 4c 02 00 30 00",
+    "1d 28 4c 02 00 30 33",
+    "1d 28 4c 02 00 30 34",
+    "1d 28 4c 02 00 30 34",
+    "1d 28 4c 0d 00 30 43 30 41 42 01 08 00 02 00 31 aa 55",
+    "1d 28 4c 0d 00 30 53 30 43 44 01 08 00 02 00 31 aa 55",
+    "1d 28 4c 02 00 30 33",
+    "1d 28 4c 02 00 30 34",
+    "1d 28 4c 02 00 30 33",
+    "1d 28 4c 03 00 30 30 30",
+    "text:ok",
+    "0a",
+    "1d 56 00"
+  ],
+  "expect": {
+    "replies": "37 30 32 36 32 31 34 34 00 37 30 32 36 32 31 34 34 00 37 31 32 36 32 31 34 34 00 37 32 31 32 32 38 38 00 37 32 31 32 32 38 38 00 37 31 32 36 32 31 34 32 00 37 32 31 32 32 38 36 00 37 31 32 36 32 31 34 32 00",
+    "receipts": 1,
+    "texts": [
+      "ok"
+    ],
+    "unknown": 1,
+    "cuts": [
+      "full"
+    ]
+  }
+}

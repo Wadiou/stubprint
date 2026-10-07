@@ -26,7 +26,9 @@
       "left"
     ],
     "feeds": [
-      3
+      {
+        "lines": 3
+      }
     ],
     "cuts": [
       "full"
