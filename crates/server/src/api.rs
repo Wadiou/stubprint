@@ -11,6 +11,7 @@ use axum::response::{IntoResponse, Response, Sse as SseResponse};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use receipt::{Event, Fault, Paper, PrinterStatus, Profile};
+use receipt_render::Options;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::json;
 use tokio_stream::wrappers::errors::BroadcastStreamRecvError;
@@ -257,14 +258,33 @@ fn parse_receipt(text: &str) -> Reply<(u64, &str)> {
     Ok((id, form))
 }
 
-/// One receipt. The id can end in `.bin` for the bytes the printer was sent.
-#[utoipa::path(get, path = "/api/receipts/{id}", params(("id" = String, Path, description = "The id of the receipt, with .json or .bin after it")),
-    responses((status = 200, body = ReceiptDetail), (status = 404, body = ErrorBody)))]
-async fn receipt(State(hub): State<Arc<Hub>>, Path(text): Path<String>) -> Reply<Response> {
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+struct PictureQuery {
+    /// How many times larger the picture is drawn, from 1 to 4.
+    scale: Option<u32>,
+}
+
+/// One receipt. The id can end in `.bin` for the bytes the printer was sent, in `.txt` for the
+/// paper as text, and in `.png` for a picture of the paper.
+#[utoipa::path(get, path = "/api/receipts/{id}",
+    params(("id" = String, Path, description = "The id of the receipt, with .json, .bin, .txt or .png after it"), PictureQuery),
+    responses(
+        (status = 200, body = ReceiptDetail),
+        (status = 200, description = "With .png", content_type = "image/png"),
+        (status = 200, description = "With .txt", content_type = "text/plain"),
+        (status = 200, description = "With .bin", content_type = "application/octet-stream"),
+        (status = 404, body = ErrorBody)))]
+async fn receipt(
+    State(hub): State<Arc<Hub>>,
+    Path(text): Path<String>,
+    Query(picture): Query<PictureQuery>,
+) -> Reply<Response> {
     let (id, form) = parse_receipt(&text)?;
     let stored: Arc<Stored> = hub
         .receipt(id)
         .ok_or_else(|| ApiError::not_found(format!("no receipt {id}")))?;
+    let mut options = Options::for_profile(&stored.printer.profile);
+    options.scale = picture.scale.unwrap_or(1);
     match form {
         "json" => Ok(Json(ReceiptDetail::of(&stored)).into_response()),
         "bin" => Ok((
@@ -278,6 +298,22 @@ async fn receipt(State(hub): State<Arc<Hub>>, Path(text): Path<String>) -> Reply
             stored.receipt.raw().to_vec(),
         )
             .into_response()),
+        "txt" => Ok((
+            [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+            receipt_render::text_of(&stored.receipt, &options),
+        )
+            .into_response()),
+        "png" => {
+            // Drawing takes a while for a long receipt, so it does not hold up the other requests.
+            let file =
+                tokio::task::spawn_blocking(move || receipt_render::png(&stored.receipt, &options))
+                    .await
+                    .map_err(|error| {
+                        ApiError(StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
+                    })?
+                    .map_err(|error| ApiError(StatusCode::INTERNAL_SERVER_ERROR, error))?;
+            Ok(([(header::CONTENT_TYPE, "image/png")], file).into_response())
+        }
         other => Err(ApiError::not_found(format!(
             "a receipt does not come as .{other}"
         ))),

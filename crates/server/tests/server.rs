@@ -266,6 +266,7 @@ async fn an_unknown_printer_is_a_404_with_a_message() {
     assert_eq!(server.get("/api/receipts/99").await.status(), 404);
     assert_eq!(server.get("/api/receipts/abc").await.status(), 404);
     assert_eq!(server.get("/api/receipts/1.gif").await.status(), 404);
+    assert_eq!(server.get("/api/receipts/99.png").await.status(), 404);
     assert_eq!(
         server
             .client
@@ -720,4 +721,49 @@ async fn stopping_closes_the_connections_and_the_ports() {
     // What was sent before is still printed.
     assert_eq!(hub.receipts(None).len(), 1);
     assert!(TcpStream::connect(address).await.is_err());
+}
+
+#[tokio::test]
+async fn a_receipt_comes_as_text_and_as_a_picture_of_the_paper_of_its_printer() {
+    // The model decides the paper: 42 columns of 12 dots are 504 dots.
+    let server = Harness::start(&["name=till"]).await;
+    let bytes = [b"\x1ba\x01Hello\n\x1ba\x00Bye\n".as_slice(), &CUT].concat();
+    server.print("till", &bytes, 100).await;
+    server.after(0).await;
+
+    let text = server.get("/api/receipts/1.txt").await;
+    assert_eq!(text.status(), 200);
+    assert!(text.headers()["content-type"]
+        .to_str()
+        .unwrap()
+        .starts_with("text/plain"));
+    // 42 columns: "Hello" is centred at column (42 - 5) / 2 = 18.
+    assert_eq!(
+        text.text().await.unwrap(),
+        format!("{}Hello\nBye\n", " ".repeat(18))
+    );
+
+    let picture = server.get("/api/receipts/1.png").await;
+    assert_eq!(picture.status(), 200);
+    assert_eq!(picture.headers()["content-type"], "image/png");
+    let file = picture.bytes().await.unwrap();
+    assert_eq!(&file[..8], b"\x89PNG\r\n\x1a\n");
+    let size = |file: &[u8]| {
+        (
+            u32::from_be_bytes(file[16..20].try_into().unwrap()),
+            u32::from_be_bytes(file[20..24].try_into().unwrap()),
+        )
+    };
+    let (width, height) = size(&file);
+    assert_eq!(width, 504);
+    // 8 dots of edge, two lines of 33 dots, 8 dots of edge.
+    assert_eq!(height, 8 + 33 + 33 + 8);
+
+    let double = server
+        .get("/api/receipts/1.png?scale=2")
+        .await
+        .bytes()
+        .await
+        .unwrap();
+    assert_eq!(size(&double), (width * 2, height * 2));
 }
