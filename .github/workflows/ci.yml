@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - name: Libraries Pillow needs to shape Arabic in the previews
+        run: sudo apt-get update && sudo apt-get install -y libraqm0 libfribidi0 libharfbuzz0b
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Generate the fixtures, which fails when one differs from the lock
+        working-directory: fixtures/generate
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -r requirements.txt fonttools
+          .venv/bin/python generate.py
+          .venv/bin/python check_glyphs.py
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+
+  licences:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2

@@ -27,6 +27,12 @@ Crates are local only (`publish = false`). Other projects can use the core by pa
 - Rust backend. Decoding and serving in one small binary, no runtime needed.
 - The page is a static app, so the same files work in a browser and in the Tauri window. It must
   not use Tauri only calls. It talks to the server over HTTP and server sent events.
+- The page is React with Vite and TypeScript, for the size of its ecosystem and because the
+  author already works in it. Its types and its API client are made from the server's OpenAPI
+  document, so the two cannot drift apart.
+- Stubprint behaves like the printers it copies. It adds nothing a real printer does not do. The
+  extras that real printers do have, such as print speed and a receive buffer, are settings of a
+  printer, come from documented behaviour, and are off by default so tests stay fast.
 - Rust types are the source of truth. TypeScript types for the page are generated from them.
 - One document model for every dialect. A dialect is only a decoder that fills it. Printer
   profiles set paper width, resolution and code pages.
@@ -37,9 +43,9 @@ Crates are local only (`publish = false`). Other projects can use the core by pa
 - Never crash on bad input. Unknown commands are reported with their position and bytes.
 
 ## Dialects, in order
-1. ESC/POS
-2. StarPRNT, then StarLine
-3. Label languages, only if needed
+1. ESC/POS (done)
+2. Star Line and StarPRNT (done)
+3. Label languages (ZPL, TSPL, CPCL), only if needed
 
 ## API, for people and agents
 Written in full in `docs/SERVER.md`. The description, `GET /api/openapi.json`, is made from the
@@ -72,12 +78,21 @@ pretend state is set with `POST /api/printers/{name}`.
   they need the generate step first.
 
 ## Stages
-1. `crates/core` with the ESC/POS decoder, fixtures and tests.
-2. `crates/render` and `crates/server`: pictures, TCP listener, REST, events, tests. Done.
-3. `web/` page with the paper preview.
-4. StarPRNT and StarLine decoders.
-5. Printer state, dropped jobs and status replies.
-6. Tauri shell, WebAssembly build, Docker image.
+The server grows first until the essentials are there, then the web page starts, and every later
+feature is added to the server and used through the page, so each one is tested by being used.
 
-## Open
-- Frontend framework: Svelte 5 with Vite unless React is preferred.
+1. Done: the ESC/POS decoder with its fixtures and tests (`crates/core`).
+2. Done: Star Line and StarPRNT.
+3. Done: the picture and text drawing (`crates/render`) and the server (`crates/server`): TCP
+   ports, REST, live events, the trace of every command, the connection log, `decode`.
+4. Open source readiness: third party notices and a licence check, CI, contribution and security
+   notes.
+5. The essentials still missing from the server: adding and removing printers while it runs, the
+   page's files served from the program, CORS for development, the Arabic fixture sent the way real
+   programs send it, and the triage of the mutation tests.
+6. The web page (`web/`), starting with the paper, the command list and the printer's status.
+7. Added one by one, each used through the page: the realism of a real printer (offline hold, print
+   speed, receive buffer, connection limits, idle timeouts), MCP, the decoder gaps (page mode,
+   second colour, rotated characters, a few Star commands), more printer models.
+8. Packaging: the Docker image, the Tauri desktop app, the first release (`0.1.0`), and the
+   documentation at stubprint.dev.
