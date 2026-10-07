@@ -287,6 +287,37 @@ impl UserCharacter {
     }
 }
 
+/// A Kanji character that was drawn by the program that sent it, with `FS 2`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UserKanji {
+    /// The first and the second byte of the code that prints it, as they were sent.
+    pub code: [u8; 2],
+    /// How many dots wide it is: 24, 20 or 16.
+    pub width: u8,
+    /// How many dots tall it is: 24 or 16.
+    pub height: u8,
+    /// The columns, left to right, each `height / 8` bytes with the top dot in the highest bit.
+    pub data: Vec<u8>,
+}
+
+impl UserKanji {
+    /// The character that stands for the drawn Kanji with this code in the text of a `Text` event,
+    /// in the private use area after the ones of [`UserCharacter::glyph`]. The codes a printer lets
+    /// a program draw are 94 in a row, whichever code system is in use: 0x21 to 0x7e after 0x77 in
+    /// JIS, 0x40 to 0x7e and 0x80 to 0x9e after 0xec in Shift JIS, and 0xa1 to 0xfe after 0xfe for
+    /// the Chinese and Korean models. Codes outside those have no glyph.
+    pub fn glyph(code: [u8; 2]) -> Option<char> {
+        let index = match code {
+            [0x77, second @ 0x21..=0x7e] => second - 0x21,
+            [0xec, second @ 0x40..=0x7e] => second - 0x40,
+            [0xec, second @ 0x80..=0x9e] => second - 0x80 + 63,
+            [0xfe, second @ 0xa1..=0xfe] => second - 0xa1,
+            _ => return None,
+        };
+        char::from_u32(0xe100 + u32::from(index))
+    }
+}
+
 /// What page mode does. In page mode the printer lays out a page in a box and prints it at once.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Page {
@@ -309,6 +340,22 @@ pub enum Page {
     Print,
     /// `CAN`: throw away what was laid out in the area.
     Cancel,
+}
+
+/// How far the paper was fed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FeedAmount {
+    Lines(u8),
+    /// Vertical motion units, or dots in the Star command sets.
+    Units(u16),
+}
+
+/// The paper was moved, after what was printed before it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Feed {
+    pub amount: FeedAmount,
+    /// The paper went backwards.
+    pub reverse: bool,
 }
 
 /// One thing a printer was asked to do, in the order the bytes asked for it.
@@ -337,22 +384,6 @@ pub enum Event {
     TabStops(Vec<u8>),
     /// How dark the print is, in tenths of a percent from the usual, from -500 to 500.
     Density(i16),
-/// How far the paper was fed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FeedAmount {
-    Lines(u8),
-    /// Vertical motion units, or dots in the Star command sets.
-    Units(u16),
-}
-
-/// The paper was moved, after what was printed before it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Feed {
-    pub amount: FeedAmount,
-    /// The paper went backwards.
-    pub reverse: bool,
-}
-
     /// A line, or the part of a line printed in one style. A blank line has empty text.
     Text {
         text: String,
@@ -380,6 +411,11 @@ pub struct Feed {
     DeleteCharacter(u8),
     /// `ESC %`: drawn characters are used, or not.
     UserCharacters(bool),
+    /// `FS 2`: a Kanji character was drawn.
+    DefineKanji(UserKanji),
+    /// `GS ( L` function 49: the graphics that follow are made for this many dots per inch, 180 or
+    /// 360, in both directions.
+    GraphicsDensity(u16),
     Page(Page),
     /// Bytes that are not a command this crate knows, where they started in the stream.
     Unknown {

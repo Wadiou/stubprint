@@ -11,6 +11,9 @@ const PROFILES_JSON: &str = include_str!("../profiles/profiles.json");
 pub enum KanjiEncoding {
     #[default]
     ShiftJis,
+    /// The JIS code of a Japanese model, in which both bytes of a character are 0x21 to 0x7e. It
+    /// is what `FS C` 0 selects, so a profile never has it, and only a Japanese model has it.
+    Jis,
     Gb18030,
     Big5,
     EucKr,

@@ -1,14 +1,14 @@
 use std::collections::BTreeSet;
 
 use encoding_rs::{
-    Encoding, BIG5, EUC_KR, GB18030, IBM866, ISO_8859_15, ISO_8859_2, ISO_8859_3, ISO_8859_4,
-    ISO_8859_5, ISO_8859_6, ISO_8859_7, ISO_8859_8, SHIFT_JIS, WINDOWS_1250, WINDOWS_1251,
-    WINDOWS_1252, WINDOWS_1253, WINDOWS_1254, WINDOWS_1255, WINDOWS_1256, WINDOWS_1257,
-    WINDOWS_1258,
+    Encoding, BIG5, EUC_JP, EUC_KR, GB18030, IBM866, ISO_8859_15, ISO_8859_2, ISO_8859_3,
+    ISO_8859_4, ISO_8859_5, ISO_8859_6, ISO_8859_7, ISO_8859_8, SHIFT_JIS, WINDOWS_1250,
+    WINDOWS_1251, WINDOWS_1252, WINDOWS_1253, WINDOWS_1254, WINDOWS_1255, WINDOWS_1256,
+    WINDOWS_1257, WINDOWS_1258,
 };
 use oem_cp::code_table::DECODING_TABLE_CP_MAP;
 
-use crate::event::UserCharacter;
+use crate::event::{UserCharacter, UserKanji};
 use crate::profile::KanjiEncoding;
 
 /// How the bytes of a line are read. Printers differ in what the numbers of `ESC t` mean, so the
@@ -21,10 +21,17 @@ pub(crate) struct TextContext<'a> {
     pub international: u8,
     /// The codes of the characters the program drew, when it asked for them to be used.
     pub user_characters: Option<&'a BTreeSet<u8>>,
-    /// Set after `FS &`: how two byte characters are read.
-    pub kanji: Option<KanjiEncoding>,
+    /// Set while two byte characters are on.
+    pub kanji: Option<TwoByte<'a>>,
     /// Set after `FS ( C` chose UTF-8.
     pub utf8: bool,
+}
+
+/// How two byte characters are read, and which of them the program drew.
+pub(crate) struct TwoByte<'a> {
+    pub encoding: KanjiEncoding,
+    /// The codes, as sent, of the characters drawn with `FS 2`.
+    pub drawn: &'a BTreeSet<[u8; 2]>,
 }
 
 /// How the upper half of a single byte code page is read.
@@ -175,6 +182,10 @@ fn decode_single(context: &TextContext, table: &Table, bytes: &[u8]) -> String {
 fn kanji_length(encoding: KanjiEncoding, bytes: &[u8]) -> usize {
     let lead = bytes[0];
     let wanted = match encoding {
+        KanjiEncoding::Jis => match (lead, bytes.get(1)) {
+            (0x21..=0x7e, Some(0x21..=0x7e)) => 2,
+            _ => 1,
+        },
         KanjiEncoding::ShiftJis => match lead {
             0x81..=0x9f | 0xe0..=0xfc => 2,
             _ => 1,
@@ -198,13 +209,69 @@ fn kanji_length(encoding: KanjiEncoding, bytes: &[u8]) -> usize {
     wanted.min(bytes.len())
 }
 
-fn kanji_encoding(encoding: KanjiEncoding) -> &'static Encoding {
-    match encoding {
-        KanjiEncoding::ShiftJis => SHIFT_JIS,
-        KanjiEncoding::Gb18030 => GB18030,
-        KanjiEncoding::Big5 => BIG5,
-        KanjiEncoding::EucKr => EUC_KR,
+/// Reads characters of a two byte encoding, one or more of them.
+fn decode_wide(encoding: KanjiEncoding, bytes: &[u8]) -> String {
+    let (encoding, bytes) = match encoding {
+        // The JIS code is the EUC-JP code with the top bit of each byte cleared.
+        KanjiEncoding::Jis => (
+            EUC_JP,
+            bytes.iter().map(|byte| byte | 0x80).collect::<Vec<u8>>(),
+        ),
+        KanjiEncoding::ShiftJis => (SHIFT_JIS, bytes.to_vec()),
+        KanjiEncoding::Gb18030 => (GB18030, bytes.to_vec()),
+        KanjiEncoding::Big5 => (BIG5, bytes.to_vec()),
+        KanjiEncoding::EucKr => (EUC_KR, bytes.to_vec()),
+    };
+    encoding.decode_without_bom_handling(&bytes).0.into_owned()
+}
+
+/// A stretch of a line read the same way.
+enum Piece {
+    /// Bytes below 0x80, read in the code page.
+    Narrow(std::ops::Range<usize>),
+    /// Bytes read with the two byte encoding.
+    Wide(std::ops::Range<usize>),
+    /// A character the program drew with `FS 2`, as it is shown in the text.
+    Drawn(char),
+}
+
+/// The character that shows a Kanji drawn with `FS 2`, for the two bytes of its code. A code a
+/// program may draw but has not is a space, as the printer prints it.
+fn drawn_glyph(two_byte: &TwoByte, unit: &[u8]) -> Option<char> {
+    let &[first, second] = unit else {
+        return None;
+    };
+    let glyph = UserKanji::glyph([first, second])?;
+    Some(if two_byte.drawn.contains(&[first, second]) {
+        glyph
+    } else {
+        ' '
+    })
+}
+
+/// Cuts a line into pieces. The second byte of a two byte character can look like ASCII, so the
+/// line is read in units of the encoding and not byte by byte.
+fn pieces(two_byte: &TwoByte, bytes: &[u8]) -> Vec<Piece> {
+    let mut pieces: Vec<Piece> = Vec::new();
+    let mut index = 0;
+    while index < bytes.len() {
+        let length = kanji_length(two_byte.encoding, &bytes[index..]);
+        let range = index..index + length;
+        index += length;
+        let piece = if let Some(glyph) = drawn_glyph(two_byte, &bytes[range.clone()]) {
+            Piece::Drawn(glyph)
+        } else if length == 1 && bytes[range.start] < 0x80 {
+            Piece::Narrow(range)
+        } else {
+            Piece::Wide(range)
+        };
+        match (pieces.last_mut(), piece) {
+            (Some(Piece::Narrow(last)), Piece::Narrow(next))
+            | (Some(Piece::Wide(last)), Piece::Wide(next)) => last.end = next.end,
+            (_, piece) => pieces.push(piece),
+        }
     }
+    pieces
 }
 
 /// Reads the bytes of a printed line.
@@ -213,42 +280,17 @@ pub(crate) fn decode_line(context: &TextContext, bytes: &[u8]) -> String {
         return String::from_utf8_lossy(bytes).into_owned();
     }
     let table = table(context.page.unwrap_or("CP1252"));
-    let Some(kanji) = context.kanji else {
+    let Some(two_byte) = &context.kanji else {
         return decode_single(context, &table, bytes);
     };
 
-    // With two byte characters on, bytes below 0x80 are a character each, and the rest are read
-    // in units of the encoding, since the second byte of a character can look like ASCII.
     let mut text = String::new();
-    let mut single: Vec<u8> = Vec::new();
-    let mut wide: Vec<u8> = Vec::new();
-    let mut index = 0;
-    while index < bytes.len() {
-        let length = if bytes[index] < 0x80 {
-            1
-        } else {
-            kanji_length(kanji, &bytes[index..])
-        };
-        if length == 1 && bytes[index] < 0x80 {
-            if !wide.is_empty() {
-                text.push_str(&kanji_encoding(kanji).decode_without_bom_handling(&wide).0);
-                wide.clear();
-            }
-            single.push(bytes[index]);
-        } else {
-            if !single.is_empty() {
-                text.push_str(&decode_single(context, &table, &single));
-                single.clear();
-            }
-            wide.extend_from_slice(&bytes[index..index + length]);
+    for piece in pieces(two_byte, bytes) {
+        match piece {
+            Piece::Narrow(range) => text.push_str(&decode_single(context, &table, &bytes[range])),
+            Piece::Wide(range) => text.push_str(&decode_wide(two_byte.encoding, &bytes[range])),
+            Piece::Drawn(glyph) => text.push(glyph),
         }
-        index += length;
-    }
-    if !single.is_empty() {
-        text.push_str(&decode_single(context, &table, &single));
-    }
-    if !wide.is_empty() {
-        text.push_str(&kanji_encoding(kanji).decode_without_bom_handling(&wide).0);
     }
     text
 }
@@ -346,15 +388,61 @@ mod tests {
     #[test]
     fn two_byte_characters_are_read_when_they_are_on() {
         let mut context = context("CP437");
-        context.kanji = Some(KanjiEncoding::ShiftJis);
+        let drawn = BTreeSet::new();
+        let two_byte = |encoding| {
+            Some(TwoByte {
+                encoding,
+                drawn: &drawn,
+            })
+        };
+        context.kanji = two_byte(KanjiEncoding::ShiftJis);
         // 日本 in Shift JIS, with ASCII around it, and a second byte that looks like ASCII.
         assert_eq!(decode_line(&context, b"a\x93\xfa\x96\x7bb"), "a日本b");
-        context.kanji = Some(KanjiEncoding::Gb18030);
+        context.kanji = two_byte(KanjiEncoding::Gb18030);
         assert_eq!(decode_line(&context, &[0xd6, 0xd0, b'!']), "中!");
-        context.kanji = Some(KanjiEncoding::Big5);
+        context.kanji = two_byte(KanjiEncoding::Big5);
         assert_eq!(decode_line(&context, &[0xa4, 0xa4]), "中");
-        context.kanji = Some(KanjiEncoding::EucKr);
+        context.kanji = two_byte(KanjiEncoding::EucKr);
         assert_eq!(decode_line(&context, &[0xb0, 0xa1]), "가");
+    }
+
+    #[test]
+    fn jis_code_is_read_in_pairs_of_bytes_below_0x7f() {
+        let drawn = BTreeSet::new();
+        let mut context = context("CP437");
+        context.kanji = Some(TwoByte {
+            encoding: KanjiEncoding::Jis,
+            drawn: &drawn,
+        });
+        // 日本 in JIS, then two ASCII letters that are read as a pair, as the printer does.
+        assert_eq!(decode_line(&context, &[0x46, 0x7c, 0x4b, 0x5c]), "日本");
+        assert_eq!(decode_line(&context, b"AB"), "疎");
+        // A lone byte, or one that is not a JIS byte, is read as a single character.
+        assert_eq!(decode_line(&context, b"A"), "A");
+        assert_eq!(decode_line(&context, &[0x20, 0x21, 0x21]), " \u{3000}");
+    }
+
+    #[test]
+    fn drawn_kanji_show_as_private_characters_and_the_others_as_spaces() {
+        let drawn = BTreeSet::from([[0x77, 0x21]]);
+        let mut context = context("CP437");
+        context.kanji = Some(TwoByte {
+            encoding: KanjiEncoding::Jis,
+            drawn: &drawn,
+        });
+        assert_eq!(
+            decode_line(&context, &[0x77, 0x21, 0x77, 0x22]),
+            "\u{e100} "
+        );
+        let drawn = BTreeSet::from([[0xec, 0x80]]);
+        context.kanji = Some(TwoByte {
+            encoding: KanjiEncoding::ShiftJis,
+            drawn: &drawn,
+        });
+        assert_eq!(
+            decode_line(&context, &[0xec, 0x80, 0xec, 0x40]),
+            "\u{e13f} "
+        );
     }
 
     #[test]

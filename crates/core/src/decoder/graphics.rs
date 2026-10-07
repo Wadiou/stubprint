@@ -1,5 +1,6 @@
 //! Pictures: raster pictures, the pictures a printer keeps in memory, and `GS ( L` graphics.
 
+use super::memory::Area;
 use super::{Decoder, Frame, Input, Step, MAX_COMMAND_BYTES, MAX_STORED_BYTES};
 use crate::bitmap::Bitmap;
 use crate::event::Event;
@@ -132,7 +133,7 @@ impl Decoder {
         }
 
         self.flush_line(events);
-        self.nv_bit_images = pictures
+        let bit_images = pictures
             .into_iter()
             .filter_map(|(start, x, y)| {
                 Bitmap::from_columns(
@@ -142,6 +143,7 @@ impl Decoder {
                 )
             })
             .collect();
+        self.memory.set_bit_images(bit_images);
         Step::Consumed(index)
     }
 
@@ -154,7 +156,7 @@ impl Decoder {
             return input.fixed_unknown(4, events);
         };
         if number >= 1 {
-            if let Some(bitmap) = self.nv_bit_images.get(usize::from(number) - 1).cloned() {
+            if let Some(bitmap) = self.memory.bit_image(usize::from(number) - 1).cloned() {
                 self.print_image(bitmap.scaled(across, down), events);
             }
         }
@@ -191,6 +193,12 @@ impl Decoder {
 
     /// Does what one function of `GS ( L` says, and tells whether it could.
     fn graphics_function(&mut self, function: u8, params: &[u8], events: &mut Vec<Event>) -> bool {
+        // The functions 0 to 4 are other numbers for 48 to 52.
+        let function = if function < 5 {
+            function + 48
+        } else {
+            function
+        };
         match function {
             // Store raster or column graphics in the print buffer, to be printed by function 50.
             112 | 113 => {
@@ -260,12 +268,8 @@ impl Decoder {
                 if !self.room_for(bitmap.data().len()) {
                     return false;
                 }
-                let memory = if function < 80 {
-                    &mut self.nv_graphics
-                } else {
-                    &mut self.download_graphics
-                };
-                memory.insert((*key_1, *key_2), bitmap);
+                self.memory
+                    .define(area_of(function), (*key_1, *key_2), bitmap);
                 true
             }
             // Print graphics from memory by their key, magnified.
@@ -273,12 +277,8 @@ impl Decoder {
                 let [key_1, key_2, across, down] = params else {
                     return false;
                 };
-                let memory = if function < 80 {
-                    &self.nv_graphics
-                } else {
-                    &self.download_graphics
-                };
-                if let Some(bitmap) = memory.get(&(*key_1, *key_2)).cloned() {
+                let area = area_of(function);
+                if let Some(bitmap) = self.memory.get(area, (*key_1, *key_2)).cloned() {
                     let bitmap = bitmap.scaled(magnification(*across), magnification(*down));
                     self.print_image(bitmap, events);
                 }
@@ -289,27 +289,59 @@ impl Decoder {
                 let [key_1, key_2] = params else {
                     return false;
                 };
-                let memory = if function < 80 {
-                    &mut self.nv_graphics
-                } else {
-                    &mut self.download_graphics
-                };
-                memory.remove(&(*key_1, *key_2));
+                self.memory.remove(area_of(function), (*key_1, *key_2));
                 true
             }
             65 | 81 => {
-                if function < 80 {
-                    self.nv_graphics.clear();
-                } else {
-                    self.download_graphics.clear();
-                }
+                self.memory.clear(area_of(function));
                 true
             }
-            // How much memory is left, which keys are used and which density the data has: nothing
-            // that is printed.
-            48 | 49 | 51 | 52 | 64 | 80 => true,
+            // The density the graphics that follow are made for: 180 or 360 dots per inch.
+            49 => {
+                let dpi = match params {
+                    [50, 50] => 180,
+                    [51, 51] => 360,
+                    _ => return false,
+                };
+                self.flush_line(events);
+                events.push(Event::GraphicsDensity(dpi));
+                true
+            }
+            // How much memory the printer has for graphics, and how much of it is left.
+            48 | 51 | 52 => {
+                if !params.is_empty() {
+                    return false;
+                }
+                let area = if function == 52 {
+                    Area::Download
+                } else {
+                    Area::Nv
+                };
+                let answer = self.memory.size_answer(area, function != 48);
+                self.reply(&answer);
+                true
+            }
+            // The keys of the graphics in memory, sent in blocks that the program asks for.
+            64 | 80 => {
+                if params != b"KC" {
+                    return false;
+                }
+                let answer = self.memory.list(area_of(function));
+                self.reply(&answer);
+                true
+            }
             _ => false,
         }
+    }
+}
+
+/// The functions of `GS ( L` below 80 are about the memory that stays, and from 80 up about the
+/// one that does not.
+fn area_of(function: u8) -> Area {
+    if function < 80 {
+        Area::Nv
+    } else {
+        Area::Download
     }
 }
 

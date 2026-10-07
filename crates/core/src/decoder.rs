@@ -8,6 +8,8 @@ mod esc;
 mod fs;
 mod graphics;
 mod gs;
+mod kanji;
+mod memory;
 mod symbols;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -17,6 +19,8 @@ use crate::codepage::{self, TextContext};
 use crate::event::{Align, Event, Page, Style, TextPosition};
 use crate::profile::Profile;
 use crate::status::PrinterStatus;
+use kanji::Kanji;
+use memory::Memory;
 
 const ESC: u8 = 0x1b;
 const GS: u8 = 0x1d;
@@ -176,8 +180,8 @@ struct State {
     /// Whether the characters the program drew are used, and which codes it drew.
     user_characters: bool,
     user_defined: BTreeSet<u8>,
-    /// Whether two byte characters are on, and whether the text is UTF-8.
-    kanji: bool,
+    /// How two byte characters are read, and whether the text is UTF-8.
+    kanji: Kanji,
     utf8: bool,
     page_mode: bool,
     /// The picture defined with `GS *`, and the one stored with `GS ( L` waiting to be printed.
@@ -202,7 +206,7 @@ impl Default for State {
             symbol_settings: BTreeMap::new(),
             user_characters: false,
             user_defined: BTreeSet::new(),
-            kanji: false,
+            kanji: Kanji::default(),
             utf8: false,
             page_mode: false,
             downloaded: None,
@@ -231,9 +235,7 @@ pub struct Decoder {
     /// Whether the current line has already been reported, so a line feed does not add a blank one.
     line_reported: bool,
     /// Pictures the printer keeps when it is reset: `FS q`, and the stored graphics of `GS ( L`.
-    nv_bit_images: Vec<Bitmap>,
-    nv_graphics: BTreeMap<(u8, u8), Bitmap>,
-    download_graphics: BTreeMap<(u8, u8), Bitmap>,
+    memory: Memory,
     status: PrinterStatus,
     replies: Vec<u8>,
 }
@@ -259,9 +261,7 @@ impl Decoder {
             state: State::default(),
             line: Vec::new(),
             line_reported: false,
-            nv_bit_images: Vec::new(),
-            nv_graphics: BTreeMap::new(),
-            download_graphics: BTreeMap::new(),
+            memory: Memory::default(),
             status: PrinterStatus::default(),
             replies: Vec::new(),
         }
@@ -341,6 +341,10 @@ impl Decoder {
 
     fn parse(&mut self, input: &Input, events: &mut Vec<Event>) -> Step {
         let bytes = input.bytes;
+        if let Some(answer) = self.memory.answer(bytes[0]) {
+            self.reply(&answer);
+            return Step::Consumed(1);
+        }
         match bytes[0] {
             ESC => self.parse_esc(input, events),
             GS => self.parse_gs(input, events),
@@ -423,7 +427,7 @@ impl Decoder {
                 .state
                 .user_characters
                 .then_some(&self.state.user_defined),
-            kanji: self.state.kanji.then_some(self.profile.kanji),
+            kanji: self.state.kanji.reading(self.profile.kanji),
             utf8: self.state.utf8,
         };
         let text = codepage::decode_line(&context, &self.line);
@@ -462,14 +466,12 @@ impl Decoder {
 
     /// How many bytes of pictures are kept in memory.
     fn stored_bytes(&self) -> usize {
-        self.nv_bit_images
-            .iter()
-            .chain(self.nv_graphics.values())
-            .chain(self.download_graphics.values())
-            .chain(self.state.downloaded.iter())
-            .chain(self.state.graphics_buffer.iter())
-            .map(|bitmap| bitmap.data().len())
-            .sum()
+        self.memory.bytes()
+            + [&self.state.downloaded, &self.state.graphics_buffer]
+                .into_iter()
+                .flatten()
+                .map(|bitmap| bitmap.data().len())
+                .sum::<usize>()
     }
 }
 
