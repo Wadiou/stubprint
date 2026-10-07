@@ -21,7 +21,10 @@ a real printer, since the same bytes mean different things in ESC/POS and in Sta
 | `dialect` | `escpos`, `starline` or `starprnt` | `escpos` |
 | `profile` | the model, which sets the code pages, the columns and the answers to questions | `generic` |
 
-`--printer` can be given again for more printers. `--http` is where the API listens (default
+`--printer` can be given again for more printers. `--web <folder>` serves the built web page from
+that folder at the address of the API, and any path that is not the API gives the page, so its own
+routes work. The API allows no other origin (no CORS), so a web page from somewhere else cannot read
+the receipts of a printer on this machine. During development the page uses a proxy to reach it. `--http` is where the API listens (default
 `127.0.0.1:8080`), and `--keep` how many receipts are kept (default 500). `--config file.json` reads
 the same settings from a file: `{"http": "...", "keep": 100, "printers": [{"name": "...", ...}]}`.
 

@@ -105,7 +105,7 @@ pub async fn serve(config: Config) -> io::Result<Running> {
         )));
     }
     let mut api_stop = stopped.clone();
-    let app = api::router(hub.clone());
+    let app = api::router(hub.clone(), config.web.as_deref());
     tasks.push(tokio::spawn(async move {
         let _ = axum::serve(web, app)
             .with_graceful_shutdown(async move {

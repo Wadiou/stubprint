@@ -24,6 +24,10 @@ impl Harness {
     }
 
     async fn start_keeping(printers: &[&str], keep: usize) -> Self {
+        Self::start_with(printers, keep, None).await
+    }
+
+    async fn start_with(printers: &[&str], keep: usize, web: Option<std::path::PathBuf>) -> Self {
         let printers: Vec<PrinterConfig> = printers
             .iter()
             .map(|text| PrinterConfig::parse(&format!("listen=127.0.0.1:0,{text}")).unwrap())
@@ -32,6 +36,7 @@ impl Harness {
             http: ([127, 0, 0, 1], 0).into(),
             printers,
             keep,
+            web,
         };
         let running = serve(config).await.unwrap();
         let base = format!("http://{}", running.http_addr());
@@ -695,6 +700,7 @@ async fn an_address_that_is_taken_is_said_before_anything_runs() {
             ..PrinterConfig::default()
         }],
         keep: 5,
+        web: None,
     };
     let error = match serve(config).await {
         Ok(_) => panic!("the port was taken"),
@@ -995,4 +1001,50 @@ async fn each_command_is_told_as_it_is_read_to_those_who_ask_and_costs_nothing_t
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
     panic!("commands are still made for nobody");
+}
+
+#[tokio::test]
+async fn the_built_page_is_served_with_the_api_and_an_unknown_route_of_the_api_is_not_the_page() {
+    let folder = std::env::temp_dir().join(format!("stubprint-web-{}", std::process::id()));
+    std::fs::create_dir_all(folder.join("assets")).unwrap();
+    std::fs::write(folder.join("index.html"), "<title>Stubprint</title>").unwrap();
+    std::fs::write(folder.join("assets/app.js"), "console.log(1)").unwrap();
+    let server = Harness::start_with(&["name=till"], 10, Some(folder.clone())).await;
+
+    let page = server.get("/").await;
+    assert_eq!(page.status(), 200);
+    assert!(page.headers()["content-type"]
+        .to_str()
+        .unwrap()
+        .starts_with("text/html"));
+    assert!(page.text().await.unwrap().contains("Stubprint"));
+    let script = server.get("/assets/app.js").await;
+    assert_eq!(script.status(), 200);
+    assert!(script.headers()["content-type"]
+        .to_str()
+        .unwrap()
+        .contains("javascript"));
+    // A route of the page, which the page itself finds in the address, is the page.
+    assert!(server
+        .get("/receipts/3")
+        .await
+        .text()
+        .await
+        .unwrap()
+        .contains("Stubprint"));
+
+    // The API keeps its own answers.
+    assert_eq!(server.get("/api/health").await.status(), 200);
+    let missing = server.get("/api/nothing/here").await;
+    assert_eq!(missing.status(), 404);
+    let body: Value = missing.json().await.unwrap();
+    assert!(body["error"].as_str().unwrap().contains("no such route"));
+    std::fs::remove_dir_all(folder).unwrap();
+}
+
+#[tokio::test]
+async fn without_a_page_the_server_has_only_the_api() {
+    let server = Harness::start(&["name=till"]).await;
+    assert_eq!(server.get("/").await.status(), 404);
+    assert_eq!(server.get("/api/nothing").await.status(), 404);
 }

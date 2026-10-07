@@ -8,7 +8,7 @@ use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::{header, StatusCode};
 use axum::response::sse::{Event as Sse, KeepAlive};
 use axum::response::{IntoResponse, Response, Sse as SseResponse};
-use axum::routing::{get, post};
+use axum::routing::{any, get, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::json;
@@ -17,6 +17,7 @@ use stubprint_render::Options;
 use tokio_stream::wrappers::errors::BroadcastStreamRecvError;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::{Stream, StreamExt};
+use tower_http::services::{ServeDir, ServeFile};
 use utoipa::{OpenApi, ToSchema};
 
 use crate::hub::{Connection, Hub, Notice, Stored};
@@ -33,8 +34,10 @@ const DEFAULT_LIMIT: usize = 100;
 const DEFAULT_WAIT: u64 = 10;
 const LONGEST_WAIT: u64 = 120;
 
-pub fn router(hub: Arc<Hub>) -> Router {
-    Router::new()
+/// The API, and the web page of `web` when there is one. A path of the API that does not exist is a
+/// 404 and not the page, so a program that asks for it gets an answer it can read.
+pub fn router(hub: Arc<Hub>, web: Option<&std::path::Path>) -> Router {
+    let api = Router::new()
         .route("/api/health", get(health))
         .route("/api/openapi.json", get(document))
         .route("/api/profiles", get(profiles))
@@ -49,8 +52,20 @@ pub fn router(hub: Arc<Hub>) -> Router {
         .route("/api/decode", post(decode))
         .route("/api/print", post(print))
         .route("/api/events", get(events))
+        .route("/api/{*rest}", any(no_such_route))
         .layer(DefaultBodyLimit::max(MAX_PRINT_BYTES))
-        .with_state(hub)
+        .with_state(hub);
+    match web {
+        // Any other path is the page, which finds its own route in the address.
+        Some(folder) => api.fallback_service(
+            ServeDir::new(folder).not_found_service(ServeFile::new(folder.join("index.html"))),
+        ),
+        None => api,
+    }
+}
+
+async fn no_such_route() -> ApiError {
+    ApiError::not_found("there is no such route in the API")
 }
 
 /// What a request that went wrong says, as JSON.
