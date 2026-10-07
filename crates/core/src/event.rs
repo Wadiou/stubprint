@@ -1,4 +1,46 @@
+use serde::{Serialize, Serializer};
+
 use crate::bitmap::Bitmap;
+
+/// Writes an enum with a `name` method as that name, so the names of the JSON are the ones of the
+/// configuration and the documents, written once.
+macro_rules! serialize_as_name {
+    ($($type:ty),*) => {$(
+        impl Serialize for $type {
+            fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                serializer.serialize_str(self.name())
+            }
+        }
+    )*};
+}
+
+/// Bytes are written as hexadecimal text, which is easy to read and to compare.
+pub(crate) mod hex {
+    use serde::Serializer;
+
+    pub fn serialize<S: Serializer>(bytes: &[u8], serializer: S) -> Result<S::Ok, S::Error> {
+        let text: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
+        serializer.serialize_str(&text)
+    }
+
+    pub fn serialize_pairs<S: Serializer>(
+        pairs: &[(u8, Vec<u8>)],
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeSeq;
+        struct Hex<'a>(&'a [u8]);
+        impl serde::Serialize for Hex<'_> {
+            fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                serialize(self.0, serializer)
+            }
+        }
+        let mut seq = serializer.serialize_seq(Some(pairs.len()))?;
+        for (function, bytes) in pairs {
+            seq.serialize_element(&(function, Hex(bytes)))?;
+        }
+        seq.end()
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Align {
@@ -34,7 +76,7 @@ impl CutMode {
 }
 
 /// How text is drawn, as the printer was set when the text arrived.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Style {
     pub bold: bool,
     /// 0 is off, 1 is a thin line and 2 is a thick one.
@@ -141,13 +183,14 @@ impl TextPosition {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Barcode {
     pub symbology: Symbology,
     /// What is encoded, as text. For Code 128 the character set selectors such as `{B` are left
     /// out, and the pairs of digits of set C are written out as digits.
     pub data: String,
     /// The bytes as they were sent after the length or before the end byte, selectors included.
+    #[serde(serialize_with = "hex::serialize")]
     pub raw: Vec<u8>,
     /// Height of the bars in dots.
     pub height: u8,
@@ -177,7 +220,7 @@ impl QrLevel {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Qr {
     pub data: String,
     /// 1 or 2, or 3 for a Micro QR code.
@@ -187,7 +230,7 @@ pub struct Qr {
     pub level: QrLevel,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Pdf417 {
     pub data: String,
     /// How many columns of data, or 0 to pick the number from the data.
@@ -229,15 +272,19 @@ impl SymbolKind {
 
 /// A two dimensional code that is not QR or PDF417, with the settings sent before its data. The
 /// settings are the raw bytes of each `GS ( k` function, by function number.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Symbol {
     pub kind: SymbolKind,
+    #[serde(serialize_with = "hex::serialize")]
     pub data: Vec<u8>,
+    #[serde(serialize_with = "hex::serialize_pairs")]
     pub settings: Vec<(u8, Vec<u8>)>,
 }
 
+serialize_as_name!(Align, CutMode, Symbology, TextPosition, QrLevel, SymbolKind);
+
 /// The cash drawer kick.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct Pulse {
     /// Which drawer connector, 0 or 1.
     pub pin: u8,
@@ -246,7 +293,8 @@ pub struct Pulse {
 }
 
 /// A move of the print position along the line.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Position {
     /// From the left edge of the print area, in horizontal motion units.
     Absolute(u16),
@@ -255,7 +303,8 @@ pub enum Position {
 }
 
 /// How far apart the lines are.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum LineSpacing {
     /// A sixth of an inch.
     Default,
@@ -270,7 +319,7 @@ pub enum LineSpacing {
 }
 
 /// A character that was drawn by the program that sent it, with `ESC &`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct UserCharacter {
     /// The character code, from 32 to 126, that prints it.
     pub code: u8,
@@ -279,6 +328,7 @@ pub struct UserCharacter {
     /// How many bytes tall each column is. Each byte is 8 dots.
     pub column_bytes: u8,
     /// The columns, left to right, the top dot in the highest bit of each byte.
+    #[serde(serialize_with = "hex::serialize")]
     pub data: Vec<u8>,
 }
 
@@ -291,7 +341,7 @@ impl UserCharacter {
 }
 
 /// A Kanji character that was drawn by the program that sent it, with `FS 2`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct UserKanji {
     /// The first and the second byte of the code that prints it, as they were sent.
     pub code: [u8; 2],
@@ -300,6 +350,7 @@ pub struct UserKanji {
     /// How many dots tall it is: 24 or 16.
     pub height: u8,
     /// The columns, left to right, each `height / 8` bytes with the top dot in the highest bit.
+    #[serde(serialize_with = "hex::serialize")]
     pub data: Vec<u8>,
 }
 
@@ -322,7 +373,8 @@ impl UserKanji {
 }
 
 /// What page mode does. In page mode the printer lays out a page in a box and prints it at once.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Page {
     /// `ESC L`: page mode begins.
     Enter,
@@ -346,7 +398,8 @@ pub enum Page {
 }
 
 /// How far the paper was fed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum FeedAmount {
     Lines(u8),
     /// Vertical motion units, or dots in the Star command sets.
@@ -356,7 +409,7 @@ pub enum FeedAmount {
 }
 
 /// The paper was moved, after what was printed before it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct Feed {
     pub amount: FeedAmount,
     /// The paper went backwards.
@@ -364,7 +417,8 @@ pub struct Feed {
 }
 
 /// One thing a printer was asked to do, in the order the bytes asked for it.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum Event {
     /// The printer was reset to its power on settings.
     Initialize,
@@ -425,6 +479,74 @@ pub enum Event {
     /// Bytes that are not a command this crate knows, where they started in the stream.
     Unknown {
         offset: usize,
+        #[serde(serialize_with = "hex::serialize")]
         bytes: Vec<u8>,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn written(event: &Event) -> serde_json::Value {
+        serde_json::to_value(event).unwrap()
+    }
+
+    #[test]
+    fn an_event_is_written_with_its_type_and_its_value() {
+        assert_eq!(written(&Event::Initialize), json!({"type": "initialize"}));
+        assert_eq!(
+            written(&Event::Cut(CutMode::Partial)),
+            json!({"type": "cut", "value": "partial"})
+        );
+        assert_eq!(
+            written(&Event::Position(Position::Relative(-3))),
+            json!({"type": "position", "value": {"relative": -3}})
+        );
+        assert_eq!(
+            written(&Event::Feed(Feed {
+                amount: FeedAmount::Page,
+                reverse: false
+            })),
+            json!({"type": "feed", "value": {"amount": "page", "reverse": false}})
+        );
+    }
+
+    #[test]
+    fn names_are_the_ones_the_configuration_uses() {
+        let barcode = Event::Barcode(Barcode {
+            symbology: Symbology::Gs1_128,
+            data: "1".into(),
+            raw: vec![0x7b, 0x42, 0x31],
+            height: 80,
+            width: 3,
+            text: TextPosition::Below,
+            font: 0,
+        });
+        let value = written(&barcode);
+        assert_eq!(value["value"]["symbology"], "gs1-128");
+        assert_eq!(value["value"]["text"], "below");
+        assert_eq!(value["value"]["raw"], "7b4231");
+    }
+
+    #[test]
+    fn a_picture_is_written_as_its_size_and_its_rows_in_base64() {
+        let bitmap = Bitmap::from_packed(1, 2, vec![0xff, 0x00]).unwrap();
+        assert_eq!(
+            written(&Event::Image(bitmap)),
+            json!({"type": "image", "value": {"width": 8, "height": 2, "row_bytes": 1, "data": "/wA="}})
+        );
+    }
+
+    #[test]
+    fn bytes_nobody_understood_are_written_in_hex_with_their_place() {
+        assert_eq!(
+            written(&Event::Unknown {
+                offset: 4,
+                bytes: vec![0x1b, 0x01]
+            }),
+            json!({"type": "unknown", "value": {"offset": 4, "bytes": "1b01"}})
+        );
+    }
 }

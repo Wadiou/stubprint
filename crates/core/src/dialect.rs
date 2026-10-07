@@ -11,6 +11,12 @@ pub enum Dialect {
     StarPrnt,
 }
 
+impl serde::Serialize for Dialect {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.name())
+    }
+}
+
 impl Dialect {
     /// The name a configuration or a request uses.
     pub fn name(self) -> &'static str {

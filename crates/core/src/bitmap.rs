@@ -1,3 +1,8 @@
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
+
 /// A 1-bit image laid out the way a printer reads it: each row is `row_bytes` bytes, the leftmost
 /// dot is the highest bit of the first byte, and a set bit is a black dot.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -6,6 +11,18 @@ pub struct Bitmap {
     height: u32,
     row_bytes: usize,
     data: Vec<u8>,
+}
+
+/// Written as its size and its rows in base64, which is the form a printer reads.
+impl Serialize for Bitmap {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut bitmap = serializer.serialize_struct("Bitmap", 4)?;
+        bitmap.serialize_field("width", &self.width)?;
+        bitmap.serialize_field("height", &self.height)?;
+        bitmap.serialize_field("row_bytes", &self.row_bytes)?;
+        bitmap.serialize_field("data", &STANDARD.encode(&self.data))?;
+        bitmap.end()
+    }
 }
 
 impl Bitmap {
