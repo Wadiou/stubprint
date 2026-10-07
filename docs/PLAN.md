@@ -12,7 +12,8 @@ A Cargo workspace, one repo. Folders have no prefix. The core library's package 
 ```text
 crates/
   core/      package `receipt`: decoders, document model, printer state (a library, no networking)
-  server/    TCP listener, REST API, live events, embedded web page (headless binary)
+  render/    package `receipt-render`: a receipt as text and as a picture, and the fonts
+  server/    TCP listener, REST API, live events (headless binary), see docs/SERVER.md
   app/       Tauri shell around the same server and page (added last)
 web/         the web page, a static single page app that only talks HTTP and events
 fixtures/    specs/ recipes (committed), fixtures.lock.json, generate/ (a Node script),
@@ -41,13 +42,9 @@ Crates are local only (`publish = false`). Other projects can use the core by pa
 3. Label languages, only if needed
 
 ## API, for people and agents
-- `GET /api/receipts`, `GET /api/receipts/:id` as JSON, and `.png`, `.txt`, `.bin`
-- `GET /api/receipts/next?timeout=10` waits for the next receipt
-- `POST /api/print` sends raw bytes over HTTP
-- `GET /api/events` is the live stream
-- `DELETE /api/receipts` clears them
-- `POST /api/printer` sets the pretend state: online, paper out, cover open, error
-- `GET /api/openapi.json` describes the API
+Written in full in `docs/SERVER.md`. The description, `GET /api/openapi.json`, is made from the
+code, and the types of the web page will be made from it. There can be several printers, so the
+pretend state is set with `POST /api/printers/{name}`.
 
 ## Tests
 - Unit tests next to the code, integration tests in each crate's `tests/`.
@@ -76,7 +73,7 @@ Crates are local only (`publish = false`). Other projects can use the core by pa
 
 ## Stages
 1. `crates/core` with the ESC/POS decoder, fixtures and tests.
-2. `crates/server`: TCP listener, REST, events, tests.
+2. `crates/render` and `crates/server`: pictures, TCP listener, REST, events, tests. Done.
 3. `web/` page with the paper preview.
 4. StarPRNT and StarLine decoders.
 5. Printer state, dropped jobs and status replies.
