@@ -1,0 +1,40 @@
+{
+  "name": "starline-undefined-commands",
+  "kind": "bytes",
+  "note": "a code that is no command is discarded, an ESC with a byte that is no command is discarded with it, and a value outside what a command allows discards the command; a carriage return is ignored",
+  "bytes": [
+    "1b 40",
+    "text:0",
+    "31",
+    "03",
+    "text:2",
+    "0a",
+    "text:0",
+    "1b 22",
+    "text:12",
+    "0a",
+    "text:0",
+    "1b 52 15",
+    "text:1",
+    "0a",
+    "text:A",
+    "0d",
+    "text:B",
+    "0a",
+    "1b 64 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "012",
+      "012",
+      "01",
+      "AB"
+    ],
+    "unknown": 3,
+    "cuts": [
+      "full"
+    ],
+    "dialect": "starline"
+  }
+}

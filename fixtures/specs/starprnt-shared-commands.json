@@ -1,0 +1,60 @@
+{
+  "name": "starprnt-shared-commands",
+  "kind": "bytes",
+  "note": "the commands that both Star languages have: text looks, a barcode, a QR code, the drawer and the status",
+  "bytes": [
+    "1b 40",
+    "1b 45",
+    "text:Bold",
+    "1b 46",
+    "0a",
+    "1b 62 04 02 02 50 41 42 43 1e",
+    "1b 1d 79 53 32 04",
+    "1b 1d 79 44 31 00 02 00 68 69",
+    "1b 1d 79 50",
+    "07",
+    "1b 06 01",
+    "1b 64 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "Bold"
+    ],
+    "styles": [
+      {
+        "text": "Bold",
+        "bold": true
+      }
+    ],
+    "barcodes": [
+      {
+        "symbology": "code39",
+        "data": "ABC",
+        "width": 3,
+        "height": 80,
+        "text": "below"
+      }
+    ],
+    "qrs": [
+      {
+        "data": "hi",
+        "model": 2,
+        "size": 4,
+        "level": "L"
+      }
+    ],
+    "pulses": [
+      {
+        "pin": 0,
+        "onMs": 200,
+        "offMs": 200
+      }
+    ],
+    "replies": "23 06 00 00 00 00 00 00 00",
+    "cuts": [
+      "full"
+    ],
+    "dialect": "starprnt"
+  }
+}

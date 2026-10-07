@@ -1,0 +1,29 @@
+{
+  "name": "starline-status-fault-near-end",
+  "kind": "bytes",
+  "note": "a fault that goes away is the other error of ENQ, paper that is nearly out is bit 2 of EOT, and the automatic status has the print head too hot",
+  "bytes": [
+    "1b 40",
+    "05",
+    "04",
+    "1b 06 01",
+    "text:ok",
+    "0a",
+    "1b 64 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "status": {
+      "fault": "recoverable",
+      "paper": "nearEnd"
+    },
+    "replies": "04 14 23 06 08 40 00 04 00 00 00",
+    "texts": [
+      "ok"
+    ],
+    "cuts": [
+      "full"
+    ],
+    "dialect": "starline"
+  }
+}

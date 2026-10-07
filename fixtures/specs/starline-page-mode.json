@@ -1,0 +1,61 @@
+{
+  "name": "starline-page-mode",
+  "kind": "bytes",
+  "note": "ESC GS P and a digit: 0 enters page mode, 2 gives the direction, 3 the region, 4 and 5 the place down the page, 6 prints, 8 throws away and 7 prints and goes back to standard mode",
+  "bytes": [
+    "1b 40",
+    "1b 1d 50 30",
+    "1b 1d 50 32 31",
+    "1b 1d 50 33 00 00 00 00 c8 00 64 00",
+    "text:A",
+    "1b 1d 50 34 14 00",
+    "1b 1d 50 35 f0 ff",
+    "1b 1d 50 36",
+    "text:B",
+    "1b 1d 50 38",
+    "1b 1d 50 37",
+    "1b 1d 50 36",
+    "1b 1d 50 39",
+    "1b 64 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "A",
+      "B"
+    ],
+    "page": [
+      "enter",
+      {
+        "direction": 1
+      },
+      {
+        "area": {
+          "x": 0,
+          "y": 0,
+          "width": 200,
+          "height": 100
+        }
+      },
+      {
+        "vertical": {
+          "absolute": 20
+        }
+      },
+      {
+        "vertical": {
+          "relative": -16
+        }
+      },
+      "print",
+      "cancel",
+      "print",
+      "standard"
+    ],
+    "unknown": 1,
+    "cuts": [
+      "full"
+    ],
+    "dialect": "starline"
+  }
+}

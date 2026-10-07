@@ -1,0 +1,80 @@
+{
+  "name": "starline-text-looks",
+  "kind": "bytes",
+  "note": "emphasis, underline, line over, white on black and upside down, each for the text between the command that sets it and the one that clears it",
+  "bytes": [
+    "1b 40",
+    "text:Plain",
+    "0a",
+    "1b 45",
+    "text:Bold",
+    "1b 46",
+    "0a",
+    "1b 2d 01",
+    "text:Under",
+    "1b 2d 00",
+    "0a",
+    "1b 5f 31",
+    "text:Over",
+    "1b 5f 30",
+    "0a",
+    "1b 34",
+    "text:Inverted",
+    "1b 35",
+    "0a",
+    "0f",
+    "text:Flipped",
+    "12",
+    "0a",
+    "1b 1d 62 01",
+    "text:Smooth",
+    "1b 1d 62 30",
+    "0a",
+    "1b 64 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "Plain",
+      "Bold",
+      "Under",
+      "Over",
+      "Inverted",
+      "Flipped",
+      "Smooth"
+    ],
+    "styles": [
+      {
+        "text": "Plain"
+      },
+      {
+        "text": "Bold",
+        "bold": true
+      },
+      {
+        "text": "Under",
+        "underline": true
+      },
+      {
+        "text": "Over",
+        "overline": true
+      },
+      {
+        "text": "Inverted",
+        "invert": true
+      },
+      {
+        "text": "Flipped",
+        "upsideDown": true
+      },
+      {
+        "text": "Smooth",
+        "smooth": true
+      }
+    ],
+    "cuts": [
+      "full"
+    ],
+    "dialect": "starline"
+  }
+}

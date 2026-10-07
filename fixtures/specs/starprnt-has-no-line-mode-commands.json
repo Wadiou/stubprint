@@ -1,0 +1,33 @@
+{
+  "name": "starprnt-has-no-line-mode-commands",
+  "kind": "bytes",
+  "note": "StarPRNT has no ENQ, EOT, SO, VT, ESC M, ESC FS q and p, or raster mode, which are commands of Star Line mode only: they are reported and nothing is answered",
+  "bytes": [
+    "1b 40",
+    "text:a",
+    "05",
+    "text:b",
+    "04",
+    "text:c",
+    "0e",
+    "text:d",
+    "0b",
+    "text:e",
+    "1b 4d",
+    "text:f",
+    "0a",
+    "1b 64 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "abcdef"
+    ],
+    "unknown": 5,
+    "replies": "",
+    "cuts": [
+      "full"
+    ],
+    "dialect": "starprnt"
+  }
+}

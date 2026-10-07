@@ -1,0 +1,58 @@
+{
+  "name": "starline-fonts",
+  "kind": "bytes",
+  "note": "ESC RS F: 0 is font A, 1 is font B and 16 the OCR font, any other number is not allowed",
+  "bytes": [
+    "1b 40",
+    "1b 1e 46 01",
+    "text:b",
+    "0a",
+    "1b 1e 46 10",
+    "text:o",
+    "0a",
+    "1b 1e 46 00",
+    "text:a",
+    "0a",
+    "1b 1e 46 02",
+    "text:x",
+    "0a",
+    "1b 64 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "b",
+      "o",
+      "a",
+      "x"
+    ],
+    "fonts": [
+      1,
+      2,
+      0
+    ],
+    "unknown": 1,
+    "styles": [
+      {
+        "text": "b",
+        "font": 1
+      },
+      {
+        "text": "o",
+        "font": 2
+      },
+      {
+        "text": "a",
+        "font": 0
+      },
+      {
+        "text": "x",
+        "font": 0
+      }
+    ],
+    "cuts": [
+      "full"
+    ],
+    "dialect": "starline"
+  }
+}

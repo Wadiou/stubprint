@@ -1,0 +1,46 @@
+{
+  "name": "starprnt-raster-graphics",
+  "kind": "bytes",
+  "note": "ESC GS S prints x bytes of dots in each of y rows, and ESC GS X the same packed, as the manual shows: a repeat is a header from 129 up and a run of other bytes one from 0 to 127",
+  "bytes": [
+    "1b 40",
+    "1b 1d 53 01 02 00 03 00 00 f0 0f aa 55 81 18",
+    "1b 1d 58 01 04 00 08 00 16 00 00 00 00 fd 00 00 08 ff 00 02 80 00 08 ff 00 02 80 00 08 ff 00 00 80 f3 ff",
+    "1b 1d 53 02 02 00 01 00 00",
+    "1b 64 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [],
+    "images": [
+      {
+        "width": 16,
+        "height": 3,
+        "rows": [
+          "####........####",
+          "#.#.#.#..#.#.#.#",
+          "#......#...##..."
+        ]
+      },
+      {
+        "width": 32,
+        "height": 8,
+        "rows": [
+          "................................",
+          "....#...................#.......",
+          "............#...................",
+          "#...................#...........",
+          "........#.......################",
+          "################################",
+          "################################",
+          "################################"
+        ]
+      }
+    ],
+    "unknown": 1,
+    "cuts": [
+      "full"
+    ],
+    "dialect": "starprnt"
+  }
+}

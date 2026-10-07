@@ -1,0 +1,50 @@
+{
+  "name": "starline-download-characters",
+  "kind": "bytes",
+  "note": "ESC & registers a character of 12 by 24 dots in rows, ESC % prints the characters that were registered instead of the font's, and ESC & with a 0 takes one back",
+  "bytes": [
+    "1b 40",
+    "1b 26 01 01 41 80 10 40 00 20 00 10 00 08 00 04 00 02 00 01 00 00 80 00 40 00 20 00 10 80 00 40 00 20 00 10 00 08 00 04 00 02 00 01 00 00 80 00 40 00 20 80 10",
+    "1b 25 01",
+    "text:A",
+    "0a",
+    "1b 26 01 00 41",
+    "1b 25 30",
+    "text:A",
+    "0a",
+    "1b 26 01 02 41",
+    "1b 26 01 01 10",
+    "1b 64 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "",
+      "A"
+    ],
+    "userCharacters": [
+      {
+        "define": {
+          "code": 65,
+          "width": 12,
+          "columnBytes": 3,
+          "data": "80 08 01 40 04 00 20 02 00 10 01 00 08 00 80 04 00 40 02 00 20 01 00 10 00 80 08 00 40 04 00 20 02 80 10 01"
+        }
+      },
+      {
+        "use": true
+      },
+      {
+        "delete": 65
+      },
+      {
+        "use": false
+      }
+    ],
+    "unknown": 2,
+    "cuts": [
+      "full"
+    ],
+    "dialect": "starline"
+  }
+}

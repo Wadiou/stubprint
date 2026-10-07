@@ -1,0 +1,47 @@
+{
+  "name": "starline-ignored-settings",
+  "kind": "bytes",
+  "note": "settings of the machine that draw nothing are read to their end: density, speed, colours, slash zero, room around Kanji, the page length and the tabs down the page, turning, shrinking, the auto logo, the presenter, and information with a length",
+  "bytes": [
+    "1b 40",
+    "1b 1e 64 03",
+    "1b 1e 72 01",
+    "1b 1e 63 01",
+    "1b 1e 43 01",
+    "1b 2f 01",
+    "1b 73 01 02",
+    "1b 74 01 02",
+    "1b 43 05",
+    "1b 43 00 05",
+    "1b 42 03 06 00",
+    "0b",
+    "1b 1d 68 30 00 00 00",
+    "1b 1d 63 01 01",
+    "1b 1d 67 30 00 00",
+    "1b 1d 6d 00 00 00",
+    "1b 1d 23 57 30 30 30 30 30 0a 00",
+    "1b 1d 29 49 02 00 30 00",
+    "1b 1d 2f 57",
+    "1b 1d 2f 31 01",
+    "1b 1d 2f 33 02 00 41 42",
+    "1b 16 30 00",
+    "1b 1d 1a 11 30 00 00",
+    "1b 29 55 02 00 30 01",
+    "1b 1d 3d 04 00 aa bb cc dd",
+    "1b 1d 74 00",
+    "text:ok",
+    "0a",
+    "1b 64 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "ok"
+    ],
+    "unknown": 0,
+    "cuts": [
+      "full"
+    ],
+    "dialect": "starline"
+  }
+}

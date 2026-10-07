@@ -1,0 +1,53 @@
+{
+  "name": "starline-raster-mode",
+  "kind": "bytes",
+  "note": "ESC * r A starts raster mode: b adds a row and goes on, k adds to the row and stays, ESC * r Y moves down in dots, the left margin is in bytes and ESC FF EOT ends the document with the cut that ESC * r E says",
+  "bytes": [
+    "1b 40",
+    "1b 2a 72 41",
+    "1b 2a 72 45 31 32 00",
+    "62 01 00 f0",
+    "62 01 00 0f",
+    "6b 01 00 80",
+    "6b 01 00 01",
+    "62 01 00 00",
+    "1b 2a 72 59 34 00",
+    "1b 2a 72 6d 6c 31 00",
+    "62 01 00 ff",
+    "1b 0c 04",
+    "1b 2a 72 42",
+    "text:after",
+    "0a",
+    "1b 64 00"
+  ],
+  "expect": {
+    "receipts": 2,
+    "texts": [
+      "after"
+    ],
+    "images": [
+      {
+        "width": 16,
+        "height": 8,
+        "rows": [
+          "####............",
+          "....####........",
+          "#......#........",
+          "................",
+          "................",
+          "................",
+          "................",
+          "........########"
+        ]
+      }
+    ],
+    "feeds": [
+      "page"
+    ],
+    "cuts": [
+      "partial",
+      "full"
+    ],
+    "dialect": "starline"
+  }
+}

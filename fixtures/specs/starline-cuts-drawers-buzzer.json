@@ -1,0 +1,92 @@
+{
+  "name": "starline-cuts-drawers-buzzer",
+  "kind": "bytes",
+  "note": "ESC d cuts, 2 and 3 after feeding; BEL and FS drive the first drawer and SUB and EM the second, which ESC BEL times for the first only; ESC GS BEL rings the buzzer for t1 times 20 ms",
+  "bytes": [
+    "1b 40",
+    "07",
+    "1b 07 0a 05",
+    "1c",
+    "1a",
+    "19",
+    "1b 1d 07 01 0a 05",
+    "1b 1d 07 32 32 01",
+    "1b 1d 07 03 01 01",
+    "1b 1d 19 11 01 03 01",
+    "1b 1d 19 12 01 03 00",
+    "text:a",
+    "0a",
+    "1b 64 01",
+    "text:b",
+    "0a",
+    "1b 64 32",
+    "text:c",
+    "0a",
+    "1b 64 03",
+    "text:d",
+    "0a",
+    "1b 64 30",
+    "text:e",
+    "0a",
+    "1b 64 04",
+    "text:f",
+    "0a",
+    "1b 64 00"
+  ],
+  "expect": {
+    "receipts": 5,
+    "texts": [
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
+      "f"
+    ],
+    "cuts": [
+      "partial",
+      "full",
+      "partial",
+      "full",
+      "full"
+    ],
+    "unknown": 2,
+    "pulses": [
+      {
+        "pin": 0,
+        "onMs": 200,
+        "offMs": 200
+      },
+      {
+        "pin": 0,
+        "onMs": 100,
+        "offMs": 50
+      },
+      {
+        "pin": 1,
+        "onMs": 200,
+        "offMs": 200
+      },
+      {
+        "pin": 1,
+        "onMs": 200,
+        "offMs": 200
+      }
+    ],
+    "beeps": [
+      {
+        "times": 1,
+        "duration": 2
+      },
+      {
+        "times": 1,
+        "duration": 10
+      },
+      {
+        "times": 3,
+        "duration": 1
+      }
+    ],
+    "dialect": "starline"
+  }
+}

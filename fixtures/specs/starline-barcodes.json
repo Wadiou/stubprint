@@ -1,0 +1,104 @@
+{
+  "name": "starline-barcodes",
+  "kind": "bytes",
+  "note": "ESC b n1 n2 n3 n4 d... RS: the kind, where the text goes, how wide the bars are (a mode that means dots by the kind), how high, and the data. What a kind does not take is not printed",
+  "bytes": [
+    "1b 40",
+    "1b 62 04 02 02 50 41 42 43 2d 31 32 33 1e",
+    "1b 62 03 01 03 64 34 30 30 36 33 38 31 33 33 33 39 33 31 1e",
+    "1b 62 01 04 01 3c 30 31 32 33 34 35 36 37 38 39 30 1e",
+    "1b 62 05 05 08 32 31 32 33 34 35 36 1e",
+    "1b 62 08 07 09 28 41 31 32 33 34 35 42 1e",
+    "1b 62 06 03 02 46 41 62 25 30 63 25 4a 25 31 64 1e",
+    "1b 62 39 09 03 5a 30 31 32 33 34 41 42 43 1e",
+    "1b 62 0c 01 06 1e 31 32 33 34 35 36 37 38 39 30 31 32 33 1e",
+    "1b 62 04 02 04 50 58 1e",
+    "1b 62 03 01 03 64 34 30 30 36 33 38 31 33 33 33 39 1e",
+    "1b 62 04 02 02 00 58 1e",
+    "1b 62 09 02 02 0a 58 1e",
+    "1b 64 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [],
+    "barcodes": [
+      {
+        "symbology": "code39",
+        "data": "ABC-123",
+        "width": 3,
+        "height": 80,
+        "text": "below",
+        "font": 0
+      },
+      {
+        "symbology": "ean13",
+        "data": "4006381333931",
+        "width": 4,
+        "height": 100,
+        "text": "none",
+        "font": 0
+      },
+      {
+        "symbology": "upca",
+        "data": "01234567890",
+        "width": 2,
+        "height": 60,
+        "text": "below",
+        "font": 0
+      },
+      {
+        "symbology": "itf",
+        "data": "123456",
+        "width": 3,
+        "height": 50,
+        "text": "above",
+        "font": 0
+      },
+      {
+        "symbology": "codabar",
+        "data": "A12345B",
+        "width": 4,
+        "height": 40,
+        "text": "both",
+        "font": 0
+      },
+      {
+        "symbology": "code128",
+        "data": "Ab%c\nd",
+        "width": 3,
+        "height": 70,
+        "text": "none",
+        "font": 0
+      },
+      {
+        "symbology": "gs1-128",
+        "data": "01234ABC",
+        "width": 3,
+        "height": 90,
+        "text": "below",
+        "font": 1
+      },
+      {
+        "symbology": "gs1-databar-limited",
+        "data": "1234567890123",
+        "width": 6,
+        "height": 30,
+        "text": "none",
+        "font": 0
+      },
+      {
+        "symbology": "code39",
+        "data": "X",
+        "width": 2,
+        "height": 80,
+        "text": "below",
+        "font": 0
+      }
+    ],
+    "unknown": 3,
+    "cuts": [
+      "full"
+    ],
+    "dialect": "starline"
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "name": "starline-feeds",
+  "kind": "bytes",
+  "note": "ESC a feeds lines, ESC z and ESC 0 set the line to 4 mm and 3 mm (32 and 24 dots), ESC J feeds quarters of a millimetre and ESC I eighths, and FF feeds to the next page",
+  "bytes": [
+    "1b 40",
+    "text:x",
+    "1b 61 03",
+    "1b 7a 01",
+    "1b 30",
+    "1b 7a 30",
+    "1b 4a 0a",
+    "1b 49 0c",
+    "0c",
+    "1b 61 00",
+    "1b 7a 02",
+    "1b 4a 00",
+    "1b 64 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "x"
+    ],
+    "feeds": [
+      {
+        "lines": 3
+      },
+      {
+        "units": 20
+      },
+      {
+        "units": 12
+      },
+      "page"
+    ],
+    "lineSpacings": [
+      {
+        "dots": 32
+      },
+      {
+        "dots": 24
+      },
+      {
+        "dots": 24
+      }
+    ],
+    "unknown": 3,
+    "cuts": [
+      "full"
+    ],
+    "dialect": "starline"
+  }
+}

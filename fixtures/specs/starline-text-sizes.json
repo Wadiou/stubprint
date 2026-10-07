@@ -1,0 +1,86 @@
+{
+  "name": "starline-text-sizes",
+  "kind": "bytes",
+  "note": "ESC i sets the height and then the width, ESC W the width, ESC h the height, SO and DC4 the width, and ESC SO and ESC DC4 the height. A number may be a digit, and one over 5 is not allowed",
+  "bytes": [
+    "1b 40",
+    "1b 69 01 02",
+    "text:a",
+    "0a",
+    "1b 57 03",
+    "text:b",
+    "1b 57 00",
+    "0a",
+    "1b 68 05",
+    "text:c",
+    "1b 68 00",
+    "0a",
+    "1b 57 32",
+    "text:d",
+    "1b 57 30",
+    "0a",
+    "0e",
+    "text:e",
+    "14",
+    "0a",
+    "1b 0e",
+    "text:f",
+    "1b 14",
+    "0a",
+    "1b 57 06",
+    "1b 69 06 00",
+    "text:g",
+    "0a",
+    "1b 64 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
+      "f",
+      "g"
+    ],
+    "unknown": 2,
+    "styles": [
+      {
+        "text": "a",
+        "height": 2,
+        "width": 3
+      },
+      {
+        "text": "b",
+        "width": 4,
+        "height": 2
+      },
+      {
+        "text": "c",
+        "height": 6
+      },
+      {
+        "text": "d",
+        "width": 3
+      },
+      {
+        "text": "e",
+        "width": 2
+      },
+      {
+        "text": "f",
+        "height": 2
+      },
+      {
+        "text": "g",
+        "width": 1,
+        "height": 1
+      }
+    ],
+    "cuts": [
+      "full"
+    ],
+    "dialect": "starline"
+  }
+}

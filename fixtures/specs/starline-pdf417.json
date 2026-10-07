@@ -1,0 +1,50 @@
+{
+  "name": "starline-pdf417",
+  "kind": "bytes",
+  "note": "ESC GS x: S 0 sets the size by rows and columns or by proportions, S 1 the level of error correction, S 2 and S 3 the module, D gives the data and P prints",
+  "bytes": [
+    "1b 40",
+    "1b 1d 78 53 30 01 05 03",
+    "1b 1d 78 53 31 04",
+    "1b 1d 78 53 32 03",
+    "1b 1d 78 53 33 02",
+    "1b 1d 78 44 05 00 68 65 6c 6c 6f",
+    "1b 1d 78 50",
+    "1b 1d 78 53 30 00 02 03",
+    "1b 1d 78 50",
+    "1b 1d 78 53 31 09",
+    "1b 1d 78 53 32 0b",
+    "1b 1d 78 53 30 01 02 03",
+    "1b 1d 78 49",
+    "1b 64 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [],
+    "pdf417": [
+      {
+        "data": "hello",
+        "columns": 3,
+        "rows": 5,
+        "width": 3,
+        "height": 6,
+        "levelMode": 48,
+        "level": 4
+      },
+      {
+        "data": "hello",
+        "columns": 0,
+        "rows": 0,
+        "width": 3,
+        "height": 6,
+        "levelMode": 48,
+        "level": 4
+      }
+    ],
+    "unknown": 3,
+    "cuts": [
+      "full"
+    ],
+    "dialect": "starline"
+  }
+}

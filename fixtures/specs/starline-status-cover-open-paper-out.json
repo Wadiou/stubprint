@@ -1,0 +1,30 @@
+{
+  "name": "starline-status-cover-open-paper-out",
+  "kind": "bytes",
+  "note": "an open cover and no paper: ENQ says paper end and another error, EOT paper end, and the automatic status the cover, the printer off line and the paper",
+  "bytes": [
+    "1b 40",
+    "05",
+    "04",
+    "1b 06 01",
+    "text:ok",
+    "0a",
+    "1b 64 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "status": {
+      "online": false,
+      "coverOpen": true,
+      "paper": "end"
+    },
+    "replies": "0c 1c 23 06 28 00 00 0c 00 00 00",
+    "texts": [
+      "ok"
+    ],
+    "cuts": [
+      "full"
+    ],
+    "dialect": "starline"
+  }
+}

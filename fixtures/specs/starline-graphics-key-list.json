@@ -1,0 +1,31 @@
+{
+  "name": "starline-graphics-key-list",
+  "kind": "bytes",
+  "note": "the keys of the graphics in memory, with ESC GS ( L",
+  "bytes": [
+    "1b 40",
+    "1b 1d 28 4c 04 00 30 50 4b 43",
+    "1b 1d 28 4c 04 00 30 40 4b 43",
+    "1b 1d 28 4c 0d 00 30 43 30 41 42 01 08 00 02 00 31 aa 55",
+    "1b 1d 28 4c 0d 00 30 43 30 30 31 01 08 00 02 00 31 aa 55",
+    "1b 1d 28 4c 0d 00 30 53 30 7e 20 01 08 00 02 00 31 aa 55",
+    "1b 1d 28 4c 04 00 30 40 4b 43",
+    "1b 1d 28 4c 04 00 30 50 4b 43",
+    "1b 1d 28 4c 04 00 30 40 4b 44",
+    "text:ok",
+    "0a",
+    "1b 64 00"
+  ],
+  "expect": {
+    "replies": "37 73 40 00 37 72 40 00 37 72 40 30 31 41 42 00 37 73 40 7e 20 00",
+    "receipts": 1,
+    "texts": [
+      "ok"
+    ],
+    "unknown": 1,
+    "cuts": [
+      "full"
+    ],
+    "dialect": "starline"
+  }
+}

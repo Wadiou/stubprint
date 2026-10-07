@@ -1,0 +1,43 @@
+{
+  "name": "starline-status-replies",
+  "kind": "bytes",
+  "note": "ENQ and EOT are one byte, ESC ACK SOH is the nine bytes of the automatic status, which says when an ETB was done and how many; the print end counter and the version are asked with ESC GS ETX and ESC # *",
+  "bytes": [
+    "1b 40",
+    "05",
+    "04",
+    "1b 06 01",
+    "1b 1e 61 01",
+    "17",
+    "1b 06 01",
+    "17",
+    "1b 1e 45 00",
+    "1b 1d 03 00 00 00",
+    "1b 1d 03 01 00 00",
+    "1b 1d 03 01 00 00",
+    "1b 1d 03 00 00 00",
+    "1b 1d 03 02 00 00",
+    "1b 1d 03 00 00 00",
+    "1b 1d 03 05 02 00",
+    "1b 1d 03 05 01 09",
+    "1b 1d 03 05 02 00",
+    "1b 23 2a 0a 00",
+    "1b 1d 03 07 00 00",
+    "text:ok",
+    "0a",
+    "1b 64 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "replies": "00 10 23 06 00 00 00 00 00 00 00 23 06 02 00 00 00 00 02 00 23 06 00 00 00 00 00 02 00 23 06 02 00 00 00 00 04 00 1b 1d 03 00 00 00 00 00 1b 1d 03 01 00 00 01 00 1b 1d 03 01 00 00 02 00 1b 1d 03 00 00 00 02 00 1b 1d 03 00 00 00 00 00 1b 1d 03 05 02 00 03 00 1b 1d 03 05 02 00 09 00 1b 23 2a 2c 54 53 50 36 30 30 20 53 65 72 69 65 73 56 65 72 31 2e 30 0a 00",
+    "texts": [
+      "ok"
+    ],
+    "unknown": 1,
+    "cuts": [
+      "full"
+    ],
+    "dialect": "starline",
+    "profile": "TSP600"
+  }
+}

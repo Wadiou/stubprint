@@ -8,7 +8,9 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
 
-use receipt::{Event, Fault, Page, Paper, Position, Printer, PrinterStatus, Profile, Receipt};
+use receipt::{
+    Dialect, Event, Fault, Page, Paper, Position, Printer, PrinterStatus, Profile, Receipt,
+};
 use serde_json::{json, Value};
 
 struct Fixture {
@@ -82,14 +84,16 @@ fn status_from(spec: &Value) -> PrinterStatus {
     }
 }
 
-/// A printer of the model the spec names, in the state the spec says.
+/// A printer of the model the spec names, set to the language it names, in the state it says.
 fn printer_for(fixture: &Fixture) -> Printer {
-    let mut printer = match fixture.expected.get("profile").and_then(Value::as_str) {
-        Some(name) => Printer::with_profile(
-            Profile::named(name).unwrap_or_else(|| panic!("no printer profile {name}")),
-        ),
-        None => Printer::new(),
-    };
+    let text = |key: &str| fixture.expected.get(key).and_then(Value::as_str);
+    let dialect = text("dialect").map_or(Dialect::EscPos, |name| {
+        Dialect::from_name(name).unwrap_or_else(|| panic!("no command language {name}"))
+    });
+    let profile = text("profile").map_or_else(Profile::generic, |name| {
+        Profile::named(name).unwrap_or_else(|| panic!("no printer profile {name}"))
+    });
+    let mut printer = Printer::with_dialect(dialect, profile);
     if let Some(status) = fixture.expected.get("status") {
         printer.set_status(status_from(status));
     }
@@ -167,6 +171,7 @@ const KNOWN_KEYS: &[&str] = &[
     "images",
     "replies",
     "profile",
+    "dialect",
     "status",
 ];
 
@@ -223,6 +228,7 @@ fn extra(event: &Event) -> Option<(&'static str, Value)> {
             let mut value = match feed.amount {
                 FeedAmount::Lines(n) => json!({ "lines": n }),
                 FeedAmount::Units(n) => json!({ "units": n }),
+                FeedAmount::Page => json!("page"),
             };
             if feed.reverse {
                 value["reverse"] = json!(true);
@@ -356,6 +362,7 @@ fn problems(fixture: &Fixture, decoded: &Decoded) -> Vec<String> {
                     };
                     style.bold == flag("bold").unwrap_or(false)
                         && (style.underline != 0) == flag("underline").unwrap_or(false)
+                        && style.overline == flag("overline").unwrap_or(false)
                         && style.invert == flag("invert").unwrap_or(false)
                         && u64::from(style.width) == number("width", 1)
                         && u64::from(style.height) == number("height", 1)

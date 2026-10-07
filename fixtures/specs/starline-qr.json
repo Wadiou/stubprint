@@ -1,0 +1,45 @@
+{
+  "name": "starline-qr",
+  "kind": "bytes",
+  "note": "ESC GS y: S sets the model, the level and the cell, D 1 gives the data, D 2 gives it in blocks of a kind, and P prints. What is not allowed is not set",
+  "bytes": [
+    "1b 40",
+    "1b 1d 79 53 30 01",
+    "1b 1d 79 53 31 02",
+    "1b 1d 79 53 32 05",
+    "1b 1d 79 44 31 00 05 00 48 65 6c 6c 6f",
+    "1b 1d 79 50",
+    "1b 1d 79 53 30 02",
+    "1b 1d 79 53 31 00",
+    "1b 1d 79 53 32 03",
+    "1b 1d 79 44 32 02 01 03 00 31 32 33 02 03 00 41 42 43",
+    "1b 1d 79 50",
+    "1b 1d 79 53 30 03",
+    "1b 1d 79 53 32 09",
+    "1b 1d 79 49",
+    "1b 64 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [],
+    "qrs": [
+      {
+        "data": "Hello",
+        "model": 1,
+        "size": 5,
+        "level": "Q"
+      },
+      {
+        "data": "123ABC",
+        "model": 2,
+        "size": 3,
+        "level": "L"
+      }
+    ],
+    "unknown": 2,
+    "cuts": [
+      "full"
+    ],
+    "dialect": "starline"
+  }
+}

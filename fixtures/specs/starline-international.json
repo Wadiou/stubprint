@@ -1,0 +1,43 @@
+{
+  "name": "starline-international",
+  "kind": "bytes",
+  "note": "ESC R picks the set of an ISO 646 country: 0 to 13 or '0' to '9' and 'A' to 'D', and 14, 64 and 'E', which have no table here, are read as the American one",
+  "bytes": [
+    "1b 40",
+    "1b 52 01",
+    "text:#$@[\\]^`{|}~",
+    "0a",
+    "1b 52 02",
+    "text:[\\]{|}~",
+    "0a",
+    "1b 52 33",
+    "text:#",
+    "0a",
+    "1b 52 41",
+    "text:#$@",
+    "0a",
+    "1b 52 40",
+    "text:#[\\]",
+    "0a",
+    "1b 52 0f",
+    "text:x",
+    "0a",
+    "1b 64 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "#$à°ç§^`éùè¨",
+      "ÄÖÜäöüß",
+      "£",
+      "#$É",
+      "#[\\]",
+      "x"
+    ],
+    "unknown": 1,
+    "cuts": [
+      "full"
+    ],
+    "dialect": "starline"
+  }
+}

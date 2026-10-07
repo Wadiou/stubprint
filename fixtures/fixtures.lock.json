@@ -263,6 +263,126 @@
     "expected": "8a92021d35c030ebe02ef5014505c2fddb1f722481abcd93acd8cf9c03824552",
     "bitmap": "c308c08565a9356f9cf119b1a1189dbc0aa128188b11103a061f92e85b06064e"
   },
+  "starline-barcodes": {
+    "bin": "7137aaa0c4c94a873a337635c01b35245c218650c8fc44e13a601a1d5988df3f",
+    "expected": "d64f5511aaf4050369166af8a42d75bc7c61d7a34138ede41061289aec1847de"
+  },
+  "starline-bit-images": {
+    "bin": "b5bfa62dbeedc055446ad298893d60441382a9168c700dcae8b4c5276a26be8c",
+    "expected": "70e718f8a99f77d04f46d4b1615acda4a430cf31dd43f55757c5fa1d2dc7b114"
+  },
+  "starline-code-pages": {
+    "bin": "2a520a093e7e9d10b5ce3c07b812aa87726f471457b4194c187e5441735c74ee",
+    "expected": "766f08792f7d9b371e5ff3f6198aa85fbd1e59731467dbabba10a67ae2c2a89c"
+  },
+  "starline-cuts-drawers-buzzer": {
+    "bin": "97dc4eafa261ece7458d88d6223e3f828eac0f6dff77a5758ea21f61aa95c6f4",
+    "expected": "bdc9aac5c65a7ba58e22910271533e9e57779c7bd537f20d4e56e1d56825824f"
+  },
+  "starline-download-characters": {
+    "bin": "16aed70b76672bc73fc24099a4dfc3f8add62f68f33f7e2d985ba7b71b09b60b",
+    "expected": "3945430636cb229eaab66e0f16fa51acd21d95dd31519179fd5897e33d51b86d"
+  },
+  "starline-feeds": {
+    "bin": "28f28b43c7adc508c5217f84d33ca41396eaa0aafb9cd77b0bc9ff70a186bbab",
+    "expected": "eabc78fecb9571e2c986f2d983fe9d960c9ed2064ec83e9725423e2112d3faa5"
+  },
+  "starline-fonts": {
+    "bin": "20b46eadbcaf21016cb39b1ef4c3e4fb8a65e43473634a210f122b349780b689",
+    "expected": "94eacca6aa44b5f5a32f7ac42f5ca927631abb2c00234356a420aefcecee0434"
+  },
+  "starline-graphics-key-blocks": {
+    "bin": "12cc7dd328c4deb86b2d07d729da05e55bdda6c067ea89142faa2e9cea7a33a2",
+    "expected": "6a2560b1e6c9c950ee5754a1fdc2e11dda93917ef2d5f27ed355bf11460f45f6"
+  },
+  "starline-graphics-key-list": {
+    "bin": "ceb27d9855b89b57d1f43e1fe002030b97e1b5aa886e5d2b0300450f13cb6c9a",
+    "expected": "6a3ffdd6534b2fe9e06aae87b773519e5e7ac001d4b62f89a535fc8b1b22ca82"
+  },
+  "starline-graphics-memory-sizes": {
+    "bin": "318cb462cf277cd6fc1af78d41a4423616a783c70c2e02ec1d91dd2cf7e6a54d",
+    "expected": "46314746a17d6fbc54b4024e9dc665d44f8352290b269a3e08b60486addf09da"
+  },
+  "starline-graphics-memory": {
+    "bin": "e29b63a0332079a27b22cc86a96b7e9bb4689c4c6b76b1239ea4327ec8143ab4",
+    "expected": "e258d04295aa38c40ce6dd9090e3d18dd7dcee0025a50eaa48963d3b3295be42"
+  },
+  "starline-ignored-settings": {
+    "bin": "034ba19a6ddbbf7a5d0857c46062706e2481581219c1711464b24563f01f0e64",
+    "expected": "d1a301e43d4c2af1125648cde2adde63c680af73342aeaf09e97fe391becc006"
+  },
+  "starline-international": {
+    "bin": "856c7c52793d33908f461c4b37582c8514d833c0a1259e49c0c6a779fdc6fc97",
+    "expected": "9d795403b49648ca47daa33dde4ffccf9643a43c358f24f66d6522822053d494"
+  },
+  "starline-kanji": {
+    "bin": "6b624f0cc89af4ce4665b3dc0a096c33517aee07504d1776de56bf5602c37000",
+    "expected": "1e87959451d9c5fb7bb4c890d438405440211ac3e6f38b8eedc83f1fb418544a"
+  },
+  "starline-logos": {
+    "bin": "63a1d79d6b706a523cad81d7ff32256ec588f50f18d71bee0be77de0d1f638e1",
+    "expected": "db90d788374c368e7a1ffc5567a1a70d87bedfcba880d9e0f884291476d5e415"
+  },
+  "starline-margins-tabs-positions": {
+    "bin": "0179dc9c4771a00c18726957bcf7ba8fa269b70eee80ffade1278e47b0f0458f",
+    "expected": "b2965b9d6889e9e955d785dd2cb42dd5495d3ccabf62b27e80a6a19f85949f15"
+  },
+  "starline-page-mode": {
+    "bin": "c47fb19ddfd5577ac8aa20aaff6ab186ca8007fbac4e37a1207c0e696bb60f51",
+    "expected": "1ef119ecde348d3d673af3ded383154ecc0e4a40b835fbaa0df274e6fe665390"
+  },
+  "starline-pdf417": {
+    "bin": "94decc79264898aa48922f5fa56002e0b6657768d32971c86c39ba1939f9a59c",
+    "expected": "7c9e5badccec6e82f251ed480715c09e942dfce6d486d95ae290f841eb17e419"
+  },
+  "starline-qr": {
+    "bin": "ec1fa941277de9d490b2be62120cc9b08d5384b75b17c0d7844f9dc233c29990",
+    "expected": "7a68485c3a232456c513bd933076f128b3824cc0e41e6549a90c2531cd5f9aa4"
+  },
+  "starline-raster-mode": {
+    "bin": "9355b89aa9015630d02d2f90f235e10e9ffbccfa6611738ecdf1653a5d07861a",
+    "expected": "cc68f9d692f0f609061c28ad1f94d8b64e42121ee98444a45caff6046e6fdb24"
+  },
+  "starline-status-cover-open-paper-out": {
+    "bin": "29bb4cd457f7ff2008257ae206f69e942db442e16b4879f4c9474dfa4c70360f",
+    "expected": "c450208c9bde24bb9b239bf5ed59d151bc992b910a4738b13dcbf68ae7eae648"
+  },
+  "starline-status-fault-near-end": {
+    "bin": "29bb4cd457f7ff2008257ae206f69e942db442e16b4879f4c9474dfa4c70360f",
+    "expected": "2aa574bade8068afa5e0dd1fee63c1fa2d0aebe19dbac9fff3a90ffed585dca8"
+  },
+  "starline-status-replies": {
+    "bin": "e2ba3c98a65d07d79d50169a62dbff80be6f4609f4872758cd580109f82dda26",
+    "expected": "e4635dbd28567cbd8773fa9b62cc97df9e3b8ac1fc25c9f2647ac31de3baaf30"
+  },
+  "starline-text-looks": {
+    "bin": "2004e67f67a45ae0f18a11eee7e64c4b2429e661c80b0cb3ecbe047310d86529",
+    "expected": "615fb5e2c89935ac6e98329e9ae2bc6ff1e82899d433f45cb50e71508dd67160"
+  },
+  "starline-text-pitch": {
+    "bin": "a9ab18eef17d176a346c4be4c71dbe94a15f68b9c55cd49ea4881b9c3a9760ce",
+    "expected": "ccc156006fce162e8b1f949f0b94e83ca518874c8f1686249edc792d95c7367e"
+  },
+  "starline-text-sizes": {
+    "bin": "2805e09ef7a04610d9625d98046ba4c607bc3ccc3aee638838a869c004caf4fd",
+    "expected": "2d4b6f57fdd04834067c3e09a465254652eeb482202b4f443f9dbe4c6dc51a67"
+  },
+  "starline-undefined-commands": {
+    "bin": "353c0da31dc759a0963fc0190e15cda8dfac5c1f4d8364ab58a559b87da16b2e",
+    "expected": "cf9a8b5c2697d69318c669f54a3fe18920085e1807cc0c278940e314b65f1634"
+  },
+  "starprnt-has-no-line-mode-commands": {
+    "bin": "e8f72788d3c7e6b312ad96b1d9c403107ce2d88e25cabcf0cc92746206a48bb6",
+    "expected": "15e0e68d5ed02fb4c7b42905bb5913ea6826e7e4fc79d6fb1682b09dee9d0f80"
+  },
+  "starprnt-raster-graphics": {
+    "bin": "aa221b046c0975cc31a603c8be3c0e723e0bb7bb26e76ba712122ea2aa9a9788",
+    "expected": "b1bf3a209c44bae650551dc07f4ed7cbe43556f01029968be468c4fd401613c6"
+  },
+  "starprnt-shared-commands": {
+    "bin": "0bf5d483abb5fc1f834d07b1a41bbf8a22a60e2214e991eafa4727a5e758c9b5",
+    "expected": "a011be3baf0f3d3a143f1ea1f924d8e772f430f04200cb6cd4e6e5a957b02845"
+  },
   "status-automatic-paper-end": {
     "bin": "7677f4c6bba832ac11c05ec04de1819b0403d333fa9531a5680b7b0f03f47b80",
     "expected": "97ef2b870b87e4cf0ff2d437fab4d5cfcec3c63aaf6103a1394eb801422e35d6"

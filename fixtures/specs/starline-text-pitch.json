@@ -1,0 +1,85 @@
+{
+  "name": "starline-text-pitch",
+  "kind": "bytes",
+  "note": "the room right of a character: ESC SP in dots, as a number or a hexadecimal digit, and the pitches ESC M (0), ESC g (2), ESC P (3) and ESC : (4)",
+  "bytes": [
+    "1b 40",
+    "1b 20 05",
+    "text:a",
+    "0a",
+    "1b 20 41",
+    "text:b",
+    "0a",
+    "1b 20 46",
+    "text:c",
+    "0a",
+    "1b 4d",
+    "text:d",
+    "0a",
+    "1b 67",
+    "text:e",
+    "0a",
+    "1b 50",
+    "text:f",
+    "0a",
+    "1b 3a",
+    "text:g",
+    "0a",
+    "1b 20 10",
+    "text:h",
+    "0a",
+    "1b 64 00"
+  ],
+  "expect": {
+    "receipts": 1,
+    "texts": [
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
+      "f",
+      "g",
+      "h"
+    ],
+    "unknown": 1,
+    "styles": [
+      {
+        "text": "a",
+        "spacing": 5
+      },
+      {
+        "text": "b",
+        "spacing": 10
+      },
+      {
+        "text": "c",
+        "spacing": 15
+      },
+      {
+        "text": "d",
+        "spacing": 0
+      },
+      {
+        "text": "e",
+        "spacing": 2
+      },
+      {
+        "text": "f",
+        "spacing": 3
+      },
+      {
+        "text": "g",
+        "spacing": 4
+      },
+      {
+        "text": "h",
+        "spacing": 4
+      }
+    ],
+    "cuts": [
+      "full"
+    ],
+    "dialect": "starline"
+  }
+}
