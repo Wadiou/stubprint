@@ -17,6 +17,8 @@ const BARCODES = {
 };
 const TEXT_POSITIONS = { none: 0, above: 1, below: 2, both: 3 };
 
+const { profiles } = JSON.parse(readFileSync(new URL("../../profiles/profiles.json", import.meta.url), "utf8"));
+
 const [receipts, assets, out] = process.argv.slice(2);
 mkdirSync(out, { recursive: true });
 
@@ -49,7 +51,7 @@ function style(printer, dialect, block) {
 }
 
 async function build(spec, dialect) {
-  const printer = new ThermalPrinter({ type: TYPES[dialect], width: spec.columns });
+  const printer = new ThermalPrinter({ type: TYPES[dialect], width: profiles[spec.profile].fonts["0"].columns });
   for (const block of spec.blocks) {
     if ("text" in block) {
       style(printer, dialect, block);

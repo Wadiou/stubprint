@@ -226,10 +226,9 @@ pub struct SampleSummary {
     pub title: String,
     /// What the sample shows and what to look at in it.
     pub about: String,
-    /// The width of the paper it was written for, in millimetres.
-    pub paper_mm: u32,
-    /// How many characters fit on a line of that paper.
-    pub columns: u32,
+    /// The printer model it was written for, as `GET /api/profiles` lists them. It decides the
+    /// width of a line and the code pages the bytes assume.
+    pub profile: String,
     /// Short words for what it holds, to filter by.
     pub tags: Vec<String>,
     /// Each library that wrote it, with its bytes.
@@ -242,8 +241,7 @@ impl SampleSummary {
             id: sample.id.clone(),
             title: sample.title.clone(),
             about: sample.about.clone(),
-            paper_mm: sample.paper_mm,
-            columns: sample.columns,
+            profile: sample.profile.clone(),
             tags: sample.tags.clone(),
             variants: sample.variants.iter().map(VariantInfo::of).collect(),
         }

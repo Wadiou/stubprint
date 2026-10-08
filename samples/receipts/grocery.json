@@ -3,8 +3,7 @@
   "order": 1,
   "title": "Grocery receipt",
   "about": "An 80 mm shop receipt: a double size name, aligned prices, a bold total, a Code 128 barcode and a QR code, both centred.",
-  "paper_mm": 80,
-  "columns": 48,
+  "profile": "TM-T20III",
   "tags": [
     "80 mm",
     "barcode",

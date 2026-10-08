@@ -16,8 +16,8 @@ pub struct Sample {
     pub id: String,
     pub title: String,
     pub about: String,
-    pub paper_mm: u32,
-    pub columns: u32,
+    /// The printer model it was written for, as `GET /api/profiles` lists them.
+    pub profile: String,
     pub tags: Vec<String>,
     /// What a decoder must find on the paper.
     pub expect: Value,
@@ -41,8 +41,7 @@ struct StoredSample {
     id: String,
     title: String,
     about: String,
-    paper_mm: u32,
-    columns: u32,
+    profile: String,
     tags: Vec<String>,
     expect: Value,
     receipt: Value,
@@ -81,8 +80,7 @@ impl StoredSample {
             id: self.id,
             title: self.title,
             about: self.about,
-            paper_mm: self.paper_mm,
-            columns: self.columns,
+            profile: self.profile,
             tags: self.tags,
             expect: self.expect,
             receipt: self.receipt,
@@ -131,6 +129,18 @@ mod tests {
         ids.sort_unstable();
         ids.dedup();
         assert_eq!(ids.len(), all().len());
+    }
+
+    #[test]
+    fn every_sample_is_written_for_a_printer_model_that_exists() {
+        for sample in all() {
+            assert!(
+                stubprint_core::Profile::named(&sample.profile).is_some(),
+                "{}: no profile called {}",
+                sample.id,
+                sample.profile
+            );
+        }
     }
 
     #[test]

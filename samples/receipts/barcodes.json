@@ -3,8 +3,7 @@
   "order": 6,
   "title": "Barcodes",
   "about": "The one dimensional barcodes a printer draws itself, centred, with the text under each. It shows which symbologies a decoder understands.",
-  "paper_mm": 80,
-  "columns": 48,
+  "profile": "TM-T20III",
   "tags": [
     "80 mm",
     "barcode"

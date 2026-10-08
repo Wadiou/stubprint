@@ -3,8 +3,7 @@
   "order": 2,
   "title": "Kitchen ticket",
   "about": "An order for the kitchen: a white on black heading, tall bold items, an underlined title and a warning in white on black.",
-  "paper_mm": 80,
-  "columns": 48,
+  "profile": "TM-T20III",
   "tags": [
     "80 mm",
     "styles"

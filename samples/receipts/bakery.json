@@ -3,8 +3,7 @@
   "order": 3,
   "title": "Bakery receipt",
   "about": "A narrow 58 mm receipt with a round logo sent as a picture and a QR code to pay.",
-  "paper_mm": 58,
-  "columns": 32,
+  "profile": "POS-5890",
   "tags": [
     "58 mm",
     "picture",

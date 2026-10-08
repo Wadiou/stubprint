@@ -26,6 +26,7 @@ OUT = ROOT / "out"
 LOCK = ROOT / "samples.lock.json"
 NODE = ROOT / "node" / "build.mjs"
 WORKSPACE = ROOT.parent
+PROFILES = json.loads((ROOT.parent / "profiles" / "profiles.json").read_text())["profiles"]
 
 PYTHON_ESCPOS = "python-escpos"
 NODE_THERMAL_PRINTER = "node-thermal-printer"
@@ -40,6 +41,11 @@ def row_text(left, right, columns):
     return left + " " * max(1, columns - len(left) - len(right)) + right
 
 
+def columns_of(spec):
+    """The characters on a line of the printer the receipt is written for, in its first font."""
+    return PROFILES[spec["profile"]]["fonts"]["0"]["columns"]
+
+
 def specs():
     found = [json.loads(path.read_text()) for path in sorted(RECEIPTS.glob("*.json"))]
     return sorted(found, key=lambda spec: spec["order"])
@@ -47,7 +53,7 @@ def specs():
 
 def expected(spec):
     """What the decoder must find on the paper."""
-    columns = spec["columns"]
+    columns = columns_of(spec)
     answer = {"texts": [], "barcodes": [], "qrs": [], "pdf417": [], "images": 0, "cuts": 0}
     for block in spec["blocks"]:
         if "text" in block and block["text"]:
@@ -93,10 +99,10 @@ def with_python_escpos(spec):
             printer.textln(block["text"])
         elif "row" in block:
             style(printer, block)
-            printer.textln(row_text(*block["row"], spec["columns"]))
+            printer.textln(row_text(*block["row"], columns_of(spec)))
         elif "rule" in block:
             style(printer, {})
-            printer.textln(block["rule"] * spec["columns"])
+            printer.textln(block["rule"] * columns_of(spec))
         elif "feed" in block:
             printer.ln(block["feed"])
         elif "barcode" in block:
@@ -131,11 +137,10 @@ def with_node_thermal_printer():
     }
 
 
-def preview(folder, name, dialect, paper_mm):
-    """Draws a variant with Stubprint's renderer."""
-    paper = ["384:32,42"] if paper_mm == 58 else []
+def preview(folder, name, dialect, profile):
+    """Draws a variant with Stubprint's renderer, on the paper of the printer it was written for."""
     subprocess.run(
-        ["cargo", "run", "-q", "-p", "stubprint-render", "--example", "render", "--", str(folder / f"{name}.bin"), str(folder / f"{name}.png"), dialect, *paper],
+        ["cargo", "run", "-q", "-p", "stubprint-render", "--example", "render", "--", str(folder / f"{name}.bin"), str(folder / f"{name}.png"), dialect, profile],
         cwd=WORKSPACE, check=True, capture_output=True,
     )
 
@@ -160,14 +165,13 @@ def build(previews):
             name = f"{spec['id']}.{library}.{dialect}"
             (folder / f"{name}.bin").write_bytes(data)
             if previews:
-                preview(folder, name, dialect, spec["paper_mm"])
+                preview(folder, name, dialect, spec["profile"])
             variants.append({"library": library, "version": version, "language": LANGUAGES[library], "dialect": dialect, "bytes": base64.b64encode(data).decode()})
         samples.append({
             "id": spec["id"],
             "title": spec["title"],
             "about": spec["about"],
-            "paper_mm": spec["paper_mm"],
-            "columns": spec["columns"],
+            "profile": spec["profile"],
             "tags": spec["tags"],
             "expect": expected(spec),
             "receipt": spec,

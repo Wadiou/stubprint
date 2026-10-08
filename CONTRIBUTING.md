@@ -83,6 +83,10 @@ print them: `samples/python/build.py` with python-escpos and `samples/node/build
 node-thermal-printer, and each receipt lists the libraries that print it. `samples/samples.lock.json`
 holds a hash of every result, so a library update that moves a byte is reviewed.
 
+Each receipt names the printer model it is written for with `profile`, as `GET /api/profiles` lists
+them. The width of a line comes from that model's first font, so it is not set by hand, and the
+pictures are drawn on the paper of that model.
+
 ```bash
 cd samples/python && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && cd ../..
 (cd samples/node && npm ci)

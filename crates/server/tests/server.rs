@@ -1392,7 +1392,7 @@ async fn the_samples_are_listed_with_every_library_that_wrote_them() {
         .as_str()
         .unwrap()
         .is_empty());
-    assert_eq!(grocery["paper_mm"], 80);
+    assert_eq!(grocery["profile"], "TM-T20III");
     assert!(
         grocery.get("receipt").is_none(),
         "a list does not carry the receipts"

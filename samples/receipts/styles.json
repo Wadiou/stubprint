@@ -3,8 +3,7 @@
   "order": 5,
   "title": "Text styles",
   "about": "One line for each way a printer can print text: bold, underlines, white on black, upside down, fonts A and B, sizes and alignment.",
-  "paper_mm": 80,
-  "columns": 48,
+  "profile": "TM-T20III",
   "tags": [
     "80 mm",
     "styles"

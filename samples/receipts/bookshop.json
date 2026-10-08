@@ -3,8 +3,7 @@
   "order": 7,
   "title": "Bookshop receipt",
   "about": "A receipt for a Star printer in Star Line mode, with a centred name and a Code 39 barcode.",
-  "paper_mm": 80,
-  "columns": 42,
+  "profile": "TSP600",
   "tags": [
     "star",
     "barcode"

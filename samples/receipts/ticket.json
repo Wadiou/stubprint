@@ -3,8 +3,7 @@
   "order": 4,
   "title": "Event ticket",
   "about": "A ticket with big headings, white on black text and a PDF417 code that the printer draws from the data it is given.",
-  "paper_mm": 80,
-  "columns": 48,
+  "profile": "TM-T20III",
   "tags": [
     "80 mm",
     "pdf417",
