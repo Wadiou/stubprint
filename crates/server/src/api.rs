@@ -22,9 +22,12 @@ use utoipa::{OpenApi, ToSchema};
 
 use crate::config::PrinterSettings;
 use crate::hub::{Connection, Hub, Notice, Stored};
+use crate::printer::VirtualPrinter;
+use crate::samples;
 use crate::session::Session;
 use crate::wire::{
-    hex, trace_of, trace_of_stream, PrinterInfo, ReceiptDetail, ReceiptSummary, TraceItem,
+    hex, trace_of, trace_of_stream, PrinterInfo, ReceiptDetail, ReceiptSummary, SampleDetail,
+    SampleSummary, TraceItem,
 };
 
 /// The most bytes one `POST /api/print` takes.
@@ -56,6 +59,9 @@ pub fn router(hub: Arc<Hub>, web: Option<&std::path::Path>) -> Router {
         .route("/api/connections/{id}", get(connection))
         .route("/api/decode", post(decode))
         .route("/api/print", post(print))
+        .route("/api/samples", get(sample_list))
+        .route("/api/samples/{id}", get(sample))
+        .route("/api/samples/{id}/print", post(print_sample))
         .route("/api/events", get(events))
         .route("/api/{*rest}", any(no_such_route))
         .layer(DefaultBodyLimit::max(MAX_PRINT_BYTES))
@@ -127,6 +133,7 @@ async fn health() -> Json<serde_json::Value> {
         (name = "printers", description = "The virtual printers, and what each one pretends to be going through"),
         (name = "receipts", description = "What was printed: a receipt is everything a printer printed up to a cut. Each comes as data, as the bytes that made it, as text and as a picture"),
         (name = "printing", description = "Sending bytes to a printer without a socket"),
+        (name = "samples", description = "Ready made receipts that real printing libraries wrote, each in every library that can print it, to try a printer or a viewer with"),
         (name = "debugging", description = "Why a receipt came out as it did: every command with its bytes and the state after it, the programs that connected, and reading bytes without keeping them"),
         (name = "live", description = "What happens, as it happens")
     ),
@@ -143,6 +150,9 @@ async fn health() -> Json<serde_json::Value> {
         next,
         receipt,
         print,
+        sample_list,
+        sample,
+        print_sample,
         events
     ),
     components(schemas(Notice, Event, Printed, StatusChange, PrinterSettings))
@@ -559,27 +569,139 @@ async fn print(
     Query(query): Query<PrintQuery>,
     body: axum::body::Bytes,
 ) -> Reply<Json<Printed>> {
-    let printer = match &query.printer {
+    let printer = find_printer(&hub, query.printer.as_deref())?;
+    Ok(Json(send(&hub, printer, &body)))
+}
+
+/// The named printer, or the first one.
+fn find_printer(hub: &Hub, name: Option<&str>) -> Reply<Arc<VirtualPrinter>> {
+    match name {
         Some(name) => hub
             .printer(name)
-            .ok_or_else(|| ApiError::not_found(format!("no printer called {name}")))?,
+            .ok_or_else(|| ApiError::not_found(format!("no printer called {name}"))),
         None => hub.printers().first().cloned().ok_or_else(|| {
             ApiError(
                 StatusCode::BAD_REQUEST,
                 "there is no printer to print to".into(),
             )
-        })?,
-    };
+        }),
+    }
+}
+
+/// Sends bytes to a printer as a connection that sends them and closes.
+fn send(hub: &Arc<Hub>, printer: Arc<VirtualPrinter>, bytes: &[u8]) -> Printed {
     let name = printer.name.clone();
     let mut session = Session::open(hub.clone(), printer, "http".into());
-    let mut replies = session.feed(&body);
+    let mut replies = session.feed(bytes);
     replies.extend(session.finish());
-    Ok(Json(Printed {
+    Printed {
         connection: session.id(),
         printer: name,
         receipts: session.stored().to_vec(),
         replies: hex(&replies),
-    }))
+    }
+}
+
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+struct VariantQuery {
+    /// Only the variant that this library wrote, such as `python-escpos` or `node-thermal-printer`.
+    library: Option<String>,
+    /// Only the variant in this command language, `escpos` or `starline`.
+    dialect: Option<String>,
+}
+
+impl VariantQuery {
+    fn dialect(&self) -> Reply<Option<Dialect>> {
+        self.dialect
+            .as_deref()
+            .map(|name| {
+                Dialect::from_name(name).ok_or_else(|| {
+                    ApiError::not_found(format!("no command language called {name}"))
+                })
+            })
+            .transpose()
+    }
+}
+
+fn find_sample(id: &str) -> Reply<&'static samples::Sample> {
+    samples::find(id).ok_or_else(|| ApiError::not_found(format!("no sample called {id}")))
+}
+
+fn no_variant(sample: &samples::Sample) -> ApiError {
+    ApiError::not_found(format!(
+        "{} has no variant like that, see GET /api/samples/{}",
+        sample.id, sample.id
+    ))
+}
+
+/// The ready made receipts, without their bytes.
+#[utoipa::path(get, path = "/api/samples", tag = "samples", responses((status = 200, description = "The samples, in the order to show them", body = Vec<SampleSummary>)))]
+async fn sample_list() -> Json<Vec<SampleSummary>> {
+    Json(samples::all().iter().map(SampleSummary::of).collect())
+}
+
+/// One ready made receipt. The id can end in `.bin` for the bytes of one variant, which any
+/// program can send to a printer. `library` and `dialect` pick the variant, and the first one is
+/// used when they are left out. Without `.bin` the answer says what the receipt is and what it
+/// should read as.
+#[utoipa::path(get, path = "/api/samples/{id}", tag = "samples",
+    params(("id" = String, Path, description = "The id of the sample, with .bin after it for the bytes"), VariantQuery),
+    responses(
+        (status = 200, description = "The sample", body = SampleDetail),
+        (status = 200, description = "With .bin", content_type = "application/octet-stream"),
+        (status = 404, description = "There is no such sample or variant, as `error` says", body = ErrorBody)))]
+async fn sample(Path(text): Path<String>, Query(query): Query<VariantQuery>) -> Reply<Response> {
+    let (id, form) = text.split_once('.').unwrap_or((&text, "json"));
+    let found = find_sample(id)?;
+    match form {
+        "json" => Ok(Json(SampleDetail::of(found)).into_response()),
+        "bin" => {
+            let variant = found
+                .variant(query.library.as_deref(), query.dialect()?)
+                .ok_or_else(|| no_variant(found))?;
+            Ok((
+                [
+                    (header::CONTENT_TYPE, "application/octet-stream".to_string()),
+                    (
+                        header::CONTENT_DISPOSITION,
+                        format!(
+                            "attachment; filename=\"{id}.{}.{}.bin\"",
+                            variant.library,
+                            variant.dialect.name()
+                        ),
+                    ),
+                ],
+                variant.bytes.clone(),
+            )
+                .into_response())
+        }
+        other => Err(ApiError::not_found(format!(
+            "a sample does not come as .{other}"
+        ))),
+    }
+}
+
+/// Prints a sample to a printer, as if a program had connected and sent it. Without `dialect` it
+/// sends a variant in the command language the printer is set to, because a printer only reads
+/// its own.
+#[utoipa::path(post, path = "/api/samples/{id}/print", tag = "samples",
+    params(("id" = String, Path, description = "The id of the sample"), PrintQuery, VariantQuery),
+    responses(
+        (status = 200, description = "What the bytes made", body = Printed),
+        (status = 404, description = "There is no such sample, variant or printer, as `error` says", body = ErrorBody)))]
+async fn print_sample(
+    State(hub): State<Arc<Hub>>,
+    Path(id): Path<String>,
+    Query(printing): Query<PrintQuery>,
+    Query(query): Query<VariantQuery>,
+) -> Reply<Json<Printed>> {
+    let found = find_sample(&id)?;
+    let printer = find_printer(&hub, printing.printer.as_deref())?;
+    let dialect = query.dialect()?.unwrap_or(printer.dialect);
+    let variant = found
+        .variant(query.library.as_deref(), Some(dialect))
+        .ok_or_else(|| no_variant(found))?;
+    Ok(Json(send(&hub, printer, &variant.bytes)))
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]

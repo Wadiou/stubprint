@@ -10,6 +10,7 @@ mod config;
 mod hub;
 mod listener;
 mod printer;
+mod samples;
 mod session;
 mod wire;
 

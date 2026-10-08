@@ -6,6 +6,7 @@ use utoipa::ToSchema;
 
 use crate::hub::Stored;
 use crate::printer::VirtualPrinter;
+use crate::samples::{Sample, Variant};
 
 /// How many printed lines the short form of a receipt shows.
 const PREVIEW_LINES: usize = 3;
@@ -153,4 +154,88 @@ pub fn trace_of_stream(traced: &[Traced]) -> Vec<TraceItem<'_>> {
             out
         })
         .collect()
+}
+
+/// One way a printing library wrote a sample.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct VariantInfo {
+    /// The library that wrote the bytes, such as `python-escpos`.
+    pub library: String,
+    /// The version of that library, which is exactly the one that wrote these bytes.
+    pub version: String,
+    /// The language the library is for: `python` or `node`.
+    pub language: String,
+    /// The command language the bytes are in. Print them to a printer set to it.
+    pub dialect: Dialect,
+    /// How many bytes it is.
+    pub bytes: usize,
+}
+
+impl VariantInfo {
+    pub fn of(variant: &Variant) -> Self {
+        Self {
+            library: variant.library.clone(),
+            version: variant.version.clone(),
+            language: variant.language.clone(),
+            dialect: variant.dialect,
+            bytes: variant.bytes.len(),
+        }
+    }
+}
+
+/// A ready made receipt, in a list.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct SampleSummary {
+    /// What it is called in addresses, such as `grocery`. It never says how it was made.
+    pub id: String,
+    /// A name to show.
+    pub title: String,
+    /// What the sample shows and what to look at in it.
+    pub about: String,
+    /// The width of the paper it was written for, in millimetres.
+    pub paper_mm: u32,
+    /// How many characters fit on a line of that paper.
+    pub columns: u32,
+    /// Short words for what it holds, to filter by.
+    pub tags: Vec<String>,
+    /// Each library that wrote it, with its bytes.
+    pub variants: Vec<VariantInfo>,
+}
+
+impl SampleSummary {
+    pub fn of(sample: &Sample) -> Self {
+        Self {
+            id: sample.id.clone(),
+            title: sample.title.clone(),
+            about: sample.about.clone(),
+            paper_mm: sample.paper_mm,
+            columns: sample.columns,
+            tags: sample.tags.clone(),
+            variants: sample.variants.iter().map(VariantInfo::of).collect(),
+        }
+    }
+}
+
+/// A ready made receipt with what it says as data.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct SampleDetail {
+    #[serde(flatten)]
+    pub summary: SampleSummary,
+    /// What is printed, block by block, in the form every library was given.
+    #[schema(value_type = Object)]
+    pub receipt: serde_json::Value,
+    /// What a decoder must find on the paper, from what the receipt asks for and not from reading
+    /// any library's bytes: the lines, the codes, the pictures and the cuts.
+    #[schema(value_type = Object)]
+    pub expect: serde_json::Value,
+}
+
+impl SampleDetail {
+    pub fn of(sample: &Sample) -> Self {
+        Self {
+            summary: SampleSummary::of(sample),
+            receipt: sample.receipt.clone(),
+            expect: sample.expect.clone(),
+        }
+    }
 }
