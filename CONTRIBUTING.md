@@ -48,3 +48,11 @@ It writes `samples/out/`: the bytes and a picture of every variant in `python/` 
 build without it has no samples, so the sample tests need this step first.
 
 Commit messages follow Conventional Commits: `feat(core): ...`, `fix(server): ...`, `docs: ...`.
+
+## Releases
+
+Releases are made by semantic-release after CI passes on `main`, from the commit messages: `feat`
+makes a minor version, `fix`, `perf` and `refactor` a patch, and the rest make none. A breaking
+change is a `BREAKING CHANGE:` footer, which also makes a minor version while Stubprint is below
+1.0.0. A `!` after the type is not read. The release commit changes `Cargo.toml`, `Cargo.lock` and
+`CHANGELOG.md`, and tags `vX.Y.Z`. The first release continues from the tag `v0.0.1`.
