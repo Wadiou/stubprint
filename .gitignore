@@ -8,6 +8,7 @@
 /samples/out
 
 # Web page
+/.pnpm-store
 /web/node_modules
 /web/dist
 /web/build
