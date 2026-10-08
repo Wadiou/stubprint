@@ -1217,7 +1217,7 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "stubprint-core"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "base64",
  "encoding_rs",
@@ -1229,7 +1229,7 @@ dependencies = [
 
 [[package]]
 name = "stubprint-render"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "png",
  "rxing",
@@ -1241,7 +1241,7 @@ dependencies = [
 
 [[package]]
 name = "stubprint-server"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "axum",
  "base64",
