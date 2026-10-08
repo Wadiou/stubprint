@@ -110,8 +110,14 @@ pub struct ProfileInfo {
     pub columns: Vec<u8>,
     /// How wide the paper prints, in dots, when the model says.
     pub width_dots: Option<u32>,
+    /// How wide the paper prints, in millimetres, when the model says.
+    pub width_mm: Option<f64>,
+    /// How many dots make an inch, when the model says.
+    pub dpi: Option<u32>,
     /// How many code pages `ESC t` can choose.
     pub code_pages: usize,
+    /// Links to the manuals of the model.
+    pub manuals: Vec<String>,
     /// What the model can do, such as `qrCode`, `pdf417Code` or `starCommands`.
     pub features: Vec<String>,
 }
@@ -124,7 +130,10 @@ impl ProfileInfo {
             model: profile.identity.model.clone(),
             columns: profile.columns.clone(),
             width_dots: profile.width_dots,
+            width_mm: profile.width_mm,
+            dpi: profile.dpi,
             code_pages: profile.code_page_count(),
+            manuals: profile.manuals.clone(),
             features: profile.features().into_iter().map(str::to_owned).collect(),
         }
     }

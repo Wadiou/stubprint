@@ -7,6 +7,9 @@ use serde_json::Value;
 /// What the printers in `profiles/profiles.json` say about themselves.
 const PROFILES_JSON: &str = include_str!("../../../profiles/profiles.json");
 
+/// The links to manuals that the files of the models give, by model.
+const MANUALS_JSON: &str = include_str!("../../../profiles/manuals.json");
+
 /// How two byte characters are read once `FS &` has turned them on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum KanjiEncoding {
@@ -46,11 +49,24 @@ pub struct Profile {
     pub columns: Vec<u8>,
     /// The width of the paper in dots, when the model says.
     pub width_dots: Option<u32>,
+    /// How wide the paper prints, in millimetres, when the model says.
+    pub width_mm: Option<f64>,
+    /// How many dots make an inch, when the model says.
+    pub dpi: Option<u32>,
+    /// Links to the manuals of the model.
+    pub manuals: Vec<String>,
     /// How two byte characters are read.
     pub kanji: KanjiEncoding,
     pub identity: Identity,
     code_pages: BTreeMap<u8, String>,
     features: BTreeMap<String, bool>,
+}
+
+fn manuals() -> &'static Value {
+    static MANUALS: OnceLock<Value> = OnceLock::new();
+    MANUALS.get_or_init(|| {
+        serde_json::from_str(MANUALS_JSON).expect("profiles/manuals.json is valid JSON")
+    })
 }
 
 fn database() -> &'static Value {
@@ -149,6 +165,14 @@ impl Profile {
             width_dots: data["media"]["width"]["pixels"]
                 .as_u64()
                 .map(|dots| dots as u32),
+            width_mm: data["media"]["width"]["mm"].as_f64(),
+            dpi: data["media"]["dpi"].as_u64().map(|dpi| dpi as u32),
+            manuals: manuals()[key.as_str()]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|link| link.as_str().map(str::to_owned))
+                .collect(),
             kanji: KanjiEncoding::default(),
             identity: Identity {
                 manufacturer: if vendor.is_empty() || vendor == "Generic" {

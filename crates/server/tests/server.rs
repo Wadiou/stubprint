@@ -653,6 +653,9 @@ async fn the_models_that_can_be_chosen_are_listed_and_a_printer_uses_its_model()
         .find(|p| p["name"] == "TM-T88IV")
         .expect("TM-T88IV is listed");
     assert_eq!(epson["width_dots"], 512);
+    assert_eq!(epson["width_mm"], 80.0);
+    assert_eq!(epson["dpi"], 180);
+    assert!(epson["manuals"][0].as_str().unwrap().contains("tm-t88iv"));
     assert_eq!(epson["columns"], json!([42, 56]));
     assert!(epson["features"]
         .as_array()
