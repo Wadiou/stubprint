@@ -39,6 +39,7 @@ are generated from the API description (Hey API), so after changing the server, 
 cargo build -p stubprint-server
 cd web && pnpm install
 pnpm dev                                  # with a stubprint running on 127.0.0.1:8080
+                                          # or STUBPRINT_SERVER=http://127.0.0.1:41233 pnpm dev
 pnpm build && ../target/debug/stubprint --web dist   # the program serves the build
 pnpm typecheck && pnpm test
 ```
