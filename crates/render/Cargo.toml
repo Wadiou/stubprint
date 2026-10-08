@@ -13,7 +13,7 @@ repository.workspace = true
 skrifa = "0.48.0"
 zeno = "0.3.3"
 png = "0.18.1"
-stubprint-core = { version = "0.0.1", path = "../core" }
+stubprint-core = { path = "../core" }
 rxing = { version = "0.9.3", default-features = false, features = ["encoders", "encoding_rs", "aztec", "datamatrix", "oned", "pdf417", "qrcode"] }
 
 [dev-dependencies]
