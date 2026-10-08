@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { columnsText, featureLabels, paperText } from "@/lib/profile";
 
-/** The printer model a receipt was printed on, and what the database says about it. */
-export function ModelStrip({ profile, printer }: { profile: string; printer: string }) {
+/** A printer model, as a receipt was printed on it or a sample was written for it, and what the database says about it. */
+export function ModelStrip({ profile, printer }: { profile: string; printer?: string }) {
   const profiles = useQuery({ ...listProfilesOptions(), staleTime: Number.POSITIVE_INFINITY });
   const model = profiles.data?.find((item) => item.name === profile);
   if (!model) return null;
@@ -37,7 +37,7 @@ export function ModelStrip({ profile, printer }: { profile: string; printer: str
             <span className="text-base font-semibold">{model.name}</span>
             {model.vendor && <Badge variant="outline">{model.vendor}</Badge>}
             <div className="flex-1" />
-            <span className="text-xs text-muted-foreground">printed on {printer}</span>
+            {printer && <span className="text-xs text-muted-foreground">printed on {printer}</span>}
           </div>
           <dl className="mt-3 grid grid-cols-[6.5rem_1fr] gap-x-3 gap-y-2 text-sm">
             <dt className="text-muted-foreground">Paper</dt>

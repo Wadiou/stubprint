@@ -3,11 +3,13 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import {
   clearReceiptsMutation,
+  getReceiptPictureOptions,
   getReceiptTextOptions,
   getTraceOptions,
   listPrintersOptions,
   listReceiptsOptions,
 } from "@/api/generated/@tanstack/react-query.gen";
+import { getReceiptBytes, getReceiptPicture, getReceiptText } from "@/api/generated/sdk.gen";
 import type { ReceiptSummary } from "@/api/generated/types.gen";
 import { CommandList, type Row } from "@/components/commands";
 import { ModelStrip } from "@/components/model-strip";
@@ -25,12 +27,14 @@ import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { describe, stateRows } from "@/lib/commands";
 import { hexBytes, hexDump } from "@/lib/hex";
+import { save } from "@/lib/save";
+import { useObjectUrl } from "@/lib/use-object-url";
 import { useReceiptBytes } from "@/lib/use-bytes";
 
 const DOWNLOADS = [
-  { path: "picture", file: "png", label: "Picture (PNG)" },
-  { path: "text", file: "txt", label: "Text" },
-  { path: "bytes", file: "bin", label: "Bytes" },
+  { file: "png", label: "Picture (PNG)", get: (id: number) => getReceiptPicture({ path: { id }, throwOnError: true }) },
+  { file: "txt", label: "Text", get: (id: number) => getReceiptText({ path: { id }, throwOnError: true }) },
+  { file: "bin", label: "Bytes", get: (id: number) => getReceiptBytes({ path: { id }, throwOnError: true }) },
 ];
 
 const time = (receipt: ReceiptSummary) => new Date(receipt.at).toLocaleTimeString();
@@ -59,6 +63,8 @@ function ReceiptView({ receipt, actions }: { receipt: ReceiptSummary; actions: R
   const partial = upto < total;
   const query = partial ? { upto } : undefined;
   const text = useQuery(getReceiptTextOptions({ path: { id }, query }));
+  const picture = useQuery(getReceiptPictureOptions({ path: { id }, query }));
+  const paper = useObjectUrl(picture.data);
   const [filter, setFilter] = useState("");
 
   const rows: Row[] = useMemo(
@@ -95,11 +101,7 @@ function ReceiptView({ receipt, actions }: { receipt: ReceiptSummary; actions: R
         <Card className="mt-3 items-center bg-muted/40 py-6">
           <CardContent className="w-full overflow-auto">
             <TabsContent value="picture" className="flex justify-center">
-              <img
-                src={`/api/receipts/${id}/picture${partial ? `?upto=${upto}` : ""}`}
-                alt={`Receipt ${id}`}
-                className="max-w-full bg-white"
-              />
+              <img src={paper} alt={`Receipt ${id}`} className="max-w-full bg-white" />
             </TabsContent>
             <TabsContent value="text" className="flex justify-center">
               <pre className="font-mono text-sm">{text.data}</pre>
@@ -204,11 +206,8 @@ export function LivePage({ picked, onPick }: { picked?: number; onPick: (id?: nu
       <DropdownMenu>
         <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>Download</DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {DOWNLOADS.map(({ path, file, label }) => (
-            <DropdownMenuItem
-              key={path}
-              render={<a href={`/api/receipts/${current.id}/${path}`} download={`receipt-${current.id}.${file}`} />}
-            >
+          {DOWNLOADS.map(({ file, label, get }) => (
+            <DropdownMenuItem key={file} onClick={async () => save((await get(current.id)).data, `receipt-${current.id}.${file}`)}>
               {label}
             </DropdownMenuItem>
           ))}

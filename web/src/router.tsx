@@ -2,6 +2,7 @@ import { createRootRoute, createRoute, createRouter } from "@tanstack/react-rout
 import { Shell } from "@/components/shell";
 import { LivePage } from "@/pages/live";
 import { Placeholder } from "@/pages/placeholder";
+import { SamplesPage } from "@/pages/samples";
 
 const rootRoute = createRootRoute({ component: Shell });
 
@@ -20,18 +21,29 @@ function LiveRoute() {
   return <LivePage picked={receipt} onPick={(id) => navigate({ search: id === undefined ? {} : { receipt: id } })} />;
 }
 
+const samplesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/samples",
+  staticData: { title: "Samples" },
+  component: SamplesRoute,
+});
+
+function SamplesRoute() {
+  const navigate = samplesRoute.useNavigate();
+  return <SamplesPage onOpen={(receipt) => navigate({ to: "/", search: { receipt } })} />;
+}
+
 const unbuilt = [
   { path: "/receipts", title: "Receipts" },
   { path: "/connections", title: "Connections" },
   { path: "/printers", title: "Printers" },
-  { path: "/samples", title: "Samples" },
   { path: "/playground", title: "Send and decode" },
   { path: "/settings", title: "Settings" },
 ].map(({ path, title }) =>
   createRoute({ getParentRoute: () => rootRoute, path, staticData: { title }, component: Placeholder }),
 );
 
-export const router = createRouter({ routeTree: rootRoute.addChildren([liveRoute, ...unbuilt]) });
+export const router = createRouter({ routeTree: rootRoute.addChildren([liveRoute, samplesRoute, ...unbuilt]) });
 
 declare module "@tanstack/react-router" {
   interface Register {
