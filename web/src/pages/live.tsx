@@ -1,13 +1,14 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, LayoutGrid, Printer, Receipt } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import {
-  clearReceiptsMutation,
   getReceiptPictureOptions,
   getReceiptTextOptions,
   getTraceOptions,
   listReceiptsOptions,
+  listReceiptsQueryKey,
+  removeReceiptMutation,
 } from "@/api/generated/@tanstack/react-query.gen";
 import { getReceiptBytes, getReceiptPicture, getReceiptText } from "@/api/generated/sdk.gen";
 import type { ReceiptSummary } from "@/api/generated/types.gen";
@@ -23,6 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -113,7 +115,7 @@ function ReceiptView({ receipt, actions }: { receipt: ReceiptSummary; actions: R
           {actions}
         </div>
         <div className="mt-3">
-          <ModelStrip profile={receipt.profile} printer={receipt.printer} />
+          <ModelStrip profile={receipt.profile} />
         </div>
         <Card className="mt-3 items-center bg-muted/40 py-6">
           <CardContent className="w-full overflow-auto">
@@ -207,7 +209,12 @@ function ReceiptView({ receipt, actions }: { receipt: ReceiptSummary; actions: R
 /** The newest receipt while it follows them, or the one that was picked. */
 export function LivePage({ picked, onPick }: { picked?: number; onPick: (id?: number) => void }) {
   const receipts = useQuery(listReceiptsOptions());
-  const clear = useMutation(clearReceiptsMutation());
+  const queryClient = useQueryClient();
+  const remove = useMutation({
+    ...removeReceiptMutation(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: listReceiptsQueryKey() }),
+  });
+  const [removing, setRemoving] = useState(false);
   const list = receipts.data ?? [];
   const current = list.find((receipt) => receipt.id === picked) ?? list.at(-1);
 
@@ -228,8 +235,8 @@ export function LivePage({ picked, onPick }: { picked?: number; onPick: (id?: nu
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
-      <Button variant="ghost" size="sm" onClick={() => clear.mutate({})}>
-        Clear
+      <Button variant="ghost" size="sm" onClick={() => setRemoving(true)}>
+        Delete
       </Button>
     </>
   );
@@ -246,6 +253,18 @@ export function LivePage({ picked, onPick }: { picked?: number; onPick: (id?: nu
         />
         <ReceiptView key={current.id} receipt={current} actions={actions} />
       </div>
+      <ConfirmationDialog
+        open={removing}
+        onOpenChange={setRemoving}
+        title={`Delete receipt #${current.id}?`}
+        description="It is removed from the live paper and cannot be brought back."
+        confirmText="Delete"
+        tone="destructive"
+        onConfirm={async () => {
+          await remove.mutateAsync({ path: { id: current.id } });
+          onPick(undefined);
+        }}
+      />
     </PageLayout>
   );
 }

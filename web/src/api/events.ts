@@ -9,6 +9,7 @@ import {
 // Each live event says which cached answers are out of date.
 const STALE = {
   receipt: [listReceiptsQueryKey()],
+  receipt_removed: [listReceiptsQueryKey()],
   cleared: [listReceiptsQueryKey()],
   status: [listPrintersQueryKey()],
   printer_added: [listPrintersQueryKey()],

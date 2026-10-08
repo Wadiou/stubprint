@@ -7,12 +7,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { columnsText, featureLabels, paperText } from "@/lib/profile";
 
 /** A printer model, as a receipt was printed on it or a sample was written for it, and what the database says about it. */
-export function ModelStrip({ profile, printer }: { profile: string; printer?: string }) {
+export function ModelStrip({ profile }: { profile: string }) {
   const profiles = useQuery({ ...listProfilesOptions(), staleTime: Number.POSITIVE_INFINITY });
   const model = profiles.data?.find((item) => item.name === profile);
   if (!model) return null;
 
-  const manual = model.manuals[0];
   const about = [
     model.vendor,
     model.width_mm ? `${model.width_mm} mm` : undefined,
@@ -36,8 +35,6 @@ export function ModelStrip({ profile, printer }: { profile: string; printer?: st
           <div className="flex items-center gap-2">
             <span className="text-base font-semibold">{model.name}</span>
             {model.vendor && <Badge variant="outline">{model.vendor}</Badge>}
-            <div className="flex-1" />
-            {printer && <span className="text-xs text-muted-foreground">printed on {printer}</span>}
           </div>
           <dl className="mt-3 grid grid-cols-[6.5rem_1fr] gap-x-3 gap-y-2 text-sm">
             {paperText(model) && (
@@ -61,15 +58,6 @@ export function ModelStrip({ profile, printer }: { profile: string; printer?: st
                 {label}
               </Badge>
             ))}
-          </div>
-          <div className="mt-3 flex items-center gap-2 border-t pt-3 text-sm">
-            {manual && (
-              <a href={manual} target="_blank" rel="noreferrer" className="underline underline-offset-4">
-                Manual, {new URL(manual).hostname} ↗
-              </a>
-            )}
-            <div className="flex-1" />
-            <span className="text-xs text-muted-foreground">Printer database, CC BY 4.0</span>
           </div>
         </PopoverContent>
       </Popover>
