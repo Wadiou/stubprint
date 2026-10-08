@@ -3,7 +3,7 @@ import { useState } from "react";
 import { getSamplePictureOptions } from "@/api/generated/@tanstack/react-query.gen";
 import { getSamplePicture, getSampleText } from "@/api/generated/sdk.gen";
 import type { PrinterInfo, SampleSummary, VariantInfo } from "@/api/generated/types.gen";
-import { ModelStrip } from "@/components/model-strip";
+import { PrinterCreateSheet } from "@/components/printers/printer-create-sheet";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -52,6 +52,7 @@ export function SampleCard({
 }) {
   const [variantKey, setVariantKey] = useState<string>();
   const [printerName, setPrinterName] = useState<string>();
+  const [adding, setAdding] = useState(false);
 
   const variant = sample.variants.find((item) => keyOf(item) === variantKey) ?? sample.variants[0];
   if (!variant) return null;
@@ -68,10 +69,21 @@ export function SampleCard({
         <div className="max-h-96 overflow-auto rounded-lg bg-muted/40 p-4">
           <Picture sample={sample} variant={variant} />
         </div>
-        <div className="flex flex-col gap-2">
-          <span className="text-sm font-medium">Made for</span>
-          <ModelStrip profile={sample.profile} />
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium">Made for</div>
+            <div className="truncate text-sm text-muted-foreground">{sample.profile}</div>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
+            Add this printer
+          </Button>
         </div>
+        <PrinterCreateSheet
+          open={adding}
+          preset={{ model: sample.profile, dialect: variant.dialect }}
+          onAdded={setPrinterName}
+          onClose={() => setAdding(false)}
+        />
         <div className="flex flex-col gap-2">
           <span className="text-sm font-medium">Variant</span>
           <Select
@@ -113,11 +125,6 @@ export function SampleCard({
             <p className="text-[13px] text-muted-foreground">
               {printer.name} reads {DIALECTS[printer.dialect]}, and this variant is {DIALECTS[variant.dialect]}. Print it to a printer set to{" "}
               {DIALECTS[variant.dialect]}.
-            </p>
-          )}
-          {printer && fits && printer.profile !== sample.profile && (
-            <p className="text-[13px] text-muted-foreground">
-              {printer.name} is a {printer.profile}. The lines keep their length and its paper decides the rest.
             </p>
           )}
         </div>

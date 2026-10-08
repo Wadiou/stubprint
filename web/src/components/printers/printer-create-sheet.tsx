@@ -8,29 +8,34 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
-import { useActivePrinter } from "@/lib/active-printer";
 import { freeName } from "@/lib/printer";
 import { DIALECTS } from "@/lib/profile";
+import { usePrinters } from "@/lib/use-printers";
 import { ModelPicker } from "./model-picker";
 import { Field, refused } from "./printer-fields";
 
-function CreateForm({ onClose }: { onClose: () => void }) {
+export interface PrinterPreset {
+  model?: string;
+  dialect?: Dialect;
+}
+
+function CreateForm({ preset, onAdded, onClose }: { preset?: PrinterPreset; onAdded?: (name: string) => void; onClose: () => void }) {
   const queryClient = useQueryClient();
-  const { choose, printers } = useActivePrinter();
+  const printers = usePrinters();
   const models = useQuery({ ...listProfilesOptions(), staleTime: Number.POSITIVE_INFINITY }).data ?? [];
   const add = useMutation({
     ...addPrinterMutation(),
     onSuccess: (added) => {
       queryClient.invalidateQueries({ queryKey: listPrintersQueryKey() });
-      choose(added.name);
+      onAdded?.(added.name);
       onClose();
     },
   });
   const [name, setName] = useState(() => freeName(printers.map((item) => item.name)));
   const [anyPort, setAnyPort] = useState(true);
   const [listen, setListen] = useState("");
-  const [dialect, setDialect] = useState<Dialect>("escpos");
-  const [model, setModel] = useState("default");
+  const [dialect, setDialect] = useState<Dialect>(preset?.dialect ?? "escpos");
+  const [model, setModel] = useState(preset?.model ?? "default");
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -103,11 +108,22 @@ function CreateForm({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** Makes a printer, at the side of the table. The form is made again each time it opens. */
-export function PrinterCreateSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+/** Makes a printer, at the side of the table. The form is made again each time it opens, with the model and the language that are given. */
+export function PrinterCreateSheet({
+  open,
+  preset,
+  onAdded,
+  onClose,
+}: {
+  open: boolean;
+  preset?: PrinterPreset;
+  /** Told the name of the printer that was made. */
+  onAdded?: (name: string) => void;
+  onClose: () => void;
+}) {
   return (
     <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
-      <SheetContent className="sm:max-w-md">{open && <CreateForm onClose={onClose} />}</SheetContent>
+      <SheetContent className="sm:max-w-md">{open && <CreateForm preset={preset} onAdded={onAdded} onClose={onClose} />}</SheetContent>
     </Sheet>
   );
 }
