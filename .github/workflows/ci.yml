@@ -29,6 +29,15 @@ jobs:
           .venv/bin/pip install -r requirements.txt fonttools
           .venv/bin/python generate.py
           .venv/bin/python check_glyphs.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build the samples
+        run: |
+          python -m venv samples/python/.venv
+          samples/python/.venv/bin/pip install -r samples/python/requirements.txt
+          npm ci --prefix samples/node
+          samples/python/.venv/bin/python samples/python/build.py --no-previews
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
