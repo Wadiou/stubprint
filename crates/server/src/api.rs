@@ -55,6 +55,9 @@ pub fn router(hub: Arc<Hub>, web: &Web) -> Router {
         .route("/api/receipts", get(list).delete(clear))
         .route("/api/receipts/next", get(next))
         .route("/api/receipts/{id}", get(receipt))
+        .route("/api/receipts/{id}/bytes", get(receipt_bytes))
+        .route("/api/receipts/{id}/text", get(receipt_text))
+        .route("/api/receipts/{id}/picture", get(receipt_picture))
         .route("/api/receipts/{id}/trace", get(trace))
         .route("/api/connections", get(connections))
         .route("/api/connections/{id}", get(connection))
@@ -152,6 +155,9 @@ async fn health() -> Json<serde_json::Value> {
         clear,
         next,
         receipt,
+        receipt_bytes,
+        receipt_text,
+        receipt_picture,
         trace,
         connections,
         connection,
@@ -165,6 +171,12 @@ async fn health() -> Json<serde_json::Value> {
     components(schemas(Notice, Event, Printed, StatusChange, PrinterSettings))
 )]
 struct ApiDoc;
+
+/// The raw bytes of a file, not JSON.
+#[derive(ToSchema)]
+#[schema(value_type = String, format = Binary)]
+#[allow(dead_code)]
+struct Binary(Vec<u8>);
 
 /// Used by the document of the API for the answer of an error.
 #[derive(ToSchema)]
@@ -389,15 +401,6 @@ async fn next(State(hub): State<Arc<Hub>>, Query(query): Query<NextQuery>) -> Re
     }
 }
 
-/// How a receipt is asked for: the id, and the form after a dot.
-fn parse_receipt(text: &str) -> Reply<(u64, &str)> {
-    let (id, form) = text.split_once('.').unwrap_or((text, "json"));
-    let id = id
-        .parse()
-        .map_err(|_| ApiError::not_found(format!("{text} is not a receipt")))?;
-    Ok((id, form))
-}
-
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
 struct ViewQuery {
@@ -407,61 +410,93 @@ struct ViewQuery {
     upto: Option<usize>,
 }
 
-/// One receipt. The id can end in `.bin` for the bytes the printer was sent, in `.txt` for the
-/// paper as text, and in `.png` for a picture of the paper. With `upto`, the receipt as it was
-/// after its first events, in every form.
+fn stored(hub: &Hub, id: u64) -> Reply<Arc<Stored>> {
+    hub.receipt(id)
+        .ok_or_else(|| ApiError::not_found(format!("no receipt {id}")))
+}
+
+/// One receipt as data: where and when it was printed, its commands and the text on it.
 #[utoipa::path(get, path = "/api/receipts/{id}", operation_id = "get_receipt", tag = "receipts",
-    params(("id" = String, Path, description = "The id of the receipt, with .json, .bin, .txt or .png after it"), ViewQuery),
+    params(("id" = u64, Path, description = "The id of the receipt")),
     responses(
         (status = 200, description = "The receipt", body = ReceiptDetail),
-        (status = 200, description = "With .png", content_type = "image/png"),
-        (status = 200, description = "With .txt", content_type = "text/plain"),
-        (status = 200, description = "With .bin", content_type = "application/octet-stream"),
         (status = 404, description = "There is no such printer, receipt or connection, as `error` says", body = ErrorBody)))]
-async fn receipt(
+async fn receipt(State(hub): State<Arc<Hub>>, Path(id): Path<u64>) -> Reply<Response> {
+    let stored = stored(&hub, id)?;
+    Ok(Json(ReceiptDetail::of(&stored)).into_response())
+}
+
+/// The bytes the printer was sent for a receipt. With `upto`, only those of its first events.
+#[utoipa::path(get, path = "/api/receipts/{id}/bytes", operation_id = "get_receipt_bytes", tag = "receipts",
+    params(("id" = u64, Path, description = "The id of the receipt"), ViewQuery),
+    responses(
+        (status = 200, description = "The bytes", content_type = "application/octet-stream", body = Binary),
+        (status = 404, description = "There is no such printer, receipt or connection, as `error` says", body = ErrorBody)))]
+async fn receipt_bytes(
     State(hub): State<Arc<Hub>>,
-    Path(text): Path<String>,
+    Path(id): Path<u64>,
     Query(view): Query<ViewQuery>,
 ) -> Reply<Response> {
-    let (id, form) = parse_receipt(&text)?;
-    let stored: Arc<Stored> = hub
-        .receipt(id)
-        .ok_or_else(|| ApiError::not_found(format!("no receipt {id}")))?;
+    let stored = stored(&hub, id)?;
+    let part = view.upto.map(|count| stored.receipt.until(count));
+    Ok((
+        [
+            (header::CONTENT_TYPE, "application/octet-stream".to_string()),
+            (
+                header::CONTENT_DISPOSITION,
+                format!("inline; filename=\"receipt-{id}.bin\""),
+            ),
+        ],
+        part.as_ref().unwrap_or(&stored.receipt).raw().to_vec(),
+    )
+        .into_response())
+}
+
+/// The paper of a receipt as text. Pictures and codes are tags such as `[qr M: hello]`. With
+/// `upto`, the paper as it was after the first events.
+#[utoipa::path(get, path = "/api/receipts/{id}/text", operation_id = "get_receipt_text", tag = "receipts",
+    params(("id" = u64, Path, description = "The id of the receipt"), ViewQuery),
+    responses(
+        (status = 200, description = "The paper as text", content_type = "text/plain", body = String),
+        (status = 404, description = "There is no such printer, receipt or connection, as `error` says", body = ErrorBody)))]
+async fn receipt_text(
+    State(hub): State<Arc<Hub>>,
+    Path(id): Path<u64>,
+    Query(view): Query<ViewQuery>,
+) -> Reply<Response> {
+    let stored = stored(&hub, id)?;
+    let options = Options::for_profile(&stored.printer.profile);
+    let part = view.upto.map(|count| stored.receipt.until(count));
+    Ok((
+        [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+        stubprint_render::text_of(part.as_ref().unwrap_or(&stored.receipt), &options),
+    )
+        .into_response())
+}
+
+/// A picture of the paper of a receipt. With `upto`, the paper as it was after the first events.
+#[utoipa::path(get, path = "/api/receipts/{id}/picture", operation_id = "get_receipt_picture", tag = "receipts",
+    params(("id" = u64, Path, description = "The id of the receipt"), ViewQuery),
+    responses(
+        (status = 200, description = "The picture", content_type = "image/png", body = Binary),
+        (status = 404, description = "There is no such printer, receipt or connection, as `error` says", body = ErrorBody)))]
+async fn receipt_picture(
+    State(hub): State<Arc<Hub>>,
+    Path(id): Path<u64>,
+    Query(view): Query<ViewQuery>,
+) -> Reply<Response> {
+    let stored = stored(&hub, id)?;
     let mut options = Options::for_profile(&stored.printer.profile);
     options.scale = view.scale.unwrap_or(1);
     let part = view.upto.map(|count| stored.receipt.until(count));
-    match form {
-        "json" => Ok(Json(ReceiptDetail::of(&stored)).into_response()),
-        "bin" => Ok((
-            [
-                (header::CONTENT_TYPE, "application/octet-stream".to_string()),
-                (
-                    header::CONTENT_DISPOSITION,
-                    format!("inline; filename=\"receipt-{id}.bin\""),
-                ),
-            ],
-            part.as_ref().unwrap_or(&stored.receipt).raw().to_vec(),
-        )
-            .into_response()),
-        "txt" => Ok((
-            [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
-            stubprint_render::text_of(part.as_ref().unwrap_or(&stored.receipt), &options),
-        )
-            .into_response()),
-        "png" => {
-            // Drawing takes a while for a long receipt, so it does not hold up the other requests.
-            let file = tokio::task::spawn_blocking(move || {
-                stubprint_render::png(part.as_ref().unwrap_or(&stored.receipt), &options)
-            })
-            .await
-            .map_err(|error| ApiError(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
-            .map_err(|error| ApiError(StatusCode::INTERNAL_SERVER_ERROR, error))?;
-            Ok(([(header::CONTENT_TYPE, "image/png")], file).into_response())
-        }
-        other => Err(ApiError::not_found(format!(
-            "a receipt does not come as .{other}"
-        ))),
-    }
+    // Drawing takes a while for a long receipt, so it does not hold up the other requests.
+    let file = tokio::task::spawn_blocking(move || {
+        stubprint_render::png(part.as_ref().unwrap_or(&stored.receipt), &options)
+    })
+    .await
+    .map_err(|error| ApiError(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
+    .map_err(|error| ApiError(StatusCode::INTERNAL_SERVER_ERROR, error))?;
+    Ok(([(header::CONTENT_TYPE, "image/png")], file).into_response())
 }
 
 /// The commands of a receipt, one by one: the bytes of each, what it asked for, and what the

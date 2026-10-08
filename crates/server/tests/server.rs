@@ -127,7 +127,7 @@ async fn the_bytes_of_a_receipt_come_back_as_they_were_sent() {
     let bytes = receipt_bytes("exact bytes \u{1b}E\u{1}bold");
     server.print("till", &bytes, 1000).await;
     server.after(0).await;
-    let answer = server.get("/api/receipts/1.bin").await;
+    let answer = server.get("/api/receipts/1/bytes").await;
     assert_eq!(answer.status(), 200);
     assert_eq!(answer.headers()["content-type"], "application/octet-stream");
     assert_eq!(answer.bytes().await.unwrap().as_ref(), bytes.as_slice());
@@ -270,9 +270,9 @@ async fn an_unknown_printer_is_a_404_with_a_message() {
     assert!(body["error"].as_str().unwrap().contains("nope"));
     assert_eq!(server.get("/api/printers/nope").await.status(), 404);
     assert_eq!(server.get("/api/receipts/99").await.status(), 404);
-    assert_eq!(server.get("/api/receipts/abc").await.status(), 404);
-    assert_eq!(server.get("/api/receipts/1.gif").await.status(), 404);
-    assert_eq!(server.get("/api/receipts/99.png").await.status(), 404);
+    // An id that is not a number is a request that cannot be right, not a receipt that is missing.
+    assert_eq!(server.get("/api/receipts/abc").await.status(), 400);
+    assert_eq!(server.get("/api/receipts/99/picture").await.status(), 404);
     assert_eq!(
         server
             .client
@@ -740,7 +740,7 @@ async fn a_receipt_comes_as_text_and_as_a_picture_of_the_paper_of_its_printer() 
     server.print("till", &bytes, 100).await;
     server.after(0).await;
 
-    let text = server.get("/api/receipts/1.txt").await;
+    let text = server.get("/api/receipts/1/text").await;
     assert_eq!(text.status(), 200);
     assert!(text.headers()["content-type"]
         .to_str()
@@ -752,7 +752,7 @@ async fn a_receipt_comes_as_text_and_as_a_picture_of_the_paper_of_its_printer() 
         format!("{}Hello\nBye\n", " ".repeat(18))
     );
 
-    let picture = server.get("/api/receipts/1.png").await;
+    let picture = server.get("/api/receipts/1/picture").await;
     assert_eq!(picture.status(), 200);
     assert_eq!(picture.headers()["content-type"], "image/png");
     let file = picture.bytes().await.unwrap();
@@ -769,7 +769,7 @@ async fn a_receipt_comes_as_text_and_as_a_picture_of_the_paper_of_its_printer() 
     assert_eq!(height, 8 + 33 + 33 + 8);
 
     let double = server
-        .get("/api/receipts/1.png?scale=2")
+        .get("/api/receipts/1/picture?scale=2")
         .await
         .bytes()
         .await
@@ -814,7 +814,7 @@ async fn a_receipt_can_be_looked_at_part_of_the_way_through() {
     server.print("till", &bytes, 100).await;
     server.after(0).await;
     // Events: text one, line feed, text two, line feed, cut.
-    let text = |upto: u32| format!("/api/receipts/1.txt?upto={upto}");
+    let text = |upto: u32| format!("/api/receipts/1/text?upto={upto}");
     assert_eq!(server.get(&text(2)).await.text().await.unwrap(), "one\n");
     assert_eq!(
         server.get(&text(4)).await.text().await.unwrap(),
@@ -823,7 +823,7 @@ async fn a_receipt_can_be_looked_at_part_of_the_way_through() {
     assert_eq!(server.get(&text(0)).await.text().await.unwrap().trim(), "");
     assert_eq!(
         server
-            .get("/api/receipts/1.bin?upto=2")
+            .get("/api/receipts/1/bytes?upto=2")
             .await
             .bytes()
             .await
@@ -833,13 +833,13 @@ async fn a_receipt_can_be_looked_at_part_of_the_way_through() {
     );
     let size = |file: &[u8]| u32::from_be_bytes(file[20..24].try_into().unwrap());
     let part = server
-        .get("/api/receipts/1.png?upto=2")
+        .get("/api/receipts/1/picture?upto=2")
         .await
         .bytes()
         .await
         .unwrap();
     let whole = server
-        .get("/api/receipts/1.png")
+        .get("/api/receipts/1/picture")
         .await
         .bytes()
         .await
@@ -1484,7 +1484,7 @@ async fn a_sample_is_printed_in_the_language_of_the_printer() {
         .await
         .unwrap();
     let kept = server
-        .get(&format!("/api/receipts/{id}.bin"))
+        .get(&format!("/api/receipts/{id}/bytes"))
         .await
         .bytes()
         .await
@@ -1628,7 +1628,8 @@ async fn the_description_puts_each_parameter_where_it_belongs() {
     for (path, method, name) in [
         ("/api/receipts", "get", "limit"),
         ("/api/receipts/next", "get", "timeout"),
-        ("/api/receipts/{id}", "get", "scale"),
+        ("/api/receipts/{id}/picture", "get", "scale"),
+        ("/api/receipts/{id}/text", "get", "upto"),
         ("/api/print", "post", "printer"),
         ("/api/samples/{id}/print", "post", "library"),
     ] {
@@ -1697,4 +1698,30 @@ async fn the_server_stops_while_a_page_is_watching_the_live_events() {
     timeout(Duration::from_secs(10), server.running.stop())
         .await
         .expect("it should stop with the stream open");
+}
+
+#[tokio::test]
+async fn the_description_says_the_bytes_and_the_picture_are_files_and_the_text_is_text() {
+    let server = Harness::start(&["name=till"]).await;
+    let document = server.json("/api/openapi.json").await;
+    let answer = |path: &str, kind: &str| {
+        document["paths"][path]["get"]["responses"]["200"]["content"][kind]["schema"].clone()
+    };
+    for (path, kind) in [
+        ("/api/receipts/{id}/bytes", "application/octet-stream"),
+        ("/api/receipts/{id}/picture", "image/png"),
+    ] {
+        assert_eq!(
+            answer(path, kind)["$ref"],
+            "#/components/schemas/Binary",
+            "{path}"
+        );
+    }
+    let binary = &document["components"]["schemas"]["Binary"];
+    assert_eq!(binary["type"], "string");
+    assert_eq!(binary["format"], "binary");
+    assert_eq!(
+        answer("/api/receipts/{id}/text", "text/plain")["type"],
+        "string"
+    );
 }
