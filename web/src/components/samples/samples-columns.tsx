@@ -5,6 +5,11 @@ import { Button } from "@/components/ui/button";
 /** A printer reads one command language, so a variant goes to a printer that is set to it. */
 export const reads = (printer: PrinterInfo, variant: VariantInfo) => printer.dialect === variant.dialect;
 
+/** Where a sample goes when none is chosen: the printer of the model it was made for, else one that reads it. */
+export const printerFor = (printers: PrinterInfo[], sample: SampleSummary, variant: VariantInfo) =>
+  printers.find((printer) => printer.profile === sample.profile && reads(printer, variant)) ??
+  printers.find((printer) => reads(printer, variant));
+
 const libraries = (sample: SampleSummary) => [...new Set(sample.variants.map((variant) => variant.library))].join(", ");
 
 export interface SamplesColumnsOptions {
@@ -42,7 +47,7 @@ export function createSamplesColumns({ paperMm, printers, printing, onPrint }: S
       header: () => <span className="sr-only">Print</span>,
       cell: ({ row }) => {
         const first = row.original.variants[0];
-        const target = first && printers.find((printer) => reads(printer, first));
+        const target = first && printerFor(printers, row.original, first);
         return (
           <div className="text-right">
             <Button

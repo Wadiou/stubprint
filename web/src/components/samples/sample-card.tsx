@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DIALECTS } from "@/lib/profile";
 import { save } from "@/lib/save";
 import { useObjectUrl } from "@/lib/use-object-url";
-import { reads } from "./samples-columns";
+import { printerFor, reads } from "./samples-columns";
 
 const DOWNLOADS = [
   {
@@ -56,7 +56,7 @@ export function SampleCard({
 
   const variant = sample.variants.find((item) => keyOf(item) === variantKey) ?? sample.variants[0];
   if (!variant) return null;
-  const printer = printers.find((item) => item.name === printerName) ?? printers.find((item) => reads(item, variant)) ?? printers[0];
+  const printer = printers.find((item) => item.name === printerName) ?? printerFor(printers, sample, variant) ?? printers[0];
   const fits = Boolean(printer && reads(printer, variant));
 
   return (
@@ -81,7 +81,6 @@ export function SampleCard({
         <PrinterCreateSheet
           open={adding}
           preset={{ model: sample.profile, dialect: variant.dialect }}
-          onAdded={setPrinterName}
           onClose={() => setAdding(false)}
         />
         <div className="flex flex-col gap-2">
