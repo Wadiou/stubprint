@@ -1,6 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ChevronLeft, ChevronRight, LayoutGrid, Printer, Receipt } from "lucide-react";
+import { LayoutGrid, Printer, Receipt } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import {
   getReceiptPictureOptions,
@@ -16,6 +16,7 @@ import { CommandList, type Row } from "@/components/commands";
 import { PageLayout } from "@/components/layout/page";
 import { ModelStrip } from "@/components/model-strip";
 import { ReceiptRail } from "@/components/receipt-rail";
+import { StepSlider } from "@/components/step-slider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -26,7 +27,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Input } from "@/components/ui/input";
-import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { describe, stateRows } from "@/lib/commands";
 import { hexBytes, hexDump } from "@/lib/hex";
@@ -81,8 +81,10 @@ function ReceiptView({ receipt, actions }: { receipt: ReceiptSummary; actions: R
   const upto = shown ?? total;
   const partial = upto < total;
   const query = partial ? { upto } : undefined;
-  const text = useQuery(getReceiptTextOptions({ path: { id }, query }));
-  const picture = useQuery(getReceiptPictureOptions({ path: { id }, query }));
+  // A receipt never changes, so each step is kept, and the one before stays in view while the next comes.
+  const kept = { staleTime: Number.POSITIVE_INFINITY, placeholderData: keepPreviousData };
+  const text = useQuery({ ...getReceiptTextOptions({ path: { id }, query }), ...kept });
+  const picture = useQuery({ ...getReceiptPictureOptions({ path: { id }, query }), ...kept });
   const paper = useObjectUrl(picture.data);
   const [filter, setFilter] = useState("");
 
@@ -117,6 +119,9 @@ function ReceiptView({ receipt, actions }: { receipt: ReceiptSummary; actions: R
         <div className="mt-3">
           <ModelStrip profile={receipt.profile} />
         </div>
+        <div className="mt-3">
+          <StepSlider value={upto} total={total} onChange={setShown} />
+        </div>
         <Card className="mt-3 items-center bg-muted/40 py-6">
           <CardContent className="w-full overflow-auto">
             <TabsContent value="picture" className="flex justify-center">
@@ -130,36 +135,6 @@ function ReceiptView({ receipt, actions }: { receipt: ReceiptSummary; actions: R
             </TabsContent>
           </CardContent>
         </Card>
-        <div className="mt-3 flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="icon-sm"
-            aria-label="Previous command"
-            disabled={upto <= 0}
-            onClick={() => setShown(upto - 1)}
-          >
-            <ChevronLeft />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            aria-label="Next command"
-            disabled={upto >= total}
-            onClick={() => setShown(upto + 1)}
-          >
-            <ChevronRight />
-          </Button>
-          <Slider
-            aria-label="Command"
-            min={0}
-            max={Math.max(total, 1)}
-            value={upto}
-            onValueChange={(value) => setShown(Array.isArray(value) ? value[0] : value)}
-          />
-          <span className="shrink-0 text-sm text-muted-foreground">
-            Command {upto} of {total}
-          </span>
-        </div>
       </Tabs>
 
       <Tabs defaultValue="commands" className="min-w-0">
