@@ -9,5 +9,5 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: { alias: { "@": path.resolve(import.meta.dirname, "src") } },
   server: { proxy: { "/api": process.env.STUBPRINT_SERVER ?? "http://127.0.0.1:8080" } },
-  test: { environment: "jsdom", globals: true },
+  test: { globals: true },
 });
