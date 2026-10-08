@@ -1579,3 +1579,14 @@ async fn every_variant_of_every_sample_reads_as_the_receipt_says() {
         }
     }
 }
+
+#[tokio::test]
+async fn the_version_of_the_api_is_the_version_of_the_program() {
+    let server = Harness::start(&["name=till"]).await;
+    let version = env!("CARGO_PKG_VERSION");
+    assert_eq!(server.json("/api").await["version"], version);
+    assert_eq!(
+        server.json("/api/openapi.json").await["info"]["version"],
+        version
+    );
+}

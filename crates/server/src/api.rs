@@ -125,7 +125,6 @@ async fn health() -> Json<serde_json::Value> {
     info(
         title = "Stubprint",
         description = "A virtual receipt printer. Programs print to its TCP ports, and this API shows what was printed.",
-        version = "0.0.1",
         license(name = "MIT", identifier = "MIT")
     ),
     tags(
