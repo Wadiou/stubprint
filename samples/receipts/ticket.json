@@ -1,0 +1,88 @@
+{
+  "id": "ticket",
+  "order": 4,
+  "title": "Event ticket",
+  "about": "A ticket with big headings, white on black text and a PDF417 code that the printer draws from the data it is given.",
+  "paper_mm": 80,
+  "columns": 48,
+  "tags": [
+    "80 mm",
+    "pdf417",
+    "styles"
+  ],
+  "variants": [
+    {
+      "library": "node-thermal-printer",
+      "dialect": "escpos"
+    }
+  ],
+  "blocks": [
+    {
+      "text": "RIVERSIDE",
+      "align": "center",
+      "bold": true,
+      "size": [
+        2,
+        2
+      ]
+    },
+    {
+      "text": "JAZZ NIGHT",
+      "align": "center",
+      "bold": true,
+      "size": [
+        2,
+        2
+      ]
+    },
+    {
+      "text": "Fri 24 Oct 2026   doors 19:00",
+      "align": "center"
+    },
+    {
+      "rule": "="
+    },
+    {
+      "text": "Hall B   Row F   Seat 12",
+      "align": "center",
+      "bold": true,
+      "size": [
+        1,
+        2
+      ]
+    },
+    {
+      "text": " ADMIT ONE ",
+      "align": "center",
+      "bold": true,
+      "invert": true,
+      "size": [
+        3,
+        1
+      ]
+    },
+    {
+      "text": ""
+    },
+    {
+      "pdf417": {
+        "data": "TICKET RJN-2026-10-24-F12-0188"
+      },
+      "align": "center"
+    },
+    {
+      "text": "RJN-2026-10-24-F12-0188",
+      "align": "center"
+    },
+    {
+      "text": "Keep this ticket until the end",
+      "align": "center"
+    },
+    {
+      "text": ""
+    },
+    {
+      "cut": true
+    }
+  ]
+}

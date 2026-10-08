@@ -1,0 +1,91 @@
+{
+  "id": "bookshop",
+  "order": 7,
+  "title": "Bookshop receipt",
+  "about": "A receipt for a Star printer in Star Line mode, with a centred name and a Code 39 barcode.",
+  "paper_mm": 80,
+  "columns": 42,
+  "tags": [
+    "star",
+    "barcode"
+  ],
+  "variants": [
+    {
+      "library": "node-thermal-printer",
+      "dialect": "starline"
+    }
+  ],
+  "blocks": [
+    {
+      "text": "Harbour Books",
+      "align": "center",
+      "bold": true,
+      "size": [
+        2,
+        2
+      ]
+    },
+    {
+      "text": "Quay Street 8",
+      "align": "center"
+    },
+    {
+      "text": "Open every day, 9 to 6",
+      "align": "center"
+    },
+    {
+      "text": ""
+    },
+    {
+      "row": [
+        "The Sea and Its Weather",
+        "18.00"
+      ]
+    },
+    {
+      "row": [
+        "Knots for Every Day",
+        "12.50"
+      ]
+    },
+    {
+      "row": [
+        "Harbour Maps, 1890",
+        "24.90"
+      ]
+    },
+    {
+      "rule": "-"
+    },
+    {
+      "row": [
+        "TOTAL",
+        "55.40 EUR"
+      ],
+      "bold": true
+    },
+    {
+      "text": ""
+    },
+    {
+      "barcode": {
+        "type": "code39",
+        "data": "BK-7713",
+        "height": 80,
+        "width": 3,
+        "text": "below"
+      },
+      "align": "center"
+    },
+    {
+      "text": ""
+    },
+    {
+      "text": "Thank you for visiting",
+      "align": "center"
+    },
+    {
+      "cut": true
+    }
+  ]
+}

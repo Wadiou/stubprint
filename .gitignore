@@ -2,15 +2,16 @@
 /target
 **/*.rs.bk
 
+# Samples: what the libraries are installed in, and what the build wrote
+/samples/node/node_modules
+/samples/python/.venv
+/samples/out
+
 # Web page
 /web/node_modules
 /web/dist
 /web/build
 /web/.vite
-
-# Tauri
-/crates/app/gen
-/crates/app/target
 
 # Builds and packaged apps
 /dist

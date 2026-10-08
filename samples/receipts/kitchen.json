@@ -1,0 +1,107 @@
+{
+  "id": "kitchen",
+  "order": 2,
+  "title": "Kitchen ticket",
+  "about": "An order for the kitchen: a white on black heading, tall bold items, an underlined title and a warning in white on black.",
+  "paper_mm": 80,
+  "columns": 48,
+  "tags": [
+    "80 mm",
+    "styles"
+  ],
+  "variants": [
+    {
+      "library": "python-escpos",
+      "dialect": "escpos"
+    },
+    {
+      "library": "node-thermal-printer",
+      "dialect": "escpos"
+    }
+  ],
+  "blocks": [
+    {
+      "text": " TABLE 12 ",
+      "align": "center",
+      "bold": true,
+      "invert": true,
+      "size": [
+        2,
+        2
+      ]
+    },
+    {
+      "text": "Order #0043   19:42   Server: Sam",
+      "align": "center"
+    },
+    {
+      "rule": "="
+    },
+    {
+      "text": "2 x Margherita",
+      "bold": true,
+      "size": [
+        1,
+        2
+      ]
+    },
+    {
+      "text": "1 x Quattro Formaggi",
+      "bold": true,
+      "size": [
+        1,
+        2
+      ]
+    },
+    {
+      "text": "1 x Caesar salad",
+      "bold": true,
+      "size": [
+        1,
+        2
+      ]
+    },
+    {
+      "text": "3 x Sparkling water",
+      "bold": true,
+      "size": [
+        1,
+        2
+      ]
+    },
+    {
+      "rule": "-"
+    },
+    {
+      "text": "Notes",
+      "underline": 1
+    },
+    {
+      "text": "  Caesar: no anchovies",
+      "bold": true
+    },
+    {
+      "text": "  Table by the window",
+      "bold": true
+    },
+    {
+      "text": ""
+    },
+    {
+      "text": " ALLERGY: NUTS ",
+      "align": "center",
+      "bold": true,
+      "invert": true,
+      "size": [
+        2,
+        1
+      ]
+    },
+    {
+      "text": ""
+    },
+    {
+      "cut": true
+    }
+  ]
+}

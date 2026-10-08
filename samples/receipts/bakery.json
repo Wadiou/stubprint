@@ -1,0 +1,100 @@
+{
+  "id": "bakery",
+  "order": 3,
+  "title": "Bakery receipt",
+  "about": "A narrow 58 mm receipt with a round logo sent as a picture and a QR code to pay.",
+  "paper_mm": 58,
+  "columns": 32,
+  "tags": [
+    "58 mm",
+    "picture",
+    "qr"
+  ],
+  "variants": [
+    {
+      "library": "python-escpos",
+      "dialect": "escpos"
+    },
+    {
+      "library": "node-thermal-printer",
+      "dialect": "escpos"
+    }
+  ],
+  "blocks": [
+    {
+      "image": "logo.png",
+      "align": "center"
+    },
+    {
+      "text": "Pastry Lab",
+      "align": "center",
+      "bold": true
+    },
+    {
+      "text": "Fresh every morning",
+      "align": "center"
+    },
+    {
+      "text": ""
+    },
+    {
+      "row": [
+        "Croissant",
+        "3.50"
+      ]
+    },
+    {
+      "row": [
+        "Pain au chocolat",
+        "4.20"
+      ]
+    },
+    {
+      "row": [
+        "Flat white",
+        "3.80"
+      ]
+    },
+    {
+      "row": [
+        "Lemon tart",
+        "5.90"
+      ]
+    },
+    {
+      "rule": "-"
+    },
+    {
+      "row": [
+        "TOTAL",
+        "17.40"
+      ],
+      "bold": true
+    },
+    {
+      "text": ""
+    },
+    {
+      "text": "Pay by phone",
+      "align": "center"
+    },
+    {
+      "qr": {
+        "data": "https://example.com/pay/PL-2291",
+        "size": 5,
+        "level": "m"
+      },
+      "align": "center"
+    },
+    {
+      "text": ""
+    },
+    {
+      "text": "See you tomorrow",
+      "align": "center"
+    },
+    {
+      "cut": true
+    }
+  ]
+}

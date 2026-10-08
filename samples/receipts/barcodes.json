@@ -1,0 +1,171 @@
+{
+  "id": "barcodes",
+  "order": 6,
+  "title": "Barcodes",
+  "about": "The one dimensional barcodes a printer draws itself, centred, with the text under each. It shows which symbologies a decoder understands.",
+  "paper_mm": 80,
+  "columns": 48,
+  "tags": [
+    "80 mm",
+    "barcode"
+  ],
+  "variants": [
+    {
+      "library": "python-escpos",
+      "dialect": "escpos"
+    },
+    {
+      "library": "node-thermal-printer",
+      "dialect": "escpos"
+    }
+  ],
+  "blocks": [
+    {
+      "text": "Barcodes",
+      "align": "center",
+      "bold": true
+    },
+    {
+      "text": ""
+    },
+    {
+      "text": "UPCA",
+      "align": "center"
+    },
+    {
+      "barcode": {
+        "type": "upca",
+        "data": "012345678905",
+        "height": 60,
+        "width": 2,
+        "text": "below"
+      },
+      "align": "center"
+    },
+    {
+      "text": ""
+    },
+    {
+      "text": "EAN13",
+      "align": "center"
+    },
+    {
+      "barcode": {
+        "type": "ean13",
+        "data": "4006381333931",
+        "height": 60,
+        "width": 2,
+        "text": "below"
+      },
+      "align": "center"
+    },
+    {
+      "text": ""
+    },
+    {
+      "text": "EAN8",
+      "align": "center"
+    },
+    {
+      "barcode": {
+        "type": "ean8",
+        "data": "96385074",
+        "height": 60,
+        "width": 2,
+        "text": "below"
+      },
+      "align": "center"
+    },
+    {
+      "text": ""
+    },
+    {
+      "text": "CODE39",
+      "align": "center"
+    },
+    {
+      "barcode": {
+        "type": "code39",
+        "data": "STUB-2026",
+        "height": 60,
+        "width": 2,
+        "text": "below"
+      },
+      "align": "center"
+    },
+    {
+      "text": ""
+    },
+    {
+      "text": "ITF",
+      "align": "center"
+    },
+    {
+      "barcode": {
+        "type": "itf",
+        "data": "12345670",
+        "height": 60,
+        "width": 2,
+        "text": "below"
+      },
+      "align": "center"
+    },
+    {
+      "text": ""
+    },
+    {
+      "text": "CODABAR",
+      "align": "center"
+    },
+    {
+      "barcode": {
+        "type": "codabar",
+        "data": "A123456A",
+        "height": 60,
+        "width": 2,
+        "text": "below"
+      },
+      "align": "center"
+    },
+    {
+      "text": ""
+    },
+    {
+      "text": "CODE93",
+      "align": "center"
+    },
+    {
+      "barcode": {
+        "type": "code93",
+        "data": "STUBPRINT",
+        "height": 60,
+        "width": 2,
+        "text": "below"
+      },
+      "align": "center"
+    },
+    {
+      "text": ""
+    },
+    {
+      "text": "CODE128",
+      "align": "center"
+    },
+    {
+      "barcode": {
+        "type": "code128",
+        "data": "Stubprint 2026",
+        "height": 60,
+        "width": 2,
+        "text": "below"
+      },
+      "align": "center"
+    },
+    {
+      "text": ""
+    },
+    {
+      "cut": true
+    }
+  ]
+}

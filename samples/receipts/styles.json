@@ -1,0 +1,125 @@
+{
+  "id": "styles",
+  "order": 5,
+  "title": "Text styles",
+  "about": "One line for each way a printer can print text: bold, underlines, white on black, upside down, fonts A and B, sizes and alignment.",
+  "paper_mm": 80,
+  "columns": 48,
+  "tags": [
+    "80 mm",
+    "styles"
+  ],
+  "variants": [
+    {
+      "library": "python-escpos",
+      "dialect": "escpos"
+    },
+    {
+      "library": "node-thermal-printer",
+      "dialect": "escpos"
+    }
+  ],
+  "blocks": [
+    {
+      "text": "Text styles",
+      "align": "center",
+      "bold": true,
+      "size": [
+        2,
+        2
+      ]
+    },
+    {
+      "rule": "="
+    },
+    {
+      "text": "Plain text in font A"
+    },
+    {
+      "text": "Plain text in font B, which is narrower",
+      "font": "b"
+    },
+    {
+      "text": "Bold text",
+      "bold": true
+    },
+    {
+      "text": "Underlined with a thin line",
+      "underline": 1
+    },
+    {
+      "text": "Underlined with a thick line",
+      "underline": 2
+    },
+    {
+      "text": " White on black ",
+      "invert": true
+    },
+    {
+      "text": "Upside down",
+      "flip": true
+    },
+    {
+      "rule": "-"
+    },
+    {
+      "text": "1x1"
+    },
+    {
+      "text": "2x1",
+      "size": [
+        2,
+        1
+      ]
+    },
+    {
+      "text": "1x2",
+      "size": [
+        1,
+        2
+      ]
+    },
+    {
+      "text": "2x2",
+      "size": [
+        2,
+        2
+      ]
+    },
+    {
+      "text": "3x3",
+      "size": [
+        3,
+        3
+      ]
+    },
+    {
+      "text": "4x4",
+      "size": [
+        4,
+        4
+      ]
+    },
+    {
+      "rule": "-"
+    },
+    {
+      "text": "Aligned left",
+      "align": "left"
+    },
+    {
+      "text": "Aligned center",
+      "align": "center"
+    },
+    {
+      "text": "Aligned right",
+      "align": "right"
+    },
+    {
+      "text": ""
+    },
+    {
+      "cut": true
+    }
+  ]
+}

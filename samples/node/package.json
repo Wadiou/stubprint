@@ -1,0 +1,9 @@
+{
+  "name": "stubprint-samples-node",
+  "private": true,
+  "type": "module",
+  "description": "Builds the Node variants of the samples with node-thermal-printer",
+  "dependencies": {
+    "node-thermal-printer": "4.6.1"
+  }
+}

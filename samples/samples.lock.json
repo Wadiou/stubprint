@@ -1,0 +1,50 @@
+{
+  "bakery/node-thermal-printer/escpos": {
+    "sha256": "416edce084c9398caa37afb4796c38d849bf40a05de5f31a86bbfebe7918c2e2",
+    "version": "4.6.1"
+  },
+  "bakery/python-escpos/escpos": {
+    "sha256": "4298ea92a35b7be3cdc3d9fce09df7177cb0db3369e7df7e260e8ba5f9403464",
+    "version": "3.1"
+  },
+  "barcodes/node-thermal-printer/escpos": {
+    "sha256": "c7a29f77292867cf5d76fb78d47c1b447b538aa0d52df7455f2ec18764e6b472",
+    "version": "4.6.1"
+  },
+  "barcodes/python-escpos/escpos": {
+    "sha256": "59285da94613a86d45b1f491191ce9d27eb57d9b60ee0bafaaf4f1ce133f3171",
+    "version": "3.1"
+  },
+  "bookshop/node-thermal-printer/starline": {
+    "sha256": "c2d77702826cdf4321de8402ff54b679d4259a0cc1fe494c082952f75bed822b",
+    "version": "4.6.1"
+  },
+  "grocery/node-thermal-printer/escpos": {
+    "sha256": "738aa6705524e9ac8829316950e79f415d634418b0c3ee422814bba4f8b66c31",
+    "version": "4.6.1"
+  },
+  "grocery/python-escpos/escpos": {
+    "sha256": "0a2950444204d0ea800547bef827c27d6eae94cc78b7adf49b291de83a83ea94",
+    "version": "3.1"
+  },
+  "kitchen/node-thermal-printer/escpos": {
+    "sha256": "f52abd732d0094ea52d0f93f52148e03834bf9c1d6c307aa8f827e9538740f3a",
+    "version": "4.6.1"
+  },
+  "kitchen/python-escpos/escpos": {
+    "sha256": "a7710ecf5ce02bf2e2a85e0e1c4adb7963bf46d5b149ccc659c7eb2c64f4aef3",
+    "version": "3.1"
+  },
+  "styles/node-thermal-printer/escpos": {
+    "sha256": "3417daddc8529101f2d2b995f2179ab1887cabc67c30544900f4908644a29299",
+    "version": "4.6.1"
+  },
+  "styles/python-escpos/escpos": {
+    "sha256": "8235561bcda2d3df4f9a2f89547289dd6f41d4e5f719d93db252154199d2fe32",
+    "version": "3.1"
+  },
+  "ticket/node-thermal-printer/escpos": {
+    "sha256": "48021ee3d88c32ccaf0b50a91f33e5aa2e45af03e85e281981c4f7e16f5ccd93",
+    "version": "4.6.1"
+  }
+}

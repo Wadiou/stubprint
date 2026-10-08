@@ -1,0 +1,142 @@
+{
+  "id": "grocery",
+  "order": 1,
+  "title": "Grocery receipt",
+  "about": "An 80 mm shop receipt: a double size name, aligned prices, a bold total, a Code 128 barcode and a QR code, both centred.",
+  "paper_mm": 80,
+  "columns": 48,
+  "tags": [
+    "80 mm",
+    "barcode",
+    "qr"
+  ],
+  "variants": [
+    {
+      "library": "python-escpos",
+      "dialect": "escpos"
+    },
+    {
+      "library": "node-thermal-printer",
+      "dialect": "escpos"
+    }
+  ],
+  "blocks": [
+    {
+      "text": "Green Market",
+      "align": "center",
+      "bold": true,
+      "size": [
+        2,
+        2
+      ]
+    },
+    {
+      "text": "12 Main Street, Springfield",
+      "align": "center"
+    },
+    {
+      "text": "Tel 555 0142",
+      "align": "center"
+    },
+    {
+      "text": ""
+    },
+    {
+      "row": [
+        "Order 8F2A",
+        "2026-10-07 14:32"
+      ]
+    },
+    {
+      "rule": "-"
+    },
+    {
+      "text": "Whole milk 1 L"
+    },
+    {
+      "row": [
+        "  2 x 140.00",
+        "280.00"
+      ]
+    },
+    {
+      "text": "White sugar 1 kg"
+    },
+    {
+      "row": [
+        "  1 x 180.50",
+        "180.50"
+      ]
+    },
+    {
+      "text": "Free range eggs x12"
+    },
+    {
+      "row": [
+        "  1 x 310.00",
+        "310.00"
+      ]
+    },
+    {
+      "text": "Sourdough loaf"
+    },
+    {
+      "row": [
+        "  2 x 275.00",
+        "550.00"
+      ]
+    },
+    {
+      "rule": "-"
+    },
+    {
+      "row": [
+        "TOTAL",
+        "1,320.50 USD"
+      ],
+      "bold": true,
+      "size": [
+        1,
+        2
+      ]
+    },
+    {
+      "text": ""
+    },
+    {
+      "text": "Thank you for shopping with us",
+      "align": "center"
+    },
+    {
+      "text": ""
+    },
+    {
+      "barcode": {
+        "type": "code128",
+        "data": "8F2A",
+        "height": 64,
+        "width": 3,
+        "text": "below"
+      },
+      "align": "center"
+    },
+    {
+      "text": ""
+    },
+    {
+      "qr": {
+        "data": "https://example.com/orders/8F2A",
+        "size": 6,
+        "level": "m"
+      },
+      "align": "center"
+    },
+    {
+      "text": "Scan to see your order",
+      "align": "center"
+    },
+    {
+      "cut": true
+    }
+  ]
+}
