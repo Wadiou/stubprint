@@ -397,6 +397,30 @@ export type MotionUnits = {
 };
 
 /**
+ * An address of this computer that another device on its network can connect to.
+ */
+export type NetworkAddress = {
+    /**
+     * The IPv4 address.
+     */
+    address: string;
+    /**
+     * The network connection it belongs to, such as `wlan0` or `Wi-Fi`.
+     */
+    name: string;
+};
+
+/**
+ * Where this server is, as far as printing to it goes.
+ */
+export type NetworkInfo = {
+    /**
+     * The addresses of this computer on its networks, without its own `127.0.0.1`.
+     */
+    addresses: Array<NetworkAddress>;
+};
+
+/**
  * What happened, for the ones who watch the live events.
  */
 export type Notice = {
@@ -1205,6 +1229,22 @@ export type GetHealthResponses = {
      */
     200: unknown;
 };
+
+export type GetNetworkData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/network';
+};
+
+export type GetNetworkResponses = {
+    /**
+     * The addresses of this computer on its networks
+     */
+    200: NetworkInfo;
+};
+
+export type GetNetworkResponse = GetNetworkResponses[keyof GetNetworkResponses];
 
 export type GetOpenapiData = {
     body?: never;

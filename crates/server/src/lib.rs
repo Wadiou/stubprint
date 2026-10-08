@@ -9,6 +9,7 @@ pub mod api;
 mod config;
 mod hub;
 mod listener;
+mod network;
 mod page;
 mod pictures;
 mod printer;

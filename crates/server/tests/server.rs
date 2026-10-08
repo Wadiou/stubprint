@@ -424,6 +424,25 @@ async fn the_receipts_keep_only_the_latest_and_can_be_listed_after_an_id() {
 }
 
 #[tokio::test]
+async fn the_network_lists_addresses_that_can_be_connected_to() {
+    let server = Harness::start(&["name=till"]).await;
+    let network: Value = server
+        .client
+        .get(format!("{}/api/network", server.base))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    for entry in network["addresses"].as_array().unwrap() {
+        let address: std::net::Ipv4Addr = entry["address"].as_str().unwrap().parse().unwrap();
+        assert!(!address.is_loopback() && !address.is_link_local());
+        assert!(!entry["name"].as_str().unwrap().is_empty());
+    }
+}
+
+#[tokio::test]
 async fn one_receipt_can_be_removed() {
     let server = Harness::start(&["name=till"]).await;
     for _ in 0..2 {

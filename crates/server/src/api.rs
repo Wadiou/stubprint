@@ -23,6 +23,7 @@ use utoipa::{OpenApi, ToSchema};
 
 use crate::config::{PrinterConfig, PrinterSettings, Web};
 use crate::hub::{Connection, Hub, Notice, Stored};
+use crate::network::NetworkInfo;
 use crate::page;
 use crate::printer::VirtualPrinter;
 use crate::samples;
@@ -48,6 +49,7 @@ pub fn router(hub: Arc<Hub>, web: &Web) -> Router {
         .route("/api/health", get(health))
         .route("/api/openapi.json", get(document))
         .route("/api/profiles", get(profiles))
+        .route("/api/network", get(network))
         .route("/api/printers", get(printers).post(add_printer))
         .route(
             "/api/printers/{name}",
@@ -153,6 +155,7 @@ async fn health() -> Json<serde_json::Value> {
         health,
         document,
         profiles,
+        network,
         printers,
         printer,
         add_printer,
@@ -208,6 +211,12 @@ async fn document() -> Json<utoipa::openapi::OpenApi> {
 /// `GET /api/openapi.json` answers, and what the types of the web page are made from.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
+}
+
+/// The addresses of this computer, to listen on and to connect to from another device.
+#[utoipa::path(get, path = "/api/network", operation_id = "get_network", tag = "meta", responses((status = 200, description = "The addresses of this computer on its networks", body = NetworkInfo)))]
+async fn network() -> Json<NetworkInfo> {
+    Json(NetworkInfo::here())
 }
 
 /// The printer models that a printer can be set to.
