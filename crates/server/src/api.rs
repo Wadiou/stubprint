@@ -68,6 +68,9 @@ pub fn router(hub: Arc<Hub>, web: &Web) -> Router {
         .route("/api/print", post(print))
         .route("/api/samples", get(sample_list))
         .route("/api/samples/{id}", get(sample))
+        .route("/api/samples/{id}/bytes", get(sample_bytes))
+        .route("/api/samples/{id}/picture", get(sample_picture))
+        .route("/api/samples/{id}/text", get(sample_text))
         .route("/api/samples/{id}/print", post(print_sample))
         .route("/api/events", get(events))
         .route("/api/{*rest}", any(no_such_route))
@@ -169,6 +172,9 @@ async fn health() -> Json<serde_json::Value> {
         print,
         sample_list,
         sample,
+        sample_bytes,
+        sample_picture,
+        sample_text,
         print_sample,
         events
     ),
@@ -721,6 +727,10 @@ impl VariantQuery {
     }
 }
 
+fn internal(message: String) -> ApiError {
+    ApiError(StatusCode::INTERNAL_SERVER_ERROR, message)
+}
+
 fn find_sample(id: &str) -> Reply<&'static samples::Sample> {
     samples::find(id).ok_or_else(|| ApiError::not_found(format!("no sample called {id}")))
 }
@@ -738,45 +748,108 @@ async fn sample_list() -> Json<Vec<SampleSummary>> {
     Json(samples::all().iter().map(SampleSummary::of).collect())
 }
 
-/// One ready made receipt. The id can end in `.bin` for the bytes of one variant, which any
-/// program can send to a printer. `library` and `dialect` pick the variant, and the first one is
-/// used when they are left out. Without `.bin` the answer says what the receipt is and what it
-/// should read as.
+/// One ready made receipt: what it is, and what it should read as.
 #[utoipa::path(get, path = "/api/samples/{id}", operation_id = "get_sample", tag = "samples",
-    params(("id" = String, Path, description = "The id of the sample, with .bin after it for the bytes"), VariantQuery),
+    params(("id" = String, Path, description = "The id of the sample")),
     responses(
         (status = 200, description = "The sample", body = SampleDetail),
-        (status = 200, description = "With .bin", content_type = "application/octet-stream"),
+        (status = 404, description = "There is no such sample, as `error` says", body = ErrorBody)))]
+async fn sample(Path(id): Path<String>) -> Reply<Json<SampleDetail>> {
+    Ok(Json(SampleDetail::of(find_sample(&id)?)))
+}
+
+/// The bytes of one variant of a sample, which any program can send to a printer. `library` and
+/// `dialect` pick the variant, and the first one is used when they are left out.
+#[utoipa::path(get, path = "/api/samples/{id}/bytes", operation_id = "get_sample_bytes", tag = "samples",
+    params(("id" = String, Path, description = "The id of the sample"), VariantQuery),
+    responses(
+        (status = 200, description = "The bytes", content_type = "application/octet-stream", body = Binary),
         (status = 404, description = "There is no such sample or variant, as `error` says", body = ErrorBody)))]
-async fn sample(Path(text): Path<String>, Query(query): Query<VariantQuery>) -> Reply<Response> {
-    let (id, form) = text.split_once('.').unwrap_or((&text, "json"));
-    let found = find_sample(id)?;
-    match form {
-        "json" => Ok(Json(SampleDetail::of(found)).into_response()),
-        "bin" => {
-            let variant = found
-                .variant(query.library.as_deref(), query.dialect()?)
-                .ok_or_else(|| no_variant(found))?;
-            Ok((
-                [
-                    (header::CONTENT_TYPE, "application/octet-stream".to_string()),
-                    (
-                        header::CONTENT_DISPOSITION,
-                        format!(
-                            "attachment; filename=\"{id}.{}.{}.bin\"",
-                            variant.library,
-                            variant.dialect.name()
-                        ),
-                    ),
-                ],
-                variant.bytes.clone(),
-            )
-                .into_response())
-        }
-        other => Err(ApiError::not_found(format!(
-            "a sample does not come as .{other}"
-        ))),
-    }
+async fn sample_bytes(
+    Path(id): Path<String>,
+    Query(query): Query<VariantQuery>,
+) -> Reply<Response> {
+    let found = find_sample(&id)?;
+    let variant = found
+        .variant(query.library.as_deref(), query.dialect()?)
+        .ok_or_else(|| no_variant(found))?;
+    Ok((
+        [
+            (header::CONTENT_TYPE, "application/octet-stream".to_string()),
+            (
+                header::CONTENT_DISPOSITION,
+                format!(
+                    "attachment; filename=\"{id}.{}.{}.bin\"",
+                    variant.library,
+                    variant.dialect.name()
+                ),
+            ),
+        ],
+        variant.bytes.clone(),
+    )
+        .into_response())
+}
+
+/// What a variant of a sample prints, read as the model the sample was written for, and the paper
+/// of that model. Nothing is printed to get it.
+fn read_sample(
+    found: &samples::Sample,
+    query: &VariantQuery,
+) -> Reply<(stubprint_core::Receipt, Options)> {
+    let variant = found
+        .variant(query.library.as_deref(), query.dialect()?)
+        .ok_or_else(|| no_variant(found))?;
+    let profile = Profile::named(&found.profile).ok_or_else(|| {
+        internal(format!(
+            "sample {} has no model {}",
+            found.id, found.profile
+        ))
+    })?;
+    let options = Options::for_profile(&profile);
+    let mut printer = Printer::with_dialect(variant.dialect, profile);
+    let mut receipts = printer.push(&variant.bytes);
+    receipts.extend(printer.finish());
+    let receipt = receipts
+        .into_iter()
+        .next()
+        .ok_or_else(|| internal(format!("sample {} prints nothing", found.id)))?;
+    Ok((receipt, options))
+}
+
+/// A picture of what a variant of a sample prints, on the paper of the model it was written for.
+/// Nothing is printed to draw it. `library` and `dialect` pick the variant.
+#[utoipa::path(get, path = "/api/samples/{id}/picture", operation_id = "get_sample_picture", tag = "samples",
+    params(("id" = String, Path, description = "The id of the sample"), VariantQuery),
+    responses(
+        (status = 200, description = "The picture", content_type = "image/png", body = Binary),
+        (status = 404, description = "There is no such sample or variant, as `error` says", body = ErrorBody)))]
+async fn sample_picture(
+    Path(id): Path<String>,
+    Query(query): Query<VariantQuery>,
+) -> Reply<Response> {
+    let (receipt, options) = read_sample(find_sample(&id)?, &query)?;
+    // Drawing takes a while, so it does not hold up the other requests.
+    let file = tokio::task::spawn_blocking(move || stubprint_render::png(&receipt, &options))
+        .await
+        .map_err(|error| internal(error.to_string()))?
+        .map_err(internal)?;
+    Ok(([(header::CONTENT_TYPE, "image/png")], file).into_response())
+}
+
+/// What a variant of a sample prints, as text on the paper of the model it was written for.
+/// Pictures and codes are tags such as `[qr M: hello]`. Nothing is printed to get it.
+#[utoipa::path(get, path = "/api/samples/{id}/text", operation_id = "get_sample_text", tag = "samples",
+    params(("id" = String, Path, description = "The id of the sample"), VariantQuery),
+    responses(
+        (status = 200, description = "The paper as text", content_type = "text/plain", body = String),
+        (status = 404, description = "There is no such sample or variant, as `error` says", body = ErrorBody)))]
+async fn sample_text(Path(id): Path<String>, Query(query): Query<VariantQuery>) -> Reply<Response> {
+    let (receipt, options) = read_sample(find_sample(&id)?, &query)?;
+    Ok((
+        [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+        stubprint_render::text_of(&receipt, &options),
+    )
+        .into_response())
 }
 
 /// Prints a sample to a printer, as if a program had connected and sent it. Without `dialect` it

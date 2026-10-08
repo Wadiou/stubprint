@@ -670,6 +670,43 @@ async fn the_models_that_can_be_chosen_are_listed_and_a_printer_uses_its_model()
 }
 
 #[tokio::test]
+async fn a_sample_comes_as_a_picture_on_the_paper_of_the_model_it_was_written_for() {
+    let server = Harness::start(&["name=till"]).await;
+    let width = |file: &[u8]| u32::from_be_bytes(file[16..20].try_into().unwrap());
+    // The grocery receipt is for TM-T20III, 576 dots, and the bakery for POS-5890, 384.
+    for (id, dots) in [("grocery", 576), ("bakery", 384)] {
+        let answer = server.get(&format!("/api/samples/{id}/picture")).await;
+        assert_eq!(answer.status(), 200, "{id}");
+        assert_eq!(answer.headers()["content-type"], "image/png");
+        let file = answer.bytes().await.unwrap();
+        assert_eq!(&file[..8], b"\x89PNG\r\n\x1a\n", "{id}");
+        assert_eq!(width(&file), dots, "{id}");
+    }
+    // The same paper as text, and nothing was printed to get either.
+    let text = server.get("/api/samples/grocery/text").await;
+    assert_eq!(text.status(), 200);
+    assert!(text.headers()["content-type"]
+        .to_str()
+        .unwrap()
+        .starts_with("text/plain"));
+    let first = server.json("/api/samples/grocery").await["expect"]["texts"][0]
+        .as_str()
+        .unwrap()
+        .trim()
+        .to_string();
+    assert!(text.text().await.unwrap().contains(&first));
+    assert!(server.ids().await.is_empty());
+    assert_eq!(server.get("/api/samples/nope/picture").await.status(), 404);
+    assert_eq!(
+        server
+            .get("/api/samples/grocery/picture?library=nobody")
+            .await
+            .status(),
+        404
+    );
+}
+
+#[tokio::test]
 async fn a_printer_can_be_set_to_another_model_and_each_receipt_keeps_the_one_it_was_printed_on() {
     let server = Harness::start(&["name=till,profile=TM-T88IV"]).await;
     server.print("till", &receipt_bytes("one"), 64).await;
@@ -1469,12 +1506,12 @@ async fn the_bytes_of_a_sample_come_for_the_variant_asked_for() {
             .is_empty(),
         "{NO_SAMPLES}"
     );
-    let first = server.get("/api/samples/grocery.bin").await;
+    let first = server.get("/api/samples/grocery/bytes").await;
     assert_eq!(first.status(), 200);
     assert_eq!(first.headers()["content-type"], "application/octet-stream");
     let first = first.bytes().await.unwrap();
     let node = server
-        .get("/api/samples/grocery.bin?library=node-thermal-printer")
+        .get("/api/samples/grocery/bytes?library=node-thermal-printer")
         .await
         .bytes()
         .await
@@ -1494,11 +1531,11 @@ async fn the_bytes_of_a_sample_come_for_the_variant_asked_for() {
     );
 
     for path in [
-        "/api/samples/nothing.bin",
-        "/api/samples/grocery.png",
-        "/api/samples/grocery.bin?library=nothing",
-        "/api/samples/grocery.bin?dialect=starline",
-        "/api/samples/grocery.bin?dialect=nothing",
+        "/api/samples/nothing/bytes",
+        "/api/samples/grocery.bin",
+        "/api/samples/grocery/bytes?library=nothing",
+        "/api/samples/grocery/bytes?dialect=starline",
+        "/api/samples/grocery/bytes?dialect=nothing",
     ] {
         assert_eq!(server.get(path).await.status(), 404, "{path}");
     }
@@ -1544,7 +1581,7 @@ async fn a_sample_is_printed_in_the_language_of_the_printer() {
     let chosen: Value = chosen.json().await.unwrap();
     let id = chosen["receipts"][0].as_u64().unwrap();
     let sent = server
-        .get("/api/samples/grocery.bin?library=node-thermal-printer")
+        .get("/api/samples/grocery/bytes?library=node-thermal-printer")
         .await
         .bytes()
         .await
