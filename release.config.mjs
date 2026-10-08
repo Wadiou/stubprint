@@ -34,7 +34,7 @@ export default {
         assets: ["CHANGELOG.md", "Cargo.toml", "Cargo.lock"],
         message:
           // biome-ignore lint/suspicious/noTemplateCurlyInString: semantic-release template
-          "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}",
+          "chore(release): ${nextRelease.version}\n\n${nextRelease.notes}",
       },
     ],
     "@semantic-release/github",
