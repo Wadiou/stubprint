@@ -1,7 +1,7 @@
 //! What the API says, as JSON.
 
 use serde::Serialize;
-use stubprint_core::{Dialect, Event, PrinterStatus, Receipt, Snapshot, Traced};
+use stubprint_core::{Dialect, Event, PrinterStatus, Profile, Receipt, Snapshot, Traced};
 use utoipa::ToSchema;
 
 use crate::hub::Stored;
@@ -93,6 +93,39 @@ impl PrinterInfo {
             listen: printer.listen.to_string(),
             status: printer.status(),
             connections: printer.connections(),
+        }
+    }
+}
+
+/// A printer model that a printer can be set to.
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct ProfileInfo {
+    /// The name to give as the `profile` of a printer.
+    pub name: String,
+    /// The maker, which is empty for the generic models.
+    pub vendor: String,
+    /// The model as the maker names it.
+    pub model: String,
+    /// How many columns each font has, font A first. A font the model does not have has 0.
+    pub columns: Vec<u8>,
+    /// How wide the paper prints, in dots, when the model says.
+    pub width_dots: Option<u32>,
+    /// How many code pages `ESC t` can choose.
+    pub code_pages: usize,
+    /// What the model can do, such as `qrCode`, `pdf417Code` or `starCommands`.
+    pub features: Vec<String>,
+}
+
+impl ProfileInfo {
+    pub fn of(profile: &Profile) -> Self {
+        Self {
+            name: profile.name.clone(),
+            vendor: profile.vendor.clone(),
+            model: profile.identity.model.clone(),
+            columns: profile.columns.clone(),
+            width_dots: profile.width_dots,
+            code_pages: profile.code_page_count(),
+            features: profile.features().into_iter().map(str::to_owned).collect(),
         }
     }
 }

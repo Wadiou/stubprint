@@ -27,8 +27,8 @@ use crate::printer::VirtualPrinter;
 use crate::samples;
 use crate::session::Session;
 use crate::wire::{
-    hex, trace_of, trace_of_stream, PrinterInfo, ReceiptDetail, ReceiptSummary, SampleDetail,
-    SampleSummary, TraceItem,
+    hex, trace_of, trace_of_stream, PrinterInfo, ProfileInfo, ReceiptDetail, ReceiptSummary,
+    SampleDetail, SampleSummary, TraceItem,
 };
 
 /// The most bytes one `POST /api/print` takes.
@@ -199,9 +199,15 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 /// The printer models that a printer can be set to.
-#[utoipa::path(get, path = "/api/profiles", operation_id = "list_profiles", tag = "meta", responses((status = 200, description = "The names of the printer models that a printer can be set to", body = Vec<String>)))]
-async fn profiles() -> Json<Vec<String>> {
-    Json(Profile::names())
+#[utoipa::path(get, path = "/api/profiles", operation_id = "list_profiles", tag = "meta", responses((status = 200, description = "The printer models that a printer can be set to, with what each says about itself", body = Vec<ProfileInfo>)))]
+async fn profiles() -> Json<Vec<ProfileInfo>> {
+    Json(
+        Profile::names()
+            .iter()
+            .filter_map(|name| Profile::named(name))
+            .map(|profile| ProfileInfo::of(&profile))
+            .collect(),
+    )
 }
 
 /// Every virtual printer, with its status and how many programs are connected.

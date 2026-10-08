@@ -646,7 +646,20 @@ async fn a_picture_comes_out_as_its_size_and_rows() {
 async fn the_models_that_can_be_chosen_are_listed_and_a_printer_uses_its_model() {
     let server = Harness::start(&["name=till,profile=TM-T88IV"]).await;
     let profiles = server.json("/api/profiles").await;
-    assert!(profiles.as_array().unwrap().iter().any(|p| p == "TM-T88IV"));
+    let epson = profiles
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["name"] == "TM-T88IV")
+        .expect("TM-T88IV is listed");
+    assert_eq!(epson["width_dots"], 512);
+    assert_eq!(epson["columns"], json!([42, 56]));
+    assert!(epson["features"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|f| f == "qrCode"));
+    assert!(epson["code_pages"].as_u64().unwrap() >= 5);
     assert_eq!(
         server.json("/api/printers/till").await["profile"],
         "TM-T88IV"
