@@ -22,6 +22,8 @@ confidence-threshold = 0.9
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
+# Crates of this workspace point at each other by path, which is not a wildcard while they are not published.
+allow-wildcard-paths = true
 
 [sources]
 unknown-registry = "deny"
