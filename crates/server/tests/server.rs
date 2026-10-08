@@ -1126,6 +1126,14 @@ async fn the_entry_point_says_what_this_is_and_where_its_description_is() {
 }
 
 impl Harness {
+    async fn post_empty(&self, path: &str) -> reqwest::Response {
+        self.client
+            .post(format!("{}{path}", self.base))
+            .send()
+            .await
+            .unwrap()
+    }
+
     async fn post_json(&self, path: &str, body: Value) -> reqwest::Response {
         self.client
             .post(format!("{}{path}", self.base))
@@ -1325,4 +1333,252 @@ async fn the_description_can_be_printed_without_starting_a_server_and_is_the_one
     let served = server.json("/api/openapi.json").await;
     let printed: Value = serde_json::to_value(stubprint_server::api::openapi()).unwrap();
     assert_eq!(printed, served);
+}
+
+const NO_SAMPLES: &str = "no samples are built: run `npm ci` in samples/node and then \
+    `python samples/python/build.py`, then build again";
+
+#[tokio::test]
+async fn the_samples_are_listed_with_every_library_that_wrote_them() {
+    let server = Harness::start(&["name=till"]).await;
+    let list = server.json("/api/samples").await;
+    let list = list.as_array().unwrap();
+    assert!(!list.is_empty(), "{NO_SAMPLES}");
+    let grocery = list.iter().find(|s| s["id"] == "grocery").unwrap();
+    let libraries: Vec<&str> = grocery["variants"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v["library"].as_str().unwrap())
+        .collect();
+    assert_eq!(libraries, ["python-escpos", "node-thermal-printer"]);
+    assert_eq!(grocery["variants"][0]["language"], "python");
+    assert_eq!(grocery["variants"][0]["dialect"], "escpos");
+    assert!(!grocery["variants"][0]["version"]
+        .as_str()
+        .unwrap()
+        .is_empty());
+    assert_eq!(grocery["paper_mm"], 80);
+    assert!(
+        grocery.get("receipt").is_none(),
+        "a list does not carry the receipts"
+    );
+
+    let detail = server.json("/api/samples/grocery").await;
+    assert_eq!(detail["receipt"]["id"], "grocery");
+    assert!(detail["expect"]["texts"][0] == "Green Market");
+    assert_eq!(detail["expect"]["cuts"], 1);
+}
+
+#[tokio::test]
+async fn the_bytes_of_a_sample_come_for_the_variant_asked_for() {
+    let server = Harness::start(&["name=till"]).await;
+    assert!(
+        !server
+            .json("/api/samples")
+            .await
+            .as_array()
+            .unwrap()
+            .is_empty(),
+        "{NO_SAMPLES}"
+    );
+    let first = server.get("/api/samples/grocery.bin").await;
+    assert_eq!(first.status(), 200);
+    assert_eq!(first.headers()["content-type"], "application/octet-stream");
+    let first = first.bytes().await.unwrap();
+    let node = server
+        .get("/api/samples/grocery.bin?library=node-thermal-printer")
+        .await
+        .bytes()
+        .await
+        .unwrap();
+    assert_ne!(
+        first, node,
+        "two libraries write the same receipt differently"
+    );
+    let sizes = server.json("/api/samples/grocery").await;
+    assert_eq!(
+        first.len() as u64,
+        sizes["variants"][0]["bytes"].as_u64().unwrap()
+    );
+    assert_eq!(
+        node.len() as u64,
+        sizes["variants"][1]["bytes"].as_u64().unwrap()
+    );
+
+    for path in [
+        "/api/samples/nothing.bin",
+        "/api/samples/grocery.png",
+        "/api/samples/grocery.bin?library=nothing",
+        "/api/samples/grocery.bin?dialect=starline",
+        "/api/samples/grocery.bin?dialect=nothing",
+    ] {
+        assert_eq!(server.get(path).await.status(), 404, "{path}");
+    }
+}
+
+#[tokio::test]
+async fn a_sample_is_printed_in_the_language_of_the_printer() {
+    let server = Harness::start(&["name=epson,dialect=escpos", "name=star,dialect=starline"]).await;
+    assert!(
+        !server
+            .json("/api/samples")
+            .await
+            .as_array()
+            .unwrap()
+            .is_empty(),
+        "{NO_SAMPLES}"
+    );
+    let made = server
+        .post_empty("/api/samples/bookshop/print?printer=star")
+        .await;
+    assert_eq!(made.status(), 200);
+    let made: Value = made.json().await.unwrap();
+    let id = made["receipts"][0].as_u64().unwrap();
+    let receipt = server.json(&format!("/api/receipts/{id}")).await;
+    assert_eq!(receipt["dialect"], "starline");
+    assert!(receipt["texts"][0]
+        .as_str()
+        .unwrap()
+        .contains("Harbour Books"));
+
+    // The Star receipt has no ESC/POS variant, so there is nothing a printer of that language reads.
+    for path in [
+        "/api/samples/bookshop/print?printer=epson",
+        "/api/samples/nothing/print?printer=epson",
+        "/api/samples/grocery/print?printer=back",
+        "/api/samples/grocery/print?printer=epson&library=nothing",
+    ] {
+        assert_eq!(server.post_empty(path).await.status(), 404, "{path}");
+    }
+    let chosen = server
+        .post_empty("/api/samples/grocery/print?printer=epson&library=node-thermal-printer")
+        .await;
+    assert_eq!(chosen.status(), 200);
+    let chosen: Value = chosen.json().await.unwrap();
+    let id = chosen["receipts"][0].as_u64().unwrap();
+    let sent = server
+        .get("/api/samples/grocery.bin?library=node-thermal-printer")
+        .await
+        .bytes()
+        .await
+        .unwrap();
+    let kept = server
+        .get(&format!("/api/receipts/{id}.bin"))
+        .await
+        .bytes()
+        .await
+        .unwrap();
+    // A receipt ends at its cut. node-thermal-printer adds a reset after the cut, which belongs to
+    // the next receipt and prints nothing.
+    assert_eq!(sent.strip_prefix(kept.as_ref()), Some(b"\x1b@".as_slice()));
+}
+
+/// The printed lines of a receipt, put together from its events.
+fn lines_of(receipt: &Value) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut line = String::new();
+    for event in receipt["events"].as_array().unwrap() {
+        match event["type"].as_str().unwrap() {
+            "text" => line.push_str(event["value"]["text"].as_str().unwrap()),
+            "line_feed" => lines.push(std::mem::take(&mut line)),
+            _ => {}
+        }
+    }
+    lines.push(line);
+    lines.retain(|line| !line.is_empty());
+    lines
+}
+
+#[tokio::test]
+async fn every_variant_of_every_sample_reads_as_the_receipt_says() {
+    let server = Harness::start(&["name=epson,dialect=escpos", "name=star,dialect=starline"]).await;
+    let list = server.json("/api/samples").await;
+    assert!(!list.as_array().unwrap().is_empty(), "{NO_SAMPLES}");
+    for sample in list.as_array().unwrap() {
+        let id = sample["id"].as_str().unwrap();
+        let expect = server.json(&format!("/api/samples/{id}")).await["expect"].clone();
+        for variant in sample["variants"].as_array().unwrap() {
+            let (library, dialect) = (
+                variant["library"].as_str().unwrap(),
+                variant["dialect"].as_str().unwrap(),
+            );
+            let what = format!("{id} by {library} in {dialect}");
+            let printer = if dialect == "starline" {
+                "star"
+            } else {
+                "epson"
+            };
+            let made = server
+                .post_empty(&format!(
+                    "/api/samples/{id}/print?printer={printer}&library={library}"
+                ))
+                .await;
+            let made: Value = made.json().await.unwrap();
+            let receipts = made["receipts"].as_array().unwrap();
+            assert_eq!(receipts.len(), 1, "{what} makes one receipt");
+            let receipt = server
+                .json(&format!("/api/receipts/{}", receipts[0].as_u64().unwrap()))
+                .await;
+            let events = receipt["events"].as_array().unwrap();
+            let of = |kind: &str| -> Vec<&Value> {
+                events
+                    .iter()
+                    .filter(|e| e["type"] == kind)
+                    .map(|e| &e["value"])
+                    .collect()
+            };
+            assert!(
+                of("unknown").is_empty(),
+                "{what} has commands nobody reads: {:?}",
+                of("unknown")
+            );
+            assert_eq!(
+                json!(lines_of(&receipt)),
+                expect["texts"],
+                "{what}: the lines"
+            );
+            let codes = |kind: &str, key: &str| -> Vec<Value> {
+                of(kind).iter().map(|v| v[key].clone()).collect()
+            };
+            let wanted = |key: &str, inner: &str| -> Vec<Value> {
+                expect[key]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|v| v[inner].clone())
+                    .collect()
+            };
+            assert_eq!(
+                codes("barcode", "data"),
+                wanted("barcodes", "data"),
+                "{what}: the barcodes"
+            );
+            assert_eq!(
+                codes("barcode", "symbology"),
+                wanted("barcodes", "symbology"),
+                "{what}: the barcode kinds"
+            );
+            assert_eq!(
+                codes("qr", "data"),
+                wanted("qrs", "data"),
+                "{what}: the QR codes"
+            );
+            assert_eq!(
+                codes("pdf417", "data"),
+                wanted("pdf417", "data"),
+                "{what}: the PDF417 codes"
+            );
+            assert_eq!(
+                of("cut").len() as u64,
+                expect["cuts"].as_u64().unwrap(),
+                "{what}: the cuts"
+            );
+            assert_eq!(
+                !of("image").is_empty(),
+                expect["images"].as_u64().unwrap() > 0,
+                "{what}: the picture"
+            );
+        }
+    }
 }
