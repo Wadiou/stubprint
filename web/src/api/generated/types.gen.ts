@@ -1271,7 +1271,7 @@ export type AddPrinterErrors = {
      */
     400: ErrorBody;
     /**
-     * The name or the address is taken, as `error` says
+     * The address is taken, as `error` says
      */
     409: ErrorBody;
 };

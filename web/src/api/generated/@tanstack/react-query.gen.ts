@@ -185,7 +185,9 @@ export const listPrintersOptions = (options?: Options<ListPrintersData>) => quer
 
 /**
  * Adds a printer while the server runs: it opens its TCP port at once. What is left out is the
- * default of a printer: `printer`, `127.0.0.1:9100`, `escpos` and the `generic` model.
+ * default of a printer: `printer`, `escpos` and the `generic` model, on a port that the system
+ * picks because it is free. A name that is taken gets `_2`, `_3` and so on after it, and the
+ * answer says the name the printer has.
  */
 export const addPrinterMutation = (options?: Partial<Options<AddPrinterData>>): UseMutationOptions<AddPrinterResponse, AddPrinterError, Options<AddPrinterData>> => {
     const mutationOptions: UseMutationOptions<AddPrinterResponse, AddPrinterError, Options<AddPrinterData>> = {

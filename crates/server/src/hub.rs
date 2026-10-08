@@ -234,6 +234,19 @@ impl Hub {
         Ok(printer)
     }
 
+    /// The name to give a printer that is asked for `wanted`: the same when no printer has it, and
+    /// else with `_2`, `_3` and so on after it, the first that is free.
+    pub fn free_name(&self, wanted: &str) -> String {
+        let taken = |name: &str| self.printer(name).is_some();
+        if !taken(wanted) {
+            return wanted.to_string();
+        }
+        (2..)
+            .map(|number| format!("{wanted}_{number}"))
+            .find(|name| !taken(name))
+            .expect("there is a number that is free")
+    }
+
     /// Closes a printer's port and its connections. The receipts it printed are kept. Returns
     /// whether there was such a printer.
     pub async fn remove_printer(&self, name: &str) -> bool {

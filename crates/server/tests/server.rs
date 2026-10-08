@@ -1311,15 +1311,33 @@ async fn a_printer_can_be_added_while_the_server_runs_and_prints_at_once() {
 }
 
 #[tokio::test]
+async fn a_printer_without_a_port_gets_a_free_one_and_a_taken_name_gets_a_number() {
+    let server = Harness::start(&["name=till,listen=127.0.0.1:0"]).await;
+    let mut seen = Vec::new();
+    // Nothing is said: the name is `printer` and the port is any that is free, again and again.
+    for (body, name) in [
+        (json!({}), "printer"),
+        (json!({}), "printer_2"),
+        (json!({"name": "till"}), "till_2"),
+        (json!({"name": "till"}), "till_3"),
+        (json!({"name": "printer_2"}), "printer_2_2"),
+    ] {
+        let answer = server.post_json("/api/printers", body.clone()).await;
+        assert_eq!(answer.status(), 201, "{body}");
+        let info: Value = answer.json().await.unwrap();
+        assert_eq!(info["name"], name, "{body}");
+        let address: SocketAddr = info["listen"].as_str().unwrap().parse().unwrap();
+        assert_ne!(address.port(), 0);
+        assert!(!seen.contains(&address), "{address} was given twice");
+        seen.push(address);
+    }
+}
+
+#[tokio::test]
 async fn a_printer_that_cannot_be_added_says_why() {
     let server = Harness::start(&["name=till"]).await;
     let taken = server.printer("till");
     let cases = [
-        (
-            json!({"name": "till", "listen": "127.0.0.1:0"}),
-            409,
-            "already",
-        ),
         (
             json!({"name": "a/b", "listen": "127.0.0.1:0"}),
             400,

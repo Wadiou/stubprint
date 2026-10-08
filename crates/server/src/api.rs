@@ -20,7 +20,7 @@ use tokio_stream::{Stream, StreamExt};
 use tower_http::services::{ServeDir, ServeFile};
 use utoipa::{OpenApi, ToSchema};
 
-use crate::config::{PrinterSettings, Web};
+use crate::config::{PrinterConfig, PrinterSettings, Web};
 use crate::hub::{Connection, Hub, Notice, Stored};
 use crate::page;
 use crate::printer::VirtualPrinter;
@@ -227,20 +227,29 @@ async fn printers(State(hub): State<Arc<Hub>>) -> Json<Vec<PrinterInfo>> {
 }
 
 /// Adds a printer while the server runs: it opens its TCP port at once. What is left out is the
-/// default of a printer: `printer`, `127.0.0.1:9100`, `escpos` and the `generic` model.
+/// default of a printer: `printer`, `escpos` and the `generic` model, on a port that the system
+/// picks because it is free. A name that is taken gets `_2`, `_3` and so on after it, and the
+/// answer says the name the printer has.
 #[utoipa::path(post, path = "/api/printers", operation_id = "add_printer", tag = "printers", request_body = PrinterSettings,
     responses(
         (status = 201, description = "The printer, listening", body = PrinterInfo),
         (status = 400, description = "The request is not valid, as `error` says", body = ErrorBody),
-        (status = 409, description = "The name or the address is taken, as `error` says", body = ErrorBody)))]
+        (status = 409, description = "The address is taken, as `error` says", body = ErrorBody)))]
 async fn add_printer(
     State(hub): State<Arc<Hub>>,
     Json(settings): Json<PrinterSettings>,
 ) -> Reply<(StatusCode, Json<PrinterInfo>)> {
-    let settings = settings
+    let any_port = settings.listen.is_none();
+    let mut config = settings
         .build()
         .map_err(|message| ApiError(StatusCode::BAD_REQUEST, message))?;
-    let printer = hub.add_printer(settings).await.map_err(|error| {
+    PrinterConfig::check_name(&config.name)
+        .map_err(|message| ApiError(StatusCode::BAD_REQUEST, message))?;
+    if any_port {
+        config.listen = ([127, 0, 0, 1], 0).into();
+    }
+    config.name = hub.free_name(&config.name);
+    let printer = hub.add_printer(config).await.map_err(|error| {
         let status = match error.kind() {
             std::io::ErrorKind::InvalidInput => StatusCode::BAD_REQUEST,
             std::io::ErrorKind::AlreadyExists | std::io::ErrorKind::AddrInUse => {
