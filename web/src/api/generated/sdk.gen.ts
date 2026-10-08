@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AddPrinterData, AddPrinterErrors, AddPrinterResponses, ClearReceiptsData, ClearReceiptsErrors, ClearReceiptsResponses, DecodeBytesData, DecodeBytesErrors, DecodeBytesResponses, GetConnectionData, GetConnectionErrors, GetConnectionResponses, GetHealthData, GetHealthResponses, GetIndexData, GetIndexResponses, GetOpenapiData, GetOpenapiResponses, GetPrinterData, GetPrinterErrors, GetPrinterResponses, GetReceiptData, GetReceiptErrors, GetReceiptResponses, GetSampleData, GetSampleErrors, GetSampleResponses, GetTraceData, GetTraceErrors, GetTraceResponses, ListConnectionsData, ListConnectionsResponses, ListPrintersData, ListPrintersResponses, ListProfilesData, ListProfilesResponses, ListReceiptsData, ListReceiptsResponses, ListSamplesData, ListSamplesResponses, PrintBytesData, PrintBytesErrors, PrintBytesResponses, PrintSampleData, PrintSampleErrors, PrintSampleResponses, RemovePrinterData, RemovePrinterErrors, RemovePrinterResponses, SetPrinterStatusData, SetPrinterStatusErrors, SetPrinterStatusResponses, StreamEventsData, StreamEventsResponses, WaitForReceiptData, WaitForReceiptResponses } from './types.gen';
+import type { AddPrinterData, AddPrinterErrors, AddPrinterResponses, ClearReceiptsData, ClearReceiptsErrors, ClearReceiptsResponses, DecodeBytesData, DecodeBytesErrors, DecodeBytesResponses, GetConnectionData, GetConnectionErrors, GetConnectionResponses, GetHealthData, GetHealthResponses, GetIndexData, GetIndexResponses, GetOpenapiData, GetOpenapiResponses, GetPrinterData, GetPrinterErrors, GetPrinterResponses, GetReceiptBytesData, GetReceiptBytesErrors, GetReceiptBytesResponses, GetReceiptData, GetReceiptErrors, GetReceiptPictureData, GetReceiptPictureErrors, GetReceiptPictureResponses, GetReceiptResponses, GetReceiptTextData, GetReceiptTextErrors, GetReceiptTextResponses, GetSampleData, GetSampleErrors, GetSampleResponses, GetTraceData, GetTraceErrors, GetTraceResponses, ListConnectionsData, ListConnectionsResponses, ListPrintersData, ListPrintersResponses, ListProfilesData, ListProfilesResponses, ListReceiptsData, ListReceiptsResponses, ListSamplesData, ListSamplesResponses, PrintBytesData, PrintBytesErrors, PrintBytesResponses, PrintSampleData, PrintSampleErrors, PrintSampleResponses, RemovePrinterData, RemovePrinterErrors, RemovePrinterResponses, SetPrinterStatusData, SetPrinterStatusErrors, SetPrinterStatusResponses, StreamEventsData, StreamEventsResponses, WaitForReceiptData, WaitForReceiptResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -138,11 +138,25 @@ export const listReceipts = <ThrowOnError extends boolean = false>(options?: Opt
 export const waitForReceipt = <ThrowOnError extends boolean = false>(options?: Options<WaitForReceiptData, ThrowOnError>): RequestResult<WaitForReceiptResponses, unknown, ThrowOnError> => (options?.client ?? client).get<WaitForReceiptResponses, unknown, ThrowOnError>({ url: '/api/receipts/next', ...options });
 
 /**
- * One receipt. The id can end in `.bin` for the bytes the printer was sent, in `.txt` for the
- * paper as text, and in `.png` for a picture of the paper. With `upto`, the receipt as it was
- * after its first events, in every form.
+ * One receipt as data: where and when it was printed, its commands and the text on it.
  */
 export const getReceipt = <ThrowOnError extends boolean = false>(options: Options<GetReceiptData, ThrowOnError>): RequestResult<GetReceiptResponses, GetReceiptErrors, ThrowOnError> => (options.client ?? client).get<GetReceiptResponses, GetReceiptErrors, ThrowOnError>({ url: '/api/receipts/{id}', ...options });
+
+/**
+ * The bytes the printer was sent for a receipt. With `upto`, only those of its first events.
+ */
+export const getReceiptBytes = <ThrowOnError extends boolean = false>(options: Options<GetReceiptBytesData, ThrowOnError>): RequestResult<GetReceiptBytesResponses, GetReceiptBytesErrors, ThrowOnError> => (options.client ?? client).get<GetReceiptBytesResponses, GetReceiptBytesErrors, ThrowOnError>({ url: '/api/receipts/{id}/bytes', ...options });
+
+/**
+ * A picture of the paper of a receipt. With `upto`, the paper as it was after the first events.
+ */
+export const getReceiptPicture = <ThrowOnError extends boolean = false>(options: Options<GetReceiptPictureData, ThrowOnError>): RequestResult<GetReceiptPictureResponses, GetReceiptPictureErrors, ThrowOnError> => (options.client ?? client).get<GetReceiptPictureResponses, GetReceiptPictureErrors, ThrowOnError>({ url: '/api/receipts/{id}/picture', ...options });
+
+/**
+ * The paper of a receipt as text. Pictures and codes are tags such as `[qr M: hello]`. With
+ * `upto`, the paper as it was after the first events.
+ */
+export const getReceiptText = <ThrowOnError extends boolean = false>(options: Options<GetReceiptTextData, ThrowOnError>): RequestResult<GetReceiptTextResponses, GetReceiptTextErrors, ThrowOnError> => (options.client ?? client).get<GetReceiptTextResponses, GetReceiptTextErrors, ThrowOnError>({ url: '/api/receipts/{id}/text', ...options });
 
 /**
  * The commands of a receipt, one by one: the bytes of each, what it asked for, and what the

@@ -3,8 +3,8 @@
 import { type DefaultError, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { addPrinter, clearReceipts, decodeBytes, getConnection, getHealth, getIndex, getOpenapi, getPrinter, getReceipt, getSample, getTrace, listConnections, listPrinters, listProfiles, listReceipts, listSamples, type Options, printBytes, printSample, removePrinter, setPrinterStatus, waitForReceipt } from '../sdk.gen';
-import type { AddPrinterData, AddPrinterError, AddPrinterResponse, ClearReceiptsData, ClearReceiptsError, DecodeBytesData, DecodeBytesError, DecodeBytesResponse, GetConnectionData, GetConnectionError, GetConnectionResponse, GetHealthData, GetIndexData, GetOpenapiData, GetPrinterData, GetPrinterError, GetPrinterResponse, GetReceiptData, GetReceiptError, GetReceiptResponse, GetSampleData, GetSampleError, GetSampleResponse, GetTraceData, GetTraceError, GetTraceResponse, ListConnectionsData, ListConnectionsResponse, ListPrintersData, ListPrintersResponse, ListProfilesData, ListProfilesResponse, ListReceiptsData, ListReceiptsResponse, ListSamplesData, ListSamplesResponse, PrintBytesData, PrintBytesError, PrintBytesResponse, PrintSampleData, PrintSampleError, PrintSampleResponse, RemovePrinterData, RemovePrinterError, RemovePrinterResponse, SetPrinterStatusData, SetPrinterStatusError, SetPrinterStatusResponse, WaitForReceiptData, WaitForReceiptResponse } from '../types.gen';
+import { addPrinter, clearReceipts, decodeBytes, getConnection, getHealth, getIndex, getOpenapi, getPrinter, getReceipt, getReceiptBytes, getReceiptPicture, getReceiptText, getSample, getTrace, listConnections, listPrinters, listProfiles, listReceipts, listSamples, type Options, printBytes, printSample, removePrinter, setPrinterStatus, waitForReceipt } from '../sdk.gen';
+import type { AddPrinterData, AddPrinterError, AddPrinterResponse, ClearReceiptsData, ClearReceiptsError, DecodeBytesData, DecodeBytesError, DecodeBytesResponse, GetConnectionData, GetConnectionError, GetConnectionResponse, GetHealthData, GetIndexData, GetOpenapiData, GetPrinterData, GetPrinterError, GetPrinterResponse, GetReceiptBytesData, GetReceiptBytesError, GetReceiptBytesResponse, GetReceiptData, GetReceiptError, GetReceiptPictureData, GetReceiptPictureError, GetReceiptPictureResponse, GetReceiptResponse, GetReceiptTextData, GetReceiptTextError, GetReceiptTextResponse, GetSampleData, GetSampleError, GetSampleResponse, GetTraceData, GetTraceError, GetTraceResponse, ListConnectionsData, ListConnectionsResponse, ListPrintersData, ListPrintersResponse, ListProfilesData, ListProfilesResponse, ListReceiptsData, ListReceiptsResponse, ListSamplesData, ListSamplesResponse, PrintBytesData, PrintBytesError, PrintBytesResponse, PrintSampleData, PrintSampleError, PrintSampleResponse, RemovePrinterData, RemovePrinterError, RemovePrinterResponse, SetPrinterStatusData, SetPrinterStatusError, SetPrinterStatusResponse, WaitForReceiptData, WaitForReceiptResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -327,9 +327,7 @@ export const waitForReceiptOptions = (options?: Options<WaitForReceiptData>) => 
 export const getReceiptQueryKey = (options: Options<GetReceiptData>) => createQueryKey('getReceipt', options);
 
 /**
- * One receipt. The id can end in `.bin` for the bytes the printer was sent, in `.txt` for the
- * paper as text, and in `.png` for a picture of the paper. With `upto`, the receipt as it was
- * after its first events, in every form.
+ * One receipt as data: where and when it was printed, its commands and the text on it.
  */
 export const getReceiptOptions = (options: Options<GetReceiptData>) => queryOptions<GetReceiptResponse, GetReceiptError, GetReceiptResponse, ReturnType<typeof getReceiptQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -342,6 +340,61 @@ export const getReceiptOptions = (options: Options<GetReceiptData>) => queryOpti
         return data;
     },
     queryKey: getReceiptQueryKey(options)
+});
+
+export const getReceiptBytesQueryKey = (options: Options<GetReceiptBytesData>) => createQueryKey('getReceiptBytes', options);
+
+/**
+ * The bytes the printer was sent for a receipt. With `upto`, only those of its first events.
+ */
+export const getReceiptBytesOptions = (options: Options<GetReceiptBytesData>) => queryOptions<GetReceiptBytesResponse, GetReceiptBytesError, GetReceiptBytesResponse, ReturnType<typeof getReceiptBytesQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getReceiptBytes({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getReceiptBytesQueryKey(options)
+});
+
+export const getReceiptPictureQueryKey = (options: Options<GetReceiptPictureData>) => createQueryKey('getReceiptPicture', options);
+
+/**
+ * A picture of the paper of a receipt. With `upto`, the paper as it was after the first events.
+ */
+export const getReceiptPictureOptions = (options: Options<GetReceiptPictureData>) => queryOptions<GetReceiptPictureResponse, GetReceiptPictureError, GetReceiptPictureResponse, ReturnType<typeof getReceiptPictureQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getReceiptPicture({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getReceiptPictureQueryKey(options)
+});
+
+export const getReceiptTextQueryKey = (options: Options<GetReceiptTextData>) => createQueryKey('getReceiptText', options);
+
+/**
+ * The paper of a receipt as text. Pictures and codes are tags such as `[qr M: hello]`. With
+ * `upto`, the paper as it was after the first events.
+ */
+export const getReceiptTextOptions = (options: Options<GetReceiptTextData>) => queryOptions<GetReceiptTextResponse, GetReceiptTextError, GetReceiptTextResponse, ReturnType<typeof getReceiptTextQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getReceiptText({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getReceiptTextQueryKey(options)
 });
 
 export const getTraceQueryKey = (options: Options<GetTraceData>) => createQueryKey('getTrace', options);

@@ -33,6 +33,11 @@ export type Barcode = {
 };
 
 /**
+ * The raw bytes of a file, not JSON.
+ */
+export type Binary = Blob | File;
+
+/**
  * A 1-bit image laid out the way a printer reads it: each row is `row_bytes` bytes, the leftmost
  * dot is the highest bit of the first byte, and a set bit is a black dot.
  */
@@ -1418,20 +1423,11 @@ export type GetReceiptData = {
     body?: never;
     path: {
         /**
-         * The id of the receipt, with .json, .bin, .txt or .png after it
+         * The id of the receipt
          */
-        id: string;
+        id: number;
     };
-    query?: {
-        /**
-         * How many times larger the picture is drawn, from 1 to 4.
-         */
-        scale?: number;
-        /**
-         * Only the first this many events: the paper as it was part of the way through the job.
-         */
-        upto?: number;
-    };
+    query?: never;
     url: '/api/receipts/{id}';
 };
 
@@ -1446,12 +1442,129 @@ export type GetReceiptError = GetReceiptErrors[keyof GetReceiptErrors];
 
 export type GetReceiptResponses = {
     /**
-     * With .bin
+     * The receipt
      */
-    200: Blob | File;
+    200: ReceiptDetail;
 };
 
 export type GetReceiptResponse = GetReceiptResponses[keyof GetReceiptResponses];
+
+export type GetReceiptBytesData = {
+    body?: never;
+    path: {
+        /**
+         * The id of the receipt
+         */
+        id: number;
+    };
+    query?: {
+        /**
+         * How many times larger the picture is drawn, from 1 to 4.
+         */
+        scale?: number;
+        /**
+         * Only the first this many events: the paper as it was part of the way through the job.
+         */
+        upto?: number;
+    };
+    url: '/api/receipts/{id}/bytes';
+};
+
+export type GetReceiptBytesErrors = {
+    /**
+     * There is no such printer, receipt or connection, as `error` says
+     */
+    404: ErrorBody;
+};
+
+export type GetReceiptBytesError = GetReceiptBytesErrors[keyof GetReceiptBytesErrors];
+
+export type GetReceiptBytesResponses = {
+    /**
+     * The bytes
+     */
+    200: Binary;
+};
+
+export type GetReceiptBytesResponse = GetReceiptBytesResponses[keyof GetReceiptBytesResponses];
+
+export type GetReceiptPictureData = {
+    body?: never;
+    path: {
+        /**
+         * The id of the receipt
+         */
+        id: number;
+    };
+    query?: {
+        /**
+         * How many times larger the picture is drawn, from 1 to 4.
+         */
+        scale?: number;
+        /**
+         * Only the first this many events: the paper as it was part of the way through the job.
+         */
+        upto?: number;
+    };
+    url: '/api/receipts/{id}/picture';
+};
+
+export type GetReceiptPictureErrors = {
+    /**
+     * There is no such printer, receipt or connection, as `error` says
+     */
+    404: ErrorBody;
+};
+
+export type GetReceiptPictureError = GetReceiptPictureErrors[keyof GetReceiptPictureErrors];
+
+export type GetReceiptPictureResponses = {
+    /**
+     * The picture
+     */
+    200: Binary;
+};
+
+export type GetReceiptPictureResponse = GetReceiptPictureResponses[keyof GetReceiptPictureResponses];
+
+export type GetReceiptTextData = {
+    body?: never;
+    path: {
+        /**
+         * The id of the receipt
+         */
+        id: number;
+    };
+    query?: {
+        /**
+         * How many times larger the picture is drawn, from 1 to 4.
+         */
+        scale?: number;
+        /**
+         * Only the first this many events: the paper as it was part of the way through the job.
+         */
+        upto?: number;
+    };
+    url: '/api/receipts/{id}/text';
+};
+
+export type GetReceiptTextErrors = {
+    /**
+     * There is no such printer, receipt or connection, as `error` says
+     */
+    404: ErrorBody;
+};
+
+export type GetReceiptTextError = GetReceiptTextErrors[keyof GetReceiptTextErrors];
+
+export type GetReceiptTextResponses = {
+    /**
+     * The paper as text
+     */
+    200: string;
+};
+
+export type GetReceiptTextResponse = GetReceiptTextResponses[keyof GetReceiptTextResponses];
 
 export type GetTraceData = {
     body?: never;
