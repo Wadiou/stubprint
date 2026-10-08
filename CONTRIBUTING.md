@@ -51,6 +51,30 @@ http://127.0.0.1:5173 and reloads as it is edited. The server is built and start
 the Rust code changes, which empties its receipts. `make down` stops both and `make logs` follows
 them.
 
+## Printer profiles
+
+`profiles/profiles.json` is the data of the escpos-printer-db project: what each printer model
+prints, its columns, its code pages and its commands, and the code pages that come as a table. It is
+Creative Commons Attribution data, see `profiles/NOTICE.md`. The tests read every profile, and a
+code page that no table knows fails until it has one or is listed on purpose.
+
+## Upstream data
+
+Files copied from other projects (the printer profiles, the streams in `fixtures/captured`) are
+never edited by hand. `upstream/sources.json` says for each project its repository, its release and
+the files taken, listed one by one so that a new file upstream is not copied by accident.
+`upstream/lock.json` says the commit and a hash of every file written. `scripts/upstream.py` needs
+Python and git.
+
+```bash
+python3 scripts/upstream.py --check             # the files are the ones the lock says (CI runs this)
+python3 scripts/upstream.py --update [name]     # write the files from the pinned commit
+python3 scripts/upstream.py --latest [name]     # move the pin to the newest release, then update
+```
+
+To take one more file, add it to `sources.json` and run `--update` for that project. A workflow
+looks for new releases every week and opens one pull request for each project that moved.
+
 ## Samples
 
 The ready made receipts the server ships are made by real printing libraries, never by Stubprint.

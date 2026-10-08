@@ -66,7 +66,7 @@ the code and is served at `/api/openapi.json`, with every route, parameter and f
 | `GET /api/events` | live events: `receipt`, `cleared`, `status`, `connection`, `printer_added`, `printer_removed`, and `lagged` when a watcher was too slow. With `?detail=actions` also `action`, one for each command as it is read, with where its bytes are and what the printer believed after it. Commands are only made while someone watches them |
 | `GET /api/connections`, `GET /api/connections/{id}` | the programs that connected: when, in what pieces and at what times the bytes came, how many bytes the printer answered, and which receipts they printed. The latest 200 are kept |
 | `POST /api/decode` | reads the body as a printer would, in `?dialect=` and `?profile=`, and says every command, the answers and how many receipts. Nothing is kept. It shows what the same bytes mean to another language or model |
-| `GET /api/profiles` | the models a printer can be set to |
+| `GET /api/profiles` | the models a printer can be set to, with their columns, paper width in dots, code pages and features |
 | `GET /api/health` | `{"ok": true}` |
 
 A test program prints, then calls `GET /api/receipts/next` and reads what came out.
