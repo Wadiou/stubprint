@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
-import { port, printerState, type Tone } from "@/lib/printer";
+import { printerState, type Tone } from "@/lib/printer";
 import { DIALECTS } from "@/lib/profile";
 import { usePrinters } from "@/lib/use-printers";
 
@@ -55,7 +55,7 @@ export function PrinterStatus() {
               <Dot tone={state.tone} />
               <span className="flex-1 font-medium">{printer.name}</span>
               <span className="text-xs text-muted-foreground">
-                {DIALECTS[printer.dialect]}, :{port(printer)}
+                {DIALECTS[printer.dialect]}, {printer.listen}
               </span>
               <span className="sr-only">{state.label}</span>
             </Link>

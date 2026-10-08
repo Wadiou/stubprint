@@ -1,6 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import type { PrinterInfo } from "@/api/generated/types.gen";
-import { port, printerState, type Tone } from "@/lib/printer";
+import { printerState, type Tone } from "@/lib/printer";
 import { DIALECTS } from "@/lib/profile";
 
 export type PrinterRow = PrinterInfo & { receipts: number };
@@ -16,9 +16,9 @@ export const printersColumns: ColumnDef<PrinterRow>[] = [
   },
   { accessorKey: "profile", header: "Model", cell: ({ row }) => <span className="text-muted-foreground">{row.original.profile}</span> },
   {
-    id: "port",
-    header: "Port",
-    cell: ({ row }) => <span className="font-mono text-[13px] text-muted-foreground">{port(row.original)}</span>,
+    id: "address",
+    header: "Address",
+    cell: ({ row }) => <span className="font-mono text-[13px] text-muted-foreground">{row.original.listen}</span>,
   },
   {
     id: "status",

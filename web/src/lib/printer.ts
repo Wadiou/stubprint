@@ -1,4 +1,4 @@
-import type { PrinterInfo } from "@/api/generated/types.gen";
+import type { NetworkAddress, PrinterInfo } from "@/api/generated/types.gen";
 
 export type Tone = "ok" | "warn" | "bad";
 
@@ -23,3 +23,32 @@ export function freeName(taken: string[], wanted = "printer") {
 
 /** The port of a printer, such as `9100`. */
 export const port = (printer: Pick<PrinterInfo, "listen">) => printer.listen.slice(printer.listen.lastIndexOf(":") + 1);
+
+/** The address a printer listens on. A port that is not given is 0, and the system picks one. */
+export function listenAddress(host: string, portText: string) {
+  return `${host}:${portText || "0"}`;
+}
+
+/** The addresses that a program types to reach a printer. One that listens on every address of the computer can be reached on each of them. */
+export function connectTo(listen: string, addresses: NetworkAddress[]) {
+  const host = listen.slice(0, listen.lastIndexOf(":"));
+  if (host !== "0.0.0.0" && host !== "[::]") return [listen];
+  const number = port({ listen });
+  return ["127.0.0.1", ...addresses.map((entry) => entry.address)].map((address) => `${address}:${number}`);
+}
+
+/** What the form for the address of a printer holds: the address, whether the system picks the port, and the port otherwise. */
+export interface ListenChoice {
+  host: string;
+  free: boolean;
+  port: string;
+}
+
+export const DEFAULT_LISTEN: ListenChoice = { host: "127.0.0.1", free: true, port: "9100" };
+
+/** The address a choice asks for, and whether it is complete: an address, and a port from 1 to 65535 unless the system picks it. */
+export function resolveListen({ host, free, port: portText }: ListenChoice) {
+  const portNumber = Number(portText);
+  const valid = host.length > 0 && (free || (/^\d+$/.test(portText) && portNumber >= 1 && portNumber <= 65535));
+  return { valid, listen: listenAddress(host, free ? "" : portText) };
+}

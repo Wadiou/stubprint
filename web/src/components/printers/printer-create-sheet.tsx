@@ -7,12 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Switch } from "@/components/ui/switch";
-import { freeName } from "@/lib/printer";
+import { DEFAULT_LISTEN, freeName, resolveListen } from "@/lib/printer";
 import { DIALECTS } from "@/lib/profile";
 import { usePrinters } from "@/lib/use-printers";
 import { ModelPicker } from "./model-picker";
 import { Field, refused } from "./printer-fields";
+import { PrinterListenField } from "./printer-listen-field";
 
 export interface PrinterPreset {
   model?: string;
@@ -32,14 +32,15 @@ function CreateForm({ preset, onAdded, onClose }: { preset?: PrinterPreset; onAd
     },
   });
   const [name, setName] = useState(() => freeName(printers.map((item) => item.name)));
-  const [anyPort, setAnyPort] = useState(true);
-  const [listen, setListen] = useState("");
+  const [listen, setListen] = useState(DEFAULT_LISTEN);
   const [dialect, setDialect] = useState<Dialect>(preset?.dialect ?? "escpos");
   const [model, setModel] = useState(preset?.model ?? "default");
 
+  const address = resolveListen(listen);
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    add.mutate({ body: { name: name || undefined, listen: anyPort ? undefined : listen || undefined, dialect, profile: model } });
+    add.mutate({ body: { name: name || undefined, listen: address.listen, dialect, profile: model } });
   };
 
   return (
@@ -51,22 +52,7 @@ function CreateForm({ preset, onAdded, onClose }: { preset?: PrinterPreset; onAd
         <Field label="Name">
           <Input aria-label="Name" value={name} onChange={(event) => setName(event.target.value)} />
         </Field>
-        <Field label="Address">
-          <div className="flex items-center gap-3">
-            <Switch aria-label="Pick a free port" checked={anyPort} onCheckedChange={setAnyPort} />
-            <span className="text-sm">Pick a free port</span>
-          </div>
-          <Input
-            aria-label="Address"
-            placeholder="127.0.0.1:9100"
-            disabled={anyPort}
-            value={anyPort ? "" : listen}
-            onChange={(event) => setListen(event.target.value)}
-          />
-          {anyPort && (
-            <span className="text-[13px] text-muted-foreground">The system picks a port that is free, and it is shown in the table once the printer is added.</span>
-          )}
-        </Field>
+        <PrinterListenField value={listen} onChange={setListen} />
         <Field label="Language">
           <Select
             items={Object.entries(DIALECTS).map(([value, label]) => ({ value, label }))}
@@ -100,7 +86,7 @@ function CreateForm({ preset, onAdded, onClose }: { preset?: PrinterPreset; onAd
         <Button type="button" variant="ghost" onClick={onClose}>
           Cancel
         </Button>
-        <Button type="submit" disabled={add.isPending}>
+        <Button type="submit" disabled={add.isPending || !address.valid}>
           Add printer
         </Button>
       </SheetFooter>

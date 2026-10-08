@@ -1,7 +1,9 @@
 # Development only: the server stays open while the page reloads as it is edited.
 #   docker compose up -d   start both. The page reloads as it is edited, and the server is built
 #                          and started again whenever the Rust code changes.
-# The page is at http://127.0.0.1:5173, the API at http://127.0.0.1:8080 and the printer on 9100.
+# The page is at http://127.0.0.1:5173 and the API at http://127.0.0.1:8080. They stay on this computer
+# because the API has no password. The printer on 9100 is open on every address of this computer.
+
 services:
   backend:
     build:
@@ -14,7 +16,7 @@ services:
       - target:/work/target
     ports:
       - "127.0.0.1:8080:8080"
-      - "127.0.0.1:9100:9100"
+      - "9100:9100"
 
   web:
     build:

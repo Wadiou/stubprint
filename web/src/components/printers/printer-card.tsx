@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DIALECTS, paperText } from "@/lib/profile";
 import { ModelPicker } from "./model-picker";
+import { PrinterConnect } from "./printer-connect";
 import { Field, refused } from "./printer-fields";
 import { PrinterStatusSettings } from "./printer-status-settings";
 
@@ -27,6 +28,7 @@ export function PrinterCard({ printer, onRemove }: { printer: PrinterInfo; onRem
         <CardDescription className="font-mono text-[13px]">{printer.listen}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
+        <PrinterConnect printer={printer} />
         <Field label="Model">
           <ModelPicker
             models={models}
