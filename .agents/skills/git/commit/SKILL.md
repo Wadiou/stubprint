@@ -60,6 +60,7 @@ along the way.
 | Scope | Use when the change is in |
 |-------|---------------------------|
 | `core` | `crates/core`, the decoders and the document model |
+| `render` | `crates/render`, the fonts and the drawing of a receipt |
 | `server` | `crates/server`, the TCP listener, the REST API and events |
 | `web` | `web/`, the page |
 | `fixtures` | `fixtures/`, the sample printer streams and their generator |
