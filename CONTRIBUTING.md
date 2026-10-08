@@ -29,6 +29,20 @@ cargo fmt --all && cargo clippy --workspace --all-targets && cargo test --worksp
 in `fixtures/out/previews`, and when the change is right, accept it with
 `python generate.py --update-lock` in the same commit.
 
+## The web page
+
+`web/` is a React page that only talks to the server's API. Its client, types and TanStack Query options
+are generated from the API description (Hey API), so after changing the server, rebuild it and run
+`pnpm api`. The names follow the `operation_id` of each route.
+
+```bash
+cargo build -p stubprint-server
+cd web && pnpm install
+pnpm dev                                  # with a stubprint running on 127.0.0.1:8080
+pnpm build && ../target/debug/stubprint --web dist   # the program serves the build
+pnpm typecheck && pnpm test
+```
+
 ## Samples
 
 The ready made receipts the server ships are made by real printing libraries, never by Stubprint.
