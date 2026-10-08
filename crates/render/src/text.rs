@@ -198,6 +198,60 @@ mod tests {
     }
 
     #[test]
+    fn a_character_takes_the_columns_it_prints_over() {
+        use super::columns_of;
+        for wide in [
+            '\u{1100}', '\u{115f}', '\u{2e80}', '\u{a4cf}', '\u{ac00}', '\u{d7a3}', '\u{f900}',
+            '\u{faff}', '\u{fe30}', '\u{fe6f}', '\u{ff00}', '\u{ff60}', '\u{ffe0}', '\u{ffe6}',
+        ] {
+            assert_eq!(columns_of(wide), 2, "{wide:?}");
+        }
+        for joining in [
+            '\u{300}', '\u{36f}', '\u{64b}', '\u{65f}', '\u{200b}', '\u{200f}',
+        ] {
+            assert_eq!(columns_of(joining), 0, "{joining:?}");
+        }
+        for plain in [
+            'a', '\u{ff}', '\u{1160}', '\u{d7a4}', '\u{ff61}', '\u{ffe7}', '\u{370}',
+        ] {
+            assert_eq!(columns_of(plain), 1, "{plain:?}");
+        }
+    }
+
+    #[test]
+    fn a_tab_on_a_stop_goes_to_the_next_one() {
+        // Eight characters end on the stop at column 8, so the tab goes on to 16.
+        assert_eq!(
+            text(b"abcdefgh\tx\n"),
+            format!("abcdefgh{}x\n", " ".repeat(8))
+        );
+    }
+
+    #[test]
+    fn a_relative_move_goes_on_from_where_the_line_is() {
+        // 120 dots from the left, "x", then 60 dots on: x is in column 10 and y in column 16.
+        assert_eq!(
+            text(b"\x1b$\x78\x00x\x1b\\\x3c\x00y\n"),
+            format!("{}x{}y\n", " ".repeat(10), " ".repeat(5))
+        );
+    }
+
+    #[test]
+    fn a_tag_is_centred_or_pushed_right_on_the_columns_of_the_paper() {
+        let code = |align: u8| text(&[&[0x1b, b'a', align][..], b"\x1dkA\x0b12345678901"].concat());
+        let tag = "[barcode upca: 12345678901]";
+        let left = code(0);
+        assert!(left.starts_with(tag), "{left}");
+        let centred = code(1);
+        assert_eq!(
+            centred,
+            format!("{}{tag}\n", " ".repeat((48 - tag.len()) / 2))
+        );
+        let right = code(2);
+        assert_eq!(right, format!("{}{tag}\n", " ".repeat(48 - tag.len())));
+    }
+
+    #[test]
     fn pictures_and_codes_are_tags_where_they_are() {
         let bytes = [
             &b"\x1ba\x01"[..],

@@ -95,3 +95,43 @@ pub fn png(receipt: &Receipt, options: &Options) -> Result<Vec<u8>, String> {
         .to_png()
         .map_err(|error| error.to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use stubprint_core::Profile;
+
+    use super::Options;
+
+    fn profile(columns: &[u8], width_dots: Option<u32>) -> Profile {
+        let mut profile = Profile::generic();
+        profile.columns = columns.to_vec();
+        profile.width_dots = width_dots;
+        profile
+    }
+
+    #[test]
+    fn a_model_that_says_its_width_and_columns_has_them() {
+        let options = Options::for_profile(&profile(&[56, 72], Some(640)));
+        assert_eq!(options.width, 640);
+        assert_eq!(options.columns, vec![56, 72]);
+        assert_eq!(options.scale, 1);
+    }
+
+    #[test]
+    fn a_model_without_a_width_prints_the_columns_of_font_a_at_twelve_dots() {
+        assert_eq!(Options::for_profile(&profile(&[42, 56], None)).width, 504);
+        // A width of 0 is not a width.
+        assert_eq!(
+            Options::for_profile(&profile(&[32, 42], Some(0))).width,
+            384
+        );
+        assert_eq!(Options::for_profile(&profile(&[32], Some(1))).width, 1);
+    }
+
+    #[test]
+    fn a_model_without_columns_has_the_usual_ones() {
+        let options = Options::for_profile(&profile(&[], None));
+        assert_eq!(options, Options::default());
+        assert_eq!(options.width, 48 * 12);
+    }
+}
