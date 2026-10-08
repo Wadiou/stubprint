@@ -14,7 +14,6 @@ crates/
   core/      package `stubprint-core`: decoders, document model, printer state (a library, no networking)
   render/    package `stubprint-render`: a receipt as text and as a picture, and the fonts
   server/    TCP listener, REST API, live events (headless binary), see docs/SERVER.md
-  app/       Tauri shell around the same server and page (added last)
 web/         the web page, a static single page app that only talks HTTP and events
 fixtures/    specs/ recipes (committed), fixtures.lock.json, generate/ (a Python script),
              out/ the generated streams, expected results and previews (ignored)
@@ -25,8 +24,18 @@ Crates are local only (`publish = false`). Other projects can use the core by pa
 
 ## Decisions
 - Rust backend. Decoding and serving in one small binary, no runtime needed.
-- The page is a static app, so the same files work in a browser and in the Tauri window. It must
-  not use Tauri only calls. It talks to the server over HTTP and server sent events.
+- The page is a static app that only talks to the server over HTTP and server sent events. At
+  release its files are embedded in the program, so one file is the server and the page, and the
+  page and the API it calls always come from the same build. There is no desktop app.
+- It ships as a Docker image and as plain binaries on the release page. Docker comes last, at
+  release, not while the program is still being built. Image tags follow the project version, so
+  a pipeline pins the tag it was written for.
+- The API has no version in its paths while the program is unstable, and breaking changes are
+  listed in a changelog. `/api/v1` is added at the first stable release.
+- Stubprint is for developers, who start the server and know its address and ports. It shows the
+  printers and their ports as plain details, with no "connect your app" banner. It is found by
+  typing its address and port, as with most receipt printers. Announcing it on the network (mDNS)
+  and the search of the Epson and Star libraries can come later if someone asks for them.
 - The page is React with Vite and TypeScript, for the size of its ecosystem. Its types and its API
   client are made from the server's OpenAPI document, so the two cannot drift apart.
 - Stubprint behaves like the printers it copies. It adds nothing a real printer does not do. The
@@ -50,6 +59,20 @@ Crates are local only (`publish = false`). Other projects can use the core by pa
 Written in full in `docs/SERVER.md`. The description, `GET /api/openapi.json`, is made from the
 code, and the types of the web page will be made from it. There can be several printers, so the
 pretend state is set with `POST /api/printers/{name}`.
+
+## Samples
+The ready made receipts are made by real printing libraries, never by Stubprint's own encoding.
+- A central JSON file for each receipt says what is printed (lines, styles, prices, codes,
+  a picture) and its metadata: title, description, paper width, tags. It is also what the tests
+  expect the decoder to find, so expected values never come from the decoder.
+- Small programs, one for each library, read those files and build the bytes with the library:
+  `python-escpos` in Python and `node-thermal-printer` in Node, which also writes Star. A receipt
+  only has a variant for a library that can print everything in it.
+- A sample is one receipt with variants. A variant records its library and its version, the
+  command language it came out in, and its bytes. The name of a sample never says how it was made.
+- The bytes are not committed. A lock file holds a hash of each one, so a library update that moves
+  a byte is noticed. The server embeds what was generated, and a build without it has no samples.
+- The server lists them (`GET /api/samples`), gives the bytes of one, and prints one to a printer.
 
 ## Tests
 - Unit tests next to the code, integration tests in each crate's `tests/`.
@@ -83,15 +106,16 @@ feature is added to the server and used through the page, so each one is tested 
 1. Done: the ESC/POS decoder with its fixtures and tests (`crates/core`).
 2. Done: Star Line and StarPRNT.
 3. Done: the picture and text drawing (`crates/render`) and the server (`crates/server`): TCP
-   ports, REST, live events, the trace of every command, the connection log, `decode`.
-4. Open source readiness: third party notices and a licence check, CI, contribution and security
-   notes.
-5. The essentials still missing from the server: adding and removing printers while it runs, the
-   page's files served from the program, CORS for development, the Arabic fixture sent the way real
-   programs send it, and the triage of the mutation tests.
-6. The web page (`web/`), starting with the paper, the command list and the printer's status.
+   ports, REST, live events, the trace of every command, the connection log, `decode`, adding and
+   removing printers while it runs, serving the page's folder, and the OpenAPI description.
+4. Done: open source readiness: third party notices, a licence check, CI, contributing notes.
+5. The essentials still missing from the server: the samples as described above, settings from
+   environment variables, the version of the program in the description of the API, the Arabic
+   fixture sent the way real programs send it, and the triage of the mutation tests.
+6. The design of the web page, then the page (`web/`), starting with the paper, the command list
+   and the printer's status.
 7. Added one by one, each used through the page: the realism of a real printer (offline hold, print
    speed, receive buffer, connection limits, idle timeouts), MCP, the decoder gaps (page mode,
    second colour, rotated characters, a few Star commands), more printer models.
-8. Packaging: the Docker image, the Tauri desktop app, the first release (`0.1.0`), and the
-   documentation at stubprint.dev.
+8. Release: the page's files embedded in the program, `/api/v1`, the Docker image and the binaries,
+   the first version (`0.1.0`), the README, and the documentation at stubprint.dev.

@@ -61,7 +61,6 @@ along the way.
 |-------|---------------------------|
 | `core` | `crates/core`, the decoders and the document model |
 | `server` | `crates/server`, the TCP listener, the REST API and events |
-| `app` | `crates/app`, the Tauri shell |
 | `web` | `web/`, the page |
 | `fixtures` | `fixtures/`, the sample printer streams and their generator |
 | `docs` | `docs/` and the README |

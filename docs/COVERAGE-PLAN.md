@@ -184,7 +184,7 @@ One branch, one commit per step, tests before or with each command. The numbers 
 | H | **Done**, except drawing a page, which belongs to the renderer. Page mode events, and the Star dialects in [STAR.md](STAR.md) | 20, 21 |
 
 After this, the order we agreed stays: renderer (events to a picture), server crate (TCP, REST,
-events stream), web page, Tauri shell.
+events stream), web page.
 
 Each stage ends with `docs/ESCPOS.md` updated, the "Not read yet" list shrunk, and the commands to
 run (`cargo test --workspace`) given to you instead of run here.
