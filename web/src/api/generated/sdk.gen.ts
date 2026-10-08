@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AddPrinterData, AddPrinterErrors, AddPrinterResponses, ClearReceiptsData, ClearReceiptsErrors, ClearReceiptsResponses, DecodeBytesData, DecodeBytesErrors, DecodeBytesResponses, GetConnectionData, GetConnectionErrors, GetConnectionResponses, GetHealthData, GetHealthResponses, GetIndexData, GetIndexResponses, GetOpenapiData, GetOpenapiResponses, GetPrinterData, GetPrinterErrors, GetPrinterResponses, GetReceiptBytesData, GetReceiptBytesErrors, GetReceiptBytesResponses, GetReceiptData, GetReceiptErrors, GetReceiptPictureData, GetReceiptPictureErrors, GetReceiptPictureResponses, GetReceiptResponses, GetReceiptTextData, GetReceiptTextErrors, GetReceiptTextResponses, GetSampleData, GetSampleErrors, GetSampleResponses, GetTraceData, GetTraceErrors, GetTraceResponses, ListConnectionsData, ListConnectionsResponses, ListPrintersData, ListPrintersResponses, ListProfilesData, ListProfilesResponses, ListReceiptsData, ListReceiptsResponses, ListSamplesData, ListSamplesResponses, PrintBytesData, PrintBytesErrors, PrintBytesResponses, PrintSampleData, PrintSampleErrors, PrintSampleResponses, RemovePrinterData, RemovePrinterErrors, RemovePrinterResponses, SetPrinterStatusData, SetPrinterStatusErrors, SetPrinterStatusResponses, StreamEventsData, StreamEventsResponses, WaitForReceiptData, WaitForReceiptResponses } from './types.gen';
+import type { AddPrinterData, AddPrinterErrors, AddPrinterResponses, ClearReceiptsData, ClearReceiptsErrors, ClearReceiptsResponses, DecodeBytesData, DecodeBytesErrors, DecodeBytesResponses, GetConnectionData, GetConnectionErrors, GetConnectionResponses, GetHealthData, GetHealthResponses, GetIndexData, GetIndexResponses, GetOpenapiData, GetOpenapiResponses, GetPrinterData, GetPrinterErrors, GetPrinterResponses, GetReceiptBytesData, GetReceiptBytesErrors, GetReceiptBytesResponses, GetReceiptData, GetReceiptErrors, GetReceiptPictureData, GetReceiptPictureErrors, GetReceiptPictureResponses, GetReceiptResponses, GetReceiptTextData, GetReceiptTextErrors, GetReceiptTextResponses, GetSampleData, GetSampleErrors, GetSampleResponses, GetTraceData, GetTraceErrors, GetTraceResponses, ListConnectionsData, ListConnectionsResponses, ListPrintersData, ListPrintersResponses, ListProfilesData, ListProfilesResponses, ListReceiptsData, ListReceiptsResponses, ListSamplesData, ListSamplesResponses, PrintBytesData, PrintBytesErrors, PrintBytesResponses, PrintSampleData, PrintSampleErrors, PrintSampleResponses, RemovePrinterData, RemovePrinterErrors, RemovePrinterResponses, SetPrinterStatusData, SetPrinterStatusErrors, SetPrinterStatusResponses, StreamEventsData, StreamEventsResponses, UpdatePrinterData, UpdatePrinterErrors, UpdatePrinterResponses, WaitForReceiptData, WaitForReceiptResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -104,6 +104,18 @@ export const removePrinter = <ThrowOnError extends boolean = false>(options: Opt
  * One virtual printer.
  */
 export const getPrinter = <ThrowOnError extends boolean = false>(options: Options<GetPrinterData, ThrowOnError>): RequestResult<GetPrinterResponses, GetPrinterErrors, ThrowOnError> => (options.client ?? client).get<GetPrinterResponses, GetPrinterErrors, ThrowOnError>({ url: '/api/printers/{name}', ...options });
+
+/**
+ * Sets the printer to another model, as if another printer stood on its port.
+ */
+export const updatePrinter = <ThrowOnError extends boolean = false>(options: Options<UpdatePrinterData, ThrowOnError>): RequestResult<UpdatePrinterResponses, UpdatePrinterErrors, ThrowOnError> => (options.client ?? client).patch<UpdatePrinterResponses, UpdatePrinterErrors, ThrowOnError>({
+    url: '/api/printers/{name}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Sets what the printer pretends: online or not, paper, cover, drawer, feed button and fault.

@@ -431,6 +431,12 @@ export type Notice = {
      */
     value: PrinterInfo;
 } | {
+    type: 'printer_changed';
+    /**
+     * A printer was set to another model.
+     */
+    value: PrinterInfo;
+} | {
     type: 'printer_removed';
     /**
      * A printer was removed, and its receipts were kept.
@@ -557,6 +563,17 @@ export type Printed = {
 };
 
 /**
+ * What a request changes about the printer itself. What is left out stays as it is.
+ */
+export type PrinterChange = {
+    /**
+     * The printer model, as `GET /api/profiles` lists them. Receipts printed from now on are read
+     * and drawn as this model. The ones already kept stay as they were printed.
+     */
+    profile?: string | null;
+};
+
+/**
  * A printer, and how it is doing.
  */
 export type PrinterInfo = {
@@ -642,9 +659,17 @@ export type ProfileInfo = {
      */
     columns: Array<number>;
     /**
+     * How many dots make an inch, when the model says.
+     */
+    dpi?: number | null;
+    /**
      * What the model can do, such as `qrCode`, `pdf417Code` or `starCommands`.
      */
     features: Array<string>;
+    /**
+     * Links to the manuals of the model.
+     */
+    manuals: Array<string>;
     /**
      * The model as the maker names it.
      */
@@ -661,6 +686,10 @@ export type ProfileInfo = {
      * How wide the paper prints, in dots, when the model says.
      */
     width_dots?: number | null;
+    /**
+     * How wide the paper prints, in millimetres, when the model says.
+     */
+    width_mm?: number | null;
 };
 
 /**
@@ -739,6 +768,10 @@ export type ReceiptSummary = {
      * The name of the printer that printed it.
      */
     printer: string;
+    /**
+     * The printer model it was printed on, as `GET /api/profiles` lists them.
+     */
+    profile: string;
 };
 
 /**
@@ -769,17 +802,14 @@ export type SampleSummary = {
      */
     about: string;
     /**
-     * How many characters fit on a line of that paper.
-     */
-    columns: number;
-    /**
      * What it is called in addresses, such as `grocery`. It never says how it was made.
      */
     id: string;
     /**
-     * The width of the paper it was written for, in millimetres.
+     * The printer model it was written for, as `GET /api/profiles` lists them. It decides the
+     * width of a line and the code pages the bytes assume.
      */
-    paper_mm: number;
+    profile: string;
     /**
      * Short words for what it holds, to filter by.
      */
@@ -1316,6 +1346,40 @@ export type GetPrinterResponses = {
 };
 
 export type GetPrinterResponse = GetPrinterResponses[keyof GetPrinterResponses];
+
+export type UpdatePrinterData = {
+    body: PrinterChange;
+    path: {
+        /**
+         * The name of the printer
+         */
+        name: string;
+    };
+    query?: never;
+    url: '/api/printers/{name}';
+};
+
+export type UpdatePrinterErrors = {
+    /**
+     * There is no such model, as `error` says
+     */
+    400: ErrorBody;
+    /**
+     * There is no such printer, receipt or connection, as `error` says
+     */
+    404: ErrorBody;
+};
+
+export type UpdatePrinterError = UpdatePrinterErrors[keyof UpdatePrinterErrors];
+
+export type UpdatePrinterResponses = {
+    /**
+     * The printer
+     */
+    200: PrinterInfo;
+};
+
+export type UpdatePrinterResponse = UpdatePrinterResponses[keyof UpdatePrinterResponses];
 
 export type SetPrinterStatusData = {
     body: StatusChange;
