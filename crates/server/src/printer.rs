@@ -64,7 +64,8 @@ impl VirtualPrinter {
 
     /// Closes the port and the connections, and waits until they are done.
     pub(crate) async fn shut(&self) {
-        let _ = self.stop.send(true);
+        // Not `send`, which keeps nothing when no listener is subscribed yet.
+        self.stop.send_replace(true);
         let task = self
             .task
             .lock()

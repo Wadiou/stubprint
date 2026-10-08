@@ -20,13 +20,18 @@ const MAX_CONNECTION_BYTES: usize = 256 * 1024 * 1024;
 /// How long an answer can wait for a program that does not read.
 const WRITE_TIMEOUT: Duration = Duration::from_secs(5);
 
+/// Waits until the printer is told to stop, which may have happened before the call.
+async fn stopped(mut stop: watch::Receiver<bool>) {
+    let _ = stop.wait_for(|stopped| *stopped).await;
+}
+
 /// Takes the connections of one printer until told to stop.
 pub async fn listen(hub: Arc<Hub>, printer: Arc<VirtualPrinter>, listener: TcpListener) {
-    let mut stop = printer.stopped();
+    let stop = printer.stopped();
     let room = Arc::new(Semaphore::new(MAX_CONNECTIONS));
     loop {
         tokio::select! {
-            _ = stop.changed() => return,
+            _ = stopped(stop.clone()) => return,
             accepted = listener.accept() => match accepted {
                 Ok((stream, peer)) => {
                     let Ok(permit) = room.clone().try_acquire_owned() else {
@@ -52,13 +57,13 @@ async fn serve(
     mut stream: TcpStream,
     mut session: Session,
     mut status: watch::Receiver<stubprint_core::PrinterStatus>,
-    mut stop: watch::Receiver<bool>,
+    stop: watch::Receiver<bool>,
 ) {
     let mut buffer = vec![0u8; 16 * 1024];
     let mut total = 0usize;
     loop {
         let replies = tokio::select! {
-            _ = stop.changed() => break,
+            _ = stopped(stop.clone()) => break,
             changed = status.changed() => {
                 if changed.is_err() {
                     break;
