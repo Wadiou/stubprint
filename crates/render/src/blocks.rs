@@ -184,21 +184,87 @@ impl<'a> Builder<'a> {
         }
     }
 
-    /// Puts the line being built on the paper.
+    /// Puts the line being built on the paper. A line longer than the print area goes on after a
+    /// line feed: the Epson glossary calls it print buffer-full printing.
     fn end_line(&mut self, ended: bool) {
         if self.parts.is_empty() && !ended {
             return;
         }
-        let line = Line {
-            parts: std::mem::take(&mut self.parts),
-            align: self.line_align.take().unwrap_or(self.align),
-            left: self.left(),
-            area: self.area(),
-            pitch: self.spacing(),
-            ended,
-            tab_stops: self.layout.tab_stops.clone(),
-        };
-        self.document.blocks.push(Block::Line(line));
+        let align = self.line_align.take().unwrap_or(self.align);
+        let parts = std::mem::take(&mut self.parts);
+        let lines = self.wrap(parts);
+        let last = lines.len() - 1;
+        for (index, parts) in lines.into_iter().enumerate() {
+            self.document.blocks.push(Block::Line(Line {
+                parts,
+                align,
+                left: self.left(),
+                area: self.area(),
+                pitch: self.spacing(),
+                ended: ended || index < last,
+                tab_stops: self.layout.tab_stops.clone(),
+            }));
+        }
+    }
+
+    /// Cuts the parts of a line into the lines they are printed on. A line placed with moves is
+    /// left as it is.
+    fn wrap(&self, parts: Vec<Part>) -> Vec<Vec<Part>> {
+        let room = i64::from(self.area());
+        if parts.iter().any(|part| matches!(part, Part::Move { .. })) {
+            return vec![parts];
+        }
+        let mut lines = Vec::new();
+        let mut current = Vec::new();
+        let mut cursor = 0i64;
+        for part in parts {
+            match part {
+                Part::Text { text, style } => {
+                    let cell =
+                        i64::from(self.options.cell_width(style.font) * u32::from(style.width));
+                    let mut run = String::new();
+                    for character in text.chars() {
+                        let cells = crate::fonts::columns(character) as i64;
+                        if cells > 0 && cursor > 0 && cursor + cell * cells > room {
+                            if !run.is_empty() {
+                                current.push(Part::Text {
+                                    text: std::mem::take(&mut run),
+                                    style: style.clone(),
+                                });
+                            }
+                            lines.push(std::mem::take(&mut current));
+                            cursor = 0;
+                        }
+                        run.push(character);
+                        cursor += cell * cells
+                            + if cells > 0 {
+                                i64::from(style.spacing)
+                            } else {
+                                0
+                            };
+                    }
+                    if !run.is_empty() {
+                        current.push(Part::Text { text: run, style });
+                    }
+                }
+                Part::Tab => {
+                    let cell = i64::from(self.options.cell_width(0));
+                    if let Some(stop) = self
+                        .layout
+                        .tab_stops
+                        .iter()
+                        .map(|stop| i64::from(*stop) * cell)
+                        .find(|stop| *stop > cursor)
+                    {
+                        cursor = stop;
+                    }
+                    current.push(Part::Tab);
+                }
+                other => current.push(other),
+            }
+        }
+        lines.push(current);
+        lines
     }
 
     fn push(&mut self, block: Block) {
@@ -312,6 +378,10 @@ mod tests {
             .collect()
     }
 
+    fn lines_ended(document: &Document) -> Vec<bool> {
+        lines(document).iter().map(|line| line.ended).collect()
+    }
+
     fn text_of(line: &Line) -> String {
         line.parts
             .iter()
@@ -338,6 +408,85 @@ mod tests {
         let lines = lines(&document);
         assert_eq!(lines.len(), 3);
         assert!(lines[1].parts.is_empty());
+    }
+
+    fn printed(bytes: &[u8]) -> Vec<String> {
+        let document = document(&receipt(bytes), &Options::default());
+        lines(&document).into_iter().map(text_of).collect()
+    }
+
+    #[test]
+    fn a_line_that_fills_the_paper_exactly_stays_one_line() {
+        assert_eq!(
+            printed(&[b"x".repeat(48), b"\n".to_vec()].concat()),
+            ["x".repeat(48)]
+        );
+    }
+
+    #[test]
+    fn a_line_longer_than_the_paper_goes_on_after_a_line_feed() {
+        let lines = printed(&[b"x".repeat(49), b"\n".to_vec()].concat());
+        assert_eq!(lines, ["x".repeat(48), "x".to_string()]);
+        let document = document(
+            &receipt(&[b"x".repeat(49), b"\n".to_vec()].concat()),
+            &Options::default(),
+        );
+        assert!(lines_ended(&document).iter().all(|ended| *ended));
+    }
+
+    #[test]
+    fn double_width_letters_use_two_cells_so_a_line_wraps_at_half_the_columns() {
+        let lines = printed(
+            &[
+                b"\x1d!\x10".to_vec(),
+                b"0123456789".repeat(3),
+                b"\n".to_vec(),
+            ]
+            .concat(),
+        );
+        assert_eq!(lines, ["012345678901234567890123", "456789"]);
+    }
+
+    #[test]
+    fn a_character_two_cells_wide_that_does_not_fit_starts_the_next_line() {
+        // FS & turns Kanji mode on, and JIS 0x3441 is 漢, which takes two cells.
+        let bytes = [b"x".repeat(47), b"\x1c&\x34\x41\x1c.\n".to_vec()].concat();
+        let lines = printed(&bytes);
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0], "x".repeat(47));
+        assert_eq!(lines[1].chars().count(), 1);
+    }
+
+    #[test]
+    fn a_wrapped_line_keeps_its_styles_and_each_part_of_it_is_aligned_alone() {
+        let document = document(
+            &receipt(
+                &[
+                    b"\x1ba\x01".to_vec(),
+                    b"a".repeat(30),
+                    b"\x1bE\x01".to_vec(),
+                    b"b".repeat(30),
+                    b"\n".to_vec(),
+                ]
+                .concat(),
+            ),
+            &Options::default(),
+        );
+        let lines = lines(&document);
+        assert_eq!(lines.len(), 2);
+        assert!(lines.iter().all(|line| line.align == Align::Center));
+        assert_eq!(
+            text_of(lines[0]),
+            format!("{}{}", "a".repeat(30), "b".repeat(18))
+        );
+        assert_eq!(text_of(lines[1]), "b".repeat(12));
+        assert!(matches!(&lines[1].parts[0], Part::Text { style, .. } if style.bold));
+    }
+
+    #[test]
+    fn a_line_placed_by_moves_is_not_cut() {
+        let lines = printed(&[b"\x1b$\x64\x00".to_vec(), b"x".repeat(60), b"\n".to_vec()].concat());
+        assert_eq!(lines, ["x".repeat(60)]);
     }
 
     #[test]

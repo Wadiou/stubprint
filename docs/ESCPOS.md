@@ -59,6 +59,12 @@ people's encoders, which must decode without a single unknown command.
 Positions, margins and the print area are in motion units, which only a printer profile and a
 `GS P` can turn into dots, so the decoder reports them as they were sent.
 
+A line that is longer than the print area is printed up to the last character that fits, then the
+printer feeds a line and goes on with the next one. Epson calls this print buffer-full printing
+([glossary](https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/ref_escpos_en/glossary.html)).
+The renderer does the same, in cells of the font and the size. A line placed with `ESC $` or
+`ESC \` is not cut. Page mode moves to the start of the next line instead and is not drawn.
+
 ## Pictures
 
 | Command | Bytes | Result |
