@@ -1025,13 +1025,9 @@ async fn the_built_page_is_served_with_the_api_and_an_unknown_route_of_the_api_i
         .unwrap()
         .contains("javascript"));
     // A route of the page, which the page itself finds in the address, is the page.
-    assert!(server
-        .get("/receipts/3")
-        .await
-        .text()
-        .await
-        .unwrap()
-        .contains("Stubprint"));
+    let route = server.get("/receipts/3").await;
+    assert_eq!(route.status(), 200);
+    assert!(route.text().await.unwrap().contains("Stubprint"));
 
     // The API keeps its own answers.
     assert_eq!(server.get("/api/health").await.status(), 200);
@@ -1589,4 +1585,31 @@ async fn the_version_of_the_api_is_the_version_of_the_program() {
         server.json("/api/openapi.json").await["info"]["version"],
         version
     );
+}
+
+#[tokio::test]
+async fn the_description_puts_each_parameter_where_it_belongs() {
+    let server = Harness::start(&["name=till"]).await;
+    let document = server.json("/api/openapi.json").await;
+    let parameter = |path: &str, method: &str, name: &str| {
+        document["paths"][path][method]["parameters"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["name"] == name)
+            .cloned()
+            .unwrap_or_else(|| panic!("{method} {path} has no parameter {name}"))
+    };
+    for (path, method, name) in [
+        ("/api/receipts", "get", "limit"),
+        ("/api/receipts/next", "get", "timeout"),
+        ("/api/receipts/{id}", "get", "scale"),
+        ("/api/print", "post", "printer"),
+        ("/api/samples/{id}/print", "post", "library"),
+    ] {
+        let found = parameter(path, method, name);
+        assert_eq!(found["in"], "query", "{path} {name}");
+        assert_eq!(found["required"], false, "{path} {name}");
+    }
+    assert_eq!(parameter("/api/receipts/{id}", "get", "id")["in"], "path");
 }

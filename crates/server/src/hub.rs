@@ -31,6 +31,7 @@ pub struct Stored {
 pub struct Chunk {
     /// Milliseconds after the connection opened.
     pub at: u64,
+    /// How many bytes came in this piece.
     pub bytes: usize,
 }
 
@@ -42,15 +43,21 @@ const MAX_CONNECTIONS: usize = 200;
 /// One program talking to a printer: when, how, and what came of it.
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct Connection {
+    /// The number of the connection, which is never used again.
     pub id: u64,
+    /// The name of the printer it connected to.
     pub printer: String,
     /// The address of the program, or `http` for a request to print.
     pub peer: String,
     /// Milliseconds since 1970.
     pub opened_at: u64,
+    /// When it closed, in milliseconds since 1970, or nothing while it is open.
     pub closed_at: Option<u64>,
+    /// How many bytes the program sent.
     pub bytes_in: usize,
+    /// How many bytes the printer answered.
     pub bytes_out: usize,
+    /// The pieces the bytes came in.
     pub chunks: Vec<Chunk>,
     /// The receipts it printed.
     pub receipts: Vec<u64>,

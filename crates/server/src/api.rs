@@ -69,7 +69,7 @@ pub fn router(hub: Arc<Hub>, web: Option<&std::path::Path>) -> Router {
     match web {
         // Any other path is the page, which finds its own route in the address.
         Some(folder) => api.fallback_service(
-            ServeDir::new(folder).not_found_service(ServeFile::new(folder.join("index.html"))),
+            ServeDir::new(folder).fallback(ServeFile::new(folder.join("index.html"))),
         ),
         None => api,
     }
@@ -98,7 +98,7 @@ impl IntoResponse for ApiError {
 type Reply<T> = Result<T, ApiError>;
 
 /// Where to start: what this is, and where its description is.
-#[utoipa::path(get, path = "/api", tag = "meta", responses((status = 200, description = "The name, the version, where the description of the API is, and the printers")))]
+#[utoipa::path(get, path = "/api", operation_id = "get_index", tag = "meta", responses((status = 200, description = "The name, the version, where the description of the API is, and the printers")))]
 async fn index(State(hub): State<Arc<Hub>>) -> Json<serde_json::Value> {
     Json(json!({
         "name": "stubprint",
@@ -114,7 +114,7 @@ async fn index(State(hub): State<Arc<Hub>>) -> Json<serde_json::Value> {
 }
 
 /// Answers when the server is running.
-#[utoipa::path(get, path = "/api/health", tag = "meta", responses((status = 200, description = "The server is running")))]
+#[utoipa::path(get, path = "/api/health", operation_id = "get_health", tag = "meta", responses((status = 200, description = "The server is running")))]
 async fn health() -> Json<serde_json::Value> {
     Json(json!({ "ok": true }))
 }
@@ -143,11 +143,17 @@ async fn health() -> Json<serde_json::Value> {
         profiles,
         printers,
         printer,
+        add_printer,
+        remove_printer,
         set_printer,
         list,
         clear,
         next,
         receipt,
+        trace,
+        connections,
+        connection,
+        decode,
         print,
         sample_list,
         sample,
@@ -167,7 +173,7 @@ struct ErrorBody {
 }
 
 /// The description of this API, as an OpenAPI document.
-#[utoipa::path(get, path = "/api/openapi.json", tag = "meta", responses((status = 200, description = "This document", content_type = "application/json")))]
+#[utoipa::path(get, path = "/api/openapi.json", operation_id = "get_openapi", tag = "meta", responses((status = 200, description = "This document", content_type = "application/json")))]
 async fn document() -> Json<utoipa::openapi::OpenApi> {
     Json(openapi())
 }
@@ -179,20 +185,20 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 /// The printer models that a printer can be set to.
-#[utoipa::path(get, path = "/api/profiles", tag = "meta", responses((status = 200, description = "The names of the printer models that a printer can be set to", body = Vec<String>)))]
+#[utoipa::path(get, path = "/api/profiles", operation_id = "list_profiles", tag = "meta", responses((status = 200, description = "The names of the printer models that a printer can be set to", body = Vec<String>)))]
 async fn profiles() -> Json<Vec<String>> {
     Json(Profile::names())
 }
 
 /// Every virtual printer, with its status and how many programs are connected.
-#[utoipa::path(get, path = "/api/printers", tag = "printers", responses((status = 200, description = "Every virtual printer", body = Vec<PrinterInfo>)))]
+#[utoipa::path(get, path = "/api/printers", operation_id = "list_printers", tag = "printers", responses((status = 200, description = "Every virtual printer", body = Vec<PrinterInfo>)))]
 async fn printers(State(hub): State<Arc<Hub>>) -> Json<Vec<PrinterInfo>> {
     Json(hub.printers().iter().map(|p| PrinterInfo::of(p)).collect())
 }
 
 /// Adds a printer while the server runs: it opens its TCP port at once. What is left out is the
 /// default of a printer: `printer`, `127.0.0.1:9100`, `escpos` and the `generic` model.
-#[utoipa::path(post, path = "/api/printers", tag = "printers", request_body = PrinterSettings,
+#[utoipa::path(post, path = "/api/printers", operation_id = "add_printer", tag = "printers", request_body = PrinterSettings,
     responses(
         (status = 201, description = "The printer, listening", body = PrinterInfo),
         (status = 400, description = "The request is not valid, as `error` says", body = ErrorBody),
@@ -221,7 +227,7 @@ async fn add_printer(
 }
 
 /// Removes a printer: its port and its connections close. The receipts it printed are kept.
-#[utoipa::path(delete, path = "/api/printers/{name}", tag = "printers", params(("name" = String, Path, description = "The name of the printer")),
+#[utoipa::path(delete, path = "/api/printers/{name}", operation_id = "remove_printer", tag = "printers", params(("name" = String, Path, description = "The name of the printer")),
     responses(
         (status = 204, description = "The printer is gone"),
         (status = 404, description = "There is no such printer, as `error` says", body = ErrorBody)))]
@@ -237,7 +243,7 @@ async fn remove_printer(
 }
 
 /// One virtual printer.
-#[utoipa::path(get, path = "/api/printers/{name}", tag = "printers", params(("name" = String, Path, description = "The name of the printer")),
+#[utoipa::path(get, path = "/api/printers/{name}", operation_id = "get_printer", tag = "printers", params(("name" = String, Path, description = "The name of the printer")),
     responses((status = 200, description = "The printer", body = PrinterInfo), (status = 404, description = "There is no such printer, receipt or connection, as `error` says", body = ErrorBody)))]
 async fn printer(
     State(hub): State<Arc<Hub>>,
@@ -289,7 +295,7 @@ impl StatusChange {
 }
 
 /// Sets what the printer pretends: online or not, paper, cover, drawer, feed button and fault.
-#[utoipa::path(post, path = "/api/printers/{name}", tag = "printers", params(("name" = String, Path, description = "The name of the printer")),
+#[utoipa::path(post, path = "/api/printers/{name}", operation_id = "set_printer_status", tag = "printers", params(("name" = String, Path, description = "The name of the printer")),
     request_body = StatusChange, responses((status = 200, description = "The printer", body = PrinterInfo), (status = 404, description = "There is no such printer, receipt or connection, as `error` says", body = ErrorBody)))]
 async fn set_printer(
     State(hub): State<Arc<Hub>>,
@@ -309,6 +315,7 @@ async fn set_printer(
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct ListQuery {
     /// Only the receipts of this printer, by name.
     printer: Option<String>,
@@ -319,7 +326,7 @@ struct ListQuery {
 }
 
 /// The receipts, oldest first. With a limit, the latest ones.
-#[utoipa::path(get, path = "/api/receipts", tag = "receipts", params(ListQuery), responses((status = 200, description = "The receipts", body = Vec<ReceiptSummary>)))]
+#[utoipa::path(get, path = "/api/receipts", operation_id = "list_receipts", tag = "receipts", params(ListQuery), responses((status = 200, description = "The receipts", body = Vec<ReceiptSummary>)))]
 async fn list(
     State(hub): State<Arc<Hub>>,
     Query(query): Query<ListQuery>,
@@ -337,13 +344,14 @@ async fn list(
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct ClearQuery {
     /// Only the receipts of this printer, by name.
     printer: Option<String>,
 }
 
 /// Forgets the receipts, all of them or those of one printer. Their numbers are not used again.
-#[utoipa::path(delete, path = "/api/receipts", tag = "receipts", params(ClearQuery),
+#[utoipa::path(delete, path = "/api/receipts", operation_id = "clear_receipts", tag = "receipts", params(ClearQuery),
     responses((status = 200, description = "How many receipts were removed"), (status = 404, description = "There is no such printer, receipt or connection, as `error` says", body = ErrorBody)))]
 async fn clear(
     State(hub): State<Arc<Hub>>,
@@ -358,6 +366,7 @@ async fn clear(
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct NextQuery {
     /// Only a receipt of this printer, by name.
     printer: Option<String>,
@@ -368,7 +377,7 @@ struct NextQuery {
 }
 
 /// Waits for the next receipt. Test code prints, then calls this to get what came out.
-#[utoipa::path(get, path = "/api/receipts/next", tag = "receipts", params(NextQuery),
+#[utoipa::path(get, path = "/api/receipts/next", operation_id = "wait_for_receipt", tag = "receipts", params(NextQuery),
     responses((status = 200, description = "The receipt", body = ReceiptDetail), (status = 204, description = "Nothing was printed in time")))]
 async fn next(State(hub): State<Arc<Hub>>, Query(query): Query<NextQuery>) -> Response {
     let wait = Duration::from_secs(query.timeout.unwrap_or(DEFAULT_WAIT).min(LONGEST_WAIT));
@@ -388,6 +397,7 @@ fn parse_receipt(text: &str) -> Reply<(u64, &str)> {
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct ViewQuery {
     /// How many times larger the picture is drawn, from 1 to 4.
     scale: Option<u32>,
@@ -398,7 +408,7 @@ struct ViewQuery {
 /// One receipt. The id can end in `.bin` for the bytes the printer was sent, in `.txt` for the
 /// paper as text, and in `.png` for a picture of the paper. With `upto`, the receipt as it was
 /// after its first events, in every form.
-#[utoipa::path(get, path = "/api/receipts/{id}", tag = "receipts",
+#[utoipa::path(get, path = "/api/receipts/{id}", operation_id = "get_receipt", tag = "receipts",
     params(("id" = String, Path, description = "The id of the receipt, with .json, .bin, .txt or .png after it"), ViewQuery),
     responses(
         (status = 200, description = "The receipt", body = ReceiptDetail),
@@ -454,7 +464,7 @@ async fn receipt(
 
 /// The commands of a receipt, one by one: the bytes of each, what it asked for, and what the
 /// printer believed after it. This is what to look at to see why a line came out as it did.
-#[utoipa::path(get, path = "/api/receipts/{id}/trace", tag = "debugging", params(("id" = u64, Path, description = "The id of the receipt")),
+#[utoipa::path(get, path = "/api/receipts/{id}/trace", operation_id = "get_trace", tag = "debugging", params(("id" = u64, Path, description = "The id of the receipt")),
     responses((status = 200, description = "The commands of the receipt", body = Vec<TraceItem>), (status = 404, description = "There is no such printer, receipt or connection, as `error` says", body = ErrorBody)))]
 async fn trace(State(hub): State<Arc<Hub>>, Path(id): Path<u64>) -> Reply<Response> {
     let stored = hub
@@ -464,6 +474,7 @@ async fn trace(State(hub): State<Arc<Hub>>, Path(id): Path<u64>) -> Reply<Respon
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct ConnectionQuery {
     /// Only the connections to this printer, by name.
     printer: Option<String>,
@@ -471,7 +482,7 @@ struct ConnectionQuery {
 
 /// The programs that connected, oldest first: when, how many bytes in what pieces, what the
 /// printer answered, and which receipts they printed.
-#[utoipa::path(get, path = "/api/connections", tag = "debugging", params(ConnectionQuery), responses((status = 200, description = "The connections", body = Vec<Connection>)))]
+#[utoipa::path(get, path = "/api/connections", operation_id = "list_connections", tag = "debugging", params(ConnectionQuery), responses((status = 200, description = "The connections", body = Vec<Connection>)))]
 async fn connections(
     State(hub): State<Arc<Hub>>,
     Query(query): Query<ConnectionQuery>,
@@ -479,7 +490,8 @@ async fn connections(
     Json(hub.connections(query.printer.as_deref()))
 }
 
-#[utoipa::path(get, path = "/api/connections/{id}", tag = "debugging", params(("id" = u64, Path, description = "The id of the connection")),
+/// One connection, with the pieces its bytes came in.
+#[utoipa::path(get, path = "/api/connections/{id}", operation_id = "get_connection", tag = "debugging", params(("id" = u64, Path, description = "The id of the connection")),
     responses((status = 200, description = "The connection", body = Connection), (status = 404, description = "There is no such printer, receipt or connection, as `error` says", body = ErrorBody)))]
 async fn connection(State(hub): State<Arc<Hub>>, Path(id): Path<u64>) -> Reply<Json<Connection>> {
     hub.connection(id)
@@ -488,6 +500,7 @@ async fn connection(State(hub): State<Arc<Hub>>, Path(id): Path<u64>) -> Reply<J
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct DecodeQuery {
     /// `escpos`, `starline` or `starprnt`. ESC/POS when left out.
     dialect: Option<String>,
@@ -498,6 +511,7 @@ struct DecodeQuery {
 #[derive(Debug, Serialize, ToSchema)]
 struct Decoded<'a> {
     dialect: Dialect,
+    /// The printer model the bytes were read as.
     profile: String,
     /// Every command of the bytes.
     trace: Vec<TraceItem<'a>>,
@@ -509,7 +523,7 @@ struct Decoded<'a> {
 
 /// Reads bytes as a printer would and says what they ask for, without keeping anything. Use it to
 /// see what the same bytes mean to another language or another model.
-#[utoipa::path(post, path = "/api/decode", tag = "debugging", params(DecodeQuery), request_body(content = Vec<u8>, content_type = "application/octet-stream"),
+#[utoipa::path(post, path = "/api/decode", operation_id = "decode_bytes", tag = "debugging", params(DecodeQuery), request_body(content = Vec<u8>, content_type = "application/octet-stream"),
     responses((status = 200, description = "What the bytes asked for", body = Decoded), (status = 400, description = "The request is not valid, as `error` says", body = ErrorBody)))]
 async fn decode(Query(query): Query<DecodeQuery>, body: axum::body::Bytes) -> Reply<Response> {
     let dialect = match &query.dialect {
@@ -543,6 +557,7 @@ async fn decode(Query(query): Query<DecodeQuery>, body: axum::body::Bytes) -> Re
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct PrintQuery {
     /// Which printer gets the bytes. The first one when left out.
     printer: Option<String>,
@@ -561,7 +576,7 @@ struct Printed {
 }
 
 /// Sends bytes to a printer as if a program had connected and sent them.
-#[utoipa::path(post, path = "/api/print", tag = "printing", params(PrintQuery), request_body(content = Vec<u8>, content_type = "application/octet-stream"),
+#[utoipa::path(post, path = "/api/print", operation_id = "print_bytes", tag = "printing", params(PrintQuery), request_body(content = Vec<u8>, content_type = "application/octet-stream"),
     responses((status = 200, description = "What the bytes made", body = Printed), (status = 404, description = "There is no such printer, receipt or connection, as `error` says", body = ErrorBody)))]
 async fn print(
     State(hub): State<Arc<Hub>>,
@@ -602,6 +617,7 @@ fn send(hub: &Arc<Hub>, printer: Arc<VirtualPrinter>, bytes: &[u8]) -> Printed {
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct VariantQuery {
     /// Only the variant that this library wrote, such as `python-escpos` or `node-thermal-printer`.
     library: Option<String>,
@@ -634,7 +650,7 @@ fn no_variant(sample: &samples::Sample) -> ApiError {
 }
 
 /// The ready made receipts, without their bytes.
-#[utoipa::path(get, path = "/api/samples", tag = "samples", responses((status = 200, description = "The samples, in the order to show them", body = Vec<SampleSummary>)))]
+#[utoipa::path(get, path = "/api/samples", operation_id = "list_samples", tag = "samples", responses((status = 200, description = "The samples, in the order to show them", body = Vec<SampleSummary>)))]
 async fn sample_list() -> Json<Vec<SampleSummary>> {
     Json(samples::all().iter().map(SampleSummary::of).collect())
 }
@@ -643,7 +659,7 @@ async fn sample_list() -> Json<Vec<SampleSummary>> {
 /// program can send to a printer. `library` and `dialect` pick the variant, and the first one is
 /// used when they are left out. Without `.bin` the answer says what the receipt is and what it
 /// should read as.
-#[utoipa::path(get, path = "/api/samples/{id}", tag = "samples",
+#[utoipa::path(get, path = "/api/samples/{id}", operation_id = "get_sample", tag = "samples",
     params(("id" = String, Path, description = "The id of the sample, with .bin after it for the bytes"), VariantQuery),
     responses(
         (status = 200, description = "The sample", body = SampleDetail),
@@ -683,7 +699,7 @@ async fn sample(Path(text): Path<String>, Query(query): Query<VariantQuery>) -> 
 /// Prints a sample to a printer, as if a program had connected and sent it. Without `dialect` it
 /// sends a variant in the command language the printer is set to, because a printer only reads
 /// its own.
-#[utoipa::path(post, path = "/api/samples/{id}/print", tag = "samples",
+#[utoipa::path(post, path = "/api/samples/{id}/print", operation_id = "print_sample", tag = "samples",
     params(("id" = String, Path, description = "The id of the sample"), PrintQuery, VariantQuery),
     responses(
         (status = 200, description = "What the bytes made", body = Printed),
@@ -704,6 +720,7 @@ async fn print_sample(
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct EventsQuery {
     /// `actions` also sends every command as it is read, which a long job makes thousands of.
     detail: Option<String>,
@@ -711,7 +728,7 @@ struct EventsQuery {
 
 /// The live events, as server sent events: receipt, cleared, status, connection and lagged, and
 /// with `detail=actions` also action, one for each command as it is read.
-#[utoipa::path(get, path = "/api/events", tag = "live", params(EventsQuery), responses((status = 200, description = "A stream of events", content_type = "text/event-stream")))]
+#[utoipa::path(get, path = "/api/events", operation_id = "stream_events", tag = "live", params(EventsQuery), responses((status = 200, description = "A stream of events", content_type = "text/event-stream")))]
 async fn events(
     State(hub): State<Arc<Hub>>,
     Query(query): Query<EventsQuery>,
