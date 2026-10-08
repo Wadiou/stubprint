@@ -1,4 +1,4 @@
-import { Link, Outlet } from "@tanstack/react-router";
+import { Link, Outlet, useMatches } from "@tanstack/react-router";
 import {
   Activity,
   LayoutGrid,
@@ -34,6 +34,7 @@ const GROUPS: { label: string; items: { to: string; label: string; icon: LucideI
 
 export function Shell() {
   const live = useLiveEvents();
+  const title = useMatches({ select: (matches) => matches.at(-1)?.staticData.title });
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       <aside className="flex w-58 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
@@ -61,7 +62,9 @@ export function Shell() {
         </nav>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center justify-end border-b px-5">
+        <header className="flex h-14 items-center gap-3 border-b px-5">
+          <h1 className="text-base font-semibold">{title}</h1>
+          <div className="flex-1" />
           <Badge variant="outline">{live ? "Live" : "Offline"}</Badge>
         </header>
         <main className="flex-1 p-6">

@@ -5,22 +5,39 @@ import { Placeholder } from "@/pages/placeholder";
 
 const rootRoute = createRootRoute({ component: Shell });
 
-const pages = [
-  { path: "/", component: LivePage },
-  { path: "/receipts", component: () => <Placeholder title="Receipts" /> },
-  { path: "/connections", component: () => <Placeholder title="Connections" /> },
-  { path: "/printers", component: () => <Placeholder title="Printers" /> },
-  { path: "/samples", component: () => <Placeholder title="Samples" /> },
-  { path: "/playground", component: () => <Placeholder title="Send and decode" /> },
-  { path: "/settings", component: () => <Placeholder title="Settings" /> },
-];
-
-export const router = createRouter({
-  routeTree: rootRoute.addChildren(pages.map((page) => createRoute({ getParentRoute: () => rootRoute, ...page }))),
+const liveRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/",
+  staticData: { title: "Live paper" },
+  validateSearch: (search: Record<string, unknown>): { receipt?: number } =>
+    typeof search.receipt === "number" ? { receipt: search.receipt } : {},
+  component: LiveRoute,
 });
+
+function LiveRoute() {
+  const { receipt } = liveRoute.useSearch();
+  const navigate = liveRoute.useNavigate();
+  return <LivePage picked={receipt} onPick={(id) => navigate({ search: { receipt: id } })} />;
+}
+
+const unbuilt = [
+  { path: "/receipts", title: "Receipts" },
+  { path: "/connections", title: "Connections" },
+  { path: "/printers", title: "Printers" },
+  { path: "/samples", title: "Samples" },
+  { path: "/playground", title: "Send and decode" },
+  { path: "/settings", title: "Settings" },
+].map(({ path, title }) =>
+  createRoute({ getParentRoute: () => rootRoute, path, staticData: { title }, component: Placeholder }),
+);
+
+export const router = createRouter({ routeTree: rootRoute.addChildren([liveRoute, ...unbuilt]) });
 
 declare module "@tanstack/react-router" {
   interface Register {
     router: typeof router;
+  }
+  interface StaticDataRouteOption {
+    title?: string;
   }
 }
