@@ -49,9 +49,9 @@ the code and is served at `/api/openapi.json`, with every route, parameter and f
 |---|---|
 | `GET /api/receipts` | the receipts, oldest first. `?printer=`, `?after=<id>`, `?limit=` (the latest) |
 | `GET /api/receipts/{id}` | one receipt: its lines, every event, and where each unknown command was |
-| `GET /api/receipts/{id}.bin` | the bytes the printer was sent for it |
-| `GET /api/receipts/{id}.txt` | the paper as text. Pictures and codes are tags such as `[qr M: hello]` |
-| `GET /api/receipts/{id}.png` | a picture of the paper. `?scale=1..4` |
+| `GET /api/receipts/{id}/bytes` | the bytes the printer was sent for it |
+| `GET /api/receipts/{id}/text` | the paper as text. Pictures and codes are tags such as `[qr M: hello]` |
+| `GET /api/receipts/{id}/picture` | a picture of the paper. `?scale=1..4` |
 | `?upto=N` on any of the forms | the receipt as it was after its first N events, for stepping through a job |
 | `GET /api/receipts/{id}/trace` | the commands of a receipt one by one: where its bytes start and end, what it asked for, and what the printer believed after it (code page, style, alignment, margins, line spacing, tab stops). It answers why a line came out as it did |
 | `GET /api/receipts/next` | waits for the next receipt: `?timeout=10` seconds, `?printer=`, `?after=<id>`. Answers 204 when none came |
