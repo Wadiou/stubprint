@@ -27,9 +27,21 @@ Crates are local only (`publish = false`). Other projects can use the core by pa
 - The page is a static app that only talks to the server over HTTP and server sent events. At
   release its files are embedded in the program, so one file is the server and the page, and the
   page and the API it calls always come from the same build. There is no desktop app.
-- It ships as a Docker image and as plain binaries on the release page. Docker comes last, at
-  release, not while the program is still being built. Image tags follow the project version, so
-  a pipeline pins the tag it was written for.
+- It ships as plain binaries with an install script (`curl -fsSL https://stubprint.dev/install.sh |
+  sh`), as a Docker image for CI and compose, and later as an npm package for Node projects. All
+  three are the same program, and their versions are the project version, so a pipeline pins the
+  one it was written for. This comes last, at release, not while the program is being built.
+- The install script is attached to every release with its version built in, and the website
+  redirects to it, so a pipeline writes the version once, in the address:
+  `curl -fsSL https://stubprint.dev/v0.3.1/install.sh | sh`. `/install.sh` is the latest one. The
+  script also takes `--version` or `STUBPRINT_VERSION`, checks the checksum, and fails when the
+  version does not exist. Where stubprint.dev is hosted is decided later: it only needs redirect
+  rules, and the GitHub address works without it.
+- The program is also its own command line. `stubprint` starts the server and opens the page in
+  the browser. Other commands call the API of a running server: print bytes or a sample, wait for
+  the next receipt and print it, show or download a receipt, set a printer's status, decode a
+  file. Their output is plain text or JSON and their exit codes tell CI whether it worked. This is
+  how scripts and agents use it, so MCP is not planned and is added only if someone asks.
 - The API has no version in its paths while the program is unstable, and breaking changes are
   listed in a changelog. `/api/v1` is added at the first stable release.
 - Stubprint is for developers, who start the server and know its address and ports. It shows the
@@ -115,7 +127,8 @@ feature is added to the server and used through the page, so each one is tested 
 6. The design of the web page, then the page (`web/`), starting with the paper, the command list
    and the printer's status.
 7. Added one by one, each used through the page: the realism of a real printer (offline hold, print
-   speed, receive buffer, connection limits, idle timeouts), MCP, the decoder gaps (page mode,
+   speed, receive buffer, connection limits, idle timeouts), the command line, the decoder gaps (page mode,
    second colour, rotated characters, a few Star commands), more printer models.
-8. Release: the page's files embedded in the program, `/api/v1`, the Docker image and the binaries,
+8. Release: the page's files embedded in the program, `/api/v1`, the binaries with the install script,
+   the Docker image, the npm package,
    the first version (`0.1.0`), the README, and the documentation at stubprint.dev.
