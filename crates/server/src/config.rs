@@ -12,11 +12,34 @@ pub struct Config {
     pub printers: Vec<PrinterConfig>,
     /// How many receipts are kept. The oldest are forgotten first.
     pub keep: usize,
-    /// A folder with the built web page, which the program then serves next to the API.
-    pub web: Option<PathBuf>,
+    /// The web page served next to the API.
+    pub web: Web,
     /// A file to write the addresses into once everything listens, so a program that started the
     /// server on port 0 can find it. It is removed when the server stops.
     pub ready: Option<PathBuf>,
+}
+
+/// Where the web page served next to the API comes from.
+#[derive(Debug, Clone, Default)]
+pub enum Web {
+    /// The page that is in the program, when it was built with one.
+    #[default]
+    Embedded,
+    /// A folder with a built page, such as one that is being worked on.
+    Folder(PathBuf),
+    /// No page, only the API.
+    Off,
+}
+
+impl Web {
+    /// Whether a page is served at all.
+    pub fn is_served(&self) -> bool {
+        match self {
+            Web::Embedded => crate::page::is_built(),
+            Web::Folder(_) => true,
+            Web::Off => false,
+        }
+    }
 }
 
 /// One virtual printer. It listens on its own port, which is what sets its command language, like
@@ -36,7 +59,7 @@ impl Default for Config {
             http: ([127, 0, 0, 1], 8080).into(),
             printers: vec![PrinterConfig::default()],
             keep: 500,
-            web: None,
+            web: Web::default(),
             ready: None,
         }
     }
@@ -168,7 +191,9 @@ impl Config {
         if let Some(keep) = file.keep {
             config.keep = keep;
         }
-        config.web = file.web;
+        if let Some(folder) = file.web {
+            config.web = Web::Folder(folder);
+        }
         config.ready = file.ready_file;
         if let Some(printers) = file.printers {
             config.printers = printers
@@ -195,7 +220,9 @@ impl Config {
         if let Some(keep) = keep {
             config.keep = keep;
         }
-        config.web = web;
+        if let Some(folder) = web {
+            config.web = Web::Folder(folder);
+        }
         config.ready = ready;
         if !printers.is_empty() {
             config.printers = printers

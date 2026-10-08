@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use serde_json::{json, Value};
-use stubprint_server::{serve, Config, PrinterConfig, Running};
+use stubprint_server::{serve, Config, PrinterConfig, Running, Web};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
@@ -24,10 +24,10 @@ impl Harness {
     }
 
     async fn start_keeping(printers: &[&str], keep: usize) -> Self {
-        Self::start_with(printers, keep, None).await
+        Self::start_with(printers, keep, Web::Off).await
     }
 
-    async fn start_with(printers: &[&str], keep: usize, web: Option<std::path::PathBuf>) -> Self {
+    async fn start_with(printers: &[&str], keep: usize, web: Web) -> Self {
         let printers: Vec<PrinterConfig> = printers
             .iter()
             .map(|text| PrinterConfig::parse(&format!("listen=127.0.0.1:0,{text}")).unwrap())
@@ -701,7 +701,7 @@ async fn an_address_that_is_taken_is_said_before_anything_runs() {
             ..PrinterConfig::default()
         }],
         keep: 5,
-        web: None,
+        web: Web::Off,
         ready: None,
     };
     let error = match serve(config).await {
@@ -1011,7 +1011,7 @@ async fn the_built_page_is_served_with_the_api_and_an_unknown_route_of_the_api_i
     std::fs::create_dir_all(folder.join("assets")).unwrap();
     std::fs::write(folder.join("index.html"), "<title>Stubprint</title>").unwrap();
     std::fs::write(folder.join("assets/app.js"), "console.log(1)").unwrap();
-    let server = Harness::start_with(&["name=till"], 10, Some(folder.clone())).await;
+    let server = Harness::start_with(&["name=till"], 10, Web::Folder(folder.clone())).await;
 
     let page = server.get("/").await;
     assert_eq!(page.status(), 200);
@@ -1038,6 +1038,29 @@ async fn the_built_page_is_served_with_the_api_and_an_unknown_route_of_the_api_i
     let body: Value = missing.json().await.unwrap();
     assert!(body["error"].as_str().unwrap().contains("no such route"));
     std::fs::remove_dir_all(folder).unwrap();
+}
+
+#[tokio::test]
+async fn the_page_in_the_program_is_served_when_it_was_built_in() {
+    let server = Harness::start_with(&["name=till"], 10, Web::Embedded).await;
+    assert_eq!(server.get("/api/health").await.status(), 200);
+    // The check of the page's build sets this to make sure the page really is in the program.
+    if std::env::var_os("STUBPRINT_REQUIRE_PAGE").is_some() {
+        assert!(
+            Web::Embedded.is_served(),
+            "the program was built without the page"
+        );
+    }
+    if !Web::Embedded.is_served() {
+        assert_eq!(server.get("/").await.status(), 404);
+        return;
+    }
+    let page = server.get("/").await;
+    assert_eq!(page.status(), 200);
+    assert!(page.text().await.unwrap().contains("<div id=\"root\">"));
+    assert_eq!(server.get("/printers").await.status(), 200);
+    assert_eq!(server.get("/assets/nothing.js").await.status(), 404);
+    assert_eq!(server.get("/api/nothing").await.status(), 404);
 }
 
 #[tokio::test]

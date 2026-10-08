@@ -20,8 +20,9 @@ use tokio_stream::{Stream, StreamExt};
 use tower_http::services::{ServeDir, ServeFile};
 use utoipa::{OpenApi, ToSchema};
 
-use crate::config::PrinterSettings;
+use crate::config::{PrinterSettings, Web};
 use crate::hub::{Connection, Hub, Notice, Stored};
+use crate::page;
 use crate::printer::VirtualPrinter;
 use crate::samples;
 use crate::session::Session;
@@ -40,7 +41,7 @@ const LONGEST_WAIT: u64 = 120;
 
 /// The API, and the web page of `web` when there is one. A path of the API that does not exist is a
 /// 404 and not the page, so a program that asks for it gets an answer it can read.
-pub fn router(hub: Arc<Hub>, web: Option<&std::path::Path>) -> Router {
+pub fn router(hub: Arc<Hub>, web: &Web) -> Router {
     let api = Router::new()
         .route("/api", get(index))
         .route("/api/health", get(health))
@@ -68,10 +69,11 @@ pub fn router(hub: Arc<Hub>, web: Option<&std::path::Path>) -> Router {
         .with_state(hub);
     match web {
         // Any other path is the page, which finds its own route in the address.
-        Some(folder) => api.fallback_service(
+        Web::Folder(folder) => api.fallback_service(
             ServeDir::new(folder).fallback(ServeFile::new(folder.join("index.html"))),
         ),
-        None => api,
+        Web::Embedded if page::is_built() => api.fallback(get(page::serve)),
+        Web::Embedded | Web::Off => api,
     }
 }
 

@@ -9,6 +9,7 @@ pub mod api;
 mod config;
 mod hub;
 mod listener;
+mod page;
 mod printer;
 mod samples;
 mod session;
@@ -23,7 +24,7 @@ use tokio::net::TcpListener;
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
 
-pub use config::{Config, PrinterConfig};
+pub use config::{Config, PrinterConfig, Web};
 pub use hub::{Hub, Notice, Stored};
 pub use printer::VirtualPrinter;
 
@@ -96,7 +97,7 @@ pub async fn serve(config: Config) -> io::Result<Running> {
         }
     }
     let (stop, mut stopped) = watch::channel(false);
-    let app = api::router(hub.clone(), config.web.as_deref());
+    let app = api::router(hub.clone(), &config.web);
     let api = tokio::spawn(async move {
         let _ = axum::serve(web, app)
             .with_graceful_shutdown(async move {
@@ -110,7 +111,7 @@ pub async fn serve(config: Config) -> io::Result<Running> {
         stop,
         api,
         ready: config.ready,
-        web: config.web.is_some(),
+        web: config.web.is_served(),
     })
 }
 

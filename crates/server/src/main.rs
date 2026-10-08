@@ -23,7 +23,8 @@ struct Options {
     #[arg(long)]
     keep: Option<usize>,
 
-    /// A folder with the built web page to serve at the address of the API.
+    /// A folder with a built web page to serve at the address of the API, instead of the one in
+    /// the program.
     #[arg(long)]
     web: Option<PathBuf>,
 
