@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AddPrinterData, AddPrinterErrors, AddPrinterResponses, ClearReceiptsData, ClearReceiptsErrors, ClearReceiptsResponses, DecodeBytesData, DecodeBytesErrors, DecodeBytesResponses, GetConnectionData, GetConnectionErrors, GetConnectionResponses, GetHealthData, GetHealthResponses, GetIndexData, GetIndexResponses, GetOpenapiData, GetOpenapiResponses, GetPrinterData, GetPrinterErrors, GetPrinterResponses, GetReceiptBytesData, GetReceiptBytesErrors, GetReceiptBytesResponses, GetReceiptData, GetReceiptErrors, GetReceiptPictureData, GetReceiptPictureErrors, GetReceiptPictureResponses, GetReceiptResponses, GetReceiptTextData, GetReceiptTextErrors, GetReceiptTextResponses, GetSampleData, GetSampleErrors, GetSampleResponses, GetTraceData, GetTraceErrors, GetTraceResponses, ListConnectionsData, ListConnectionsResponses, ListPrintersData, ListPrintersResponses, ListProfilesData, ListProfilesResponses, ListReceiptsData, ListReceiptsResponses, ListSamplesData, ListSamplesResponses, PrintBytesData, PrintBytesErrors, PrintBytesResponses, PrintSampleData, PrintSampleErrors, PrintSampleResponses, RemovePrinterData, RemovePrinterErrors, RemovePrinterResponses, SetPrinterStatusData, SetPrinterStatusErrors, SetPrinterStatusResponses, StreamEventsData, StreamEventsResponses, UpdatePrinterData, UpdatePrinterErrors, UpdatePrinterResponses, WaitForReceiptData, WaitForReceiptResponses } from './types.gen';
+import type { AddPrinterData, AddPrinterErrors, AddPrinterResponses, ClearReceiptsData, ClearReceiptsErrors, ClearReceiptsResponses, DecodeBytesData, DecodeBytesErrors, DecodeBytesResponses, GetConnectionData, GetConnectionErrors, GetConnectionResponses, GetHealthData, GetHealthResponses, GetIndexData, GetIndexResponses, GetOpenapiData, GetOpenapiResponses, GetPrinterData, GetPrinterErrors, GetPrinterResponses, GetReceiptBytesData, GetReceiptBytesErrors, GetReceiptBytesResponses, GetReceiptData, GetReceiptErrors, GetReceiptPictureData, GetReceiptPictureErrors, GetReceiptPictureResponses, GetReceiptResponses, GetReceiptTextData, GetReceiptTextErrors, GetReceiptTextResponses, GetSampleBytesData, GetSampleBytesErrors, GetSampleBytesResponses, GetSampleData, GetSampleErrors, GetSamplePictureData, GetSamplePictureErrors, GetSamplePictureResponses, GetSampleResponses, GetSampleTextData, GetSampleTextErrors, GetSampleTextResponses, GetTraceData, GetTraceErrors, GetTraceResponses, ListConnectionsData, ListConnectionsResponses, ListPrintersData, ListPrintersResponses, ListProfilesData, ListProfilesResponses, ListReceiptsData, ListReceiptsResponses, ListSamplesData, ListSamplesResponses, PrintBytesData, PrintBytesErrors, PrintBytesResponses, PrintSampleData, PrintSampleErrors, PrintSampleResponses, RemovePrinterData, RemovePrinterErrors, RemovePrinterResponses, SetPrinterStatusData, SetPrinterStatusErrors, SetPrinterStatusResponses, StreamEventsData, StreamEventsResponses, UpdatePrinterData, UpdatePrinterErrors, UpdatePrinterResponses, WaitForReceiptData, WaitForReceiptResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -182,12 +182,21 @@ export const getTrace = <ThrowOnError extends boolean = false>(options: Options<
 export const listSamples = <ThrowOnError extends boolean = false>(options?: Options<ListSamplesData, ThrowOnError>): RequestResult<ListSamplesResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListSamplesResponses, unknown, ThrowOnError>({ url: '/api/samples', ...options });
 
 /**
- * One ready made receipt. The id can end in `.bin` for the bytes of one variant, which any
- * program can send to a printer. `library` and `dialect` pick the variant, and the first one is
- * used when they are left out. Without `.bin` the answer says what the receipt is and what it
- * should read as.
+ * One ready made receipt: what it is, and what it should read as.
  */
 export const getSample = <ThrowOnError extends boolean = false>(options: Options<GetSampleData, ThrowOnError>): RequestResult<GetSampleResponses, GetSampleErrors, ThrowOnError> => (options.client ?? client).get<GetSampleResponses, GetSampleErrors, ThrowOnError>({ url: '/api/samples/{id}', ...options });
+
+/**
+ * The bytes of one variant of a sample, which any program can send to a printer. `library` and
+ * `dialect` pick the variant, and the first one is used when they are left out.
+ */
+export const getSampleBytes = <ThrowOnError extends boolean = false>(options: Options<GetSampleBytesData, ThrowOnError>): RequestResult<GetSampleBytesResponses, GetSampleBytesErrors, ThrowOnError> => (options.client ?? client).get<GetSampleBytesResponses, GetSampleBytesErrors, ThrowOnError>({ url: '/api/samples/{id}/bytes', ...options });
+
+/**
+ * A picture of what a variant of a sample prints, on the paper of the model it was written for.
+ * Nothing is printed to draw it. `library` and `dialect` pick the variant.
+ */
+export const getSamplePicture = <ThrowOnError extends boolean = false>(options: Options<GetSamplePictureData, ThrowOnError>): RequestResult<GetSamplePictureResponses, GetSamplePictureErrors, ThrowOnError> => (options.client ?? client).get<GetSamplePictureResponses, GetSamplePictureErrors, ThrowOnError>({ url: '/api/samples/{id}/picture', ...options });
 
 /**
  * Prints a sample to a printer, as if a program had connected and sent it. Without `dialect` it
@@ -195,3 +204,9 @@ export const getSample = <ThrowOnError extends boolean = false>(options: Options
  * its own.
  */
 export const printSample = <ThrowOnError extends boolean = false>(options: Options<PrintSampleData, ThrowOnError>): RequestResult<PrintSampleResponses, PrintSampleErrors, ThrowOnError> => (options.client ?? client).post<PrintSampleResponses, PrintSampleErrors, ThrowOnError>({ url: '/api/samples/{id}/print', ...options });
+
+/**
+ * What a variant of a sample prints, as text on the paper of the model it was written for.
+ * Pictures and codes are tags such as `[qr M: hello]`. Nothing is printed to get it.
+ */
+export const getSampleText = <ThrowOnError extends boolean = false>(options: Options<GetSampleTextData, ThrowOnError>): RequestResult<GetSampleTextResponses, GetSampleTextErrors, ThrowOnError> => (options.client ?? client).get<GetSampleTextResponses, GetSampleTextErrors, ThrowOnError>({ url: '/api/samples/{id}/text', ...options });

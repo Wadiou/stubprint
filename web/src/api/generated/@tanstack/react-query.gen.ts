@@ -3,8 +3,8 @@
 import { type DefaultError, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { addPrinter, clearReceipts, decodeBytes, getConnection, getHealth, getIndex, getOpenapi, getPrinter, getReceipt, getReceiptBytes, getReceiptPicture, getReceiptText, getSample, getTrace, listConnections, listPrinters, listProfiles, listReceipts, listSamples, type Options, printBytes, printSample, removePrinter, setPrinterStatus, updatePrinter, waitForReceipt } from '../sdk.gen';
-import type { AddPrinterData, AddPrinterError, AddPrinterResponse, ClearReceiptsData, ClearReceiptsError, DecodeBytesData, DecodeBytesError, DecodeBytesResponse, GetConnectionData, GetConnectionError, GetConnectionResponse, GetHealthData, GetIndexData, GetOpenapiData, GetPrinterData, GetPrinterError, GetPrinterResponse, GetReceiptBytesData, GetReceiptBytesError, GetReceiptBytesResponse, GetReceiptData, GetReceiptError, GetReceiptPictureData, GetReceiptPictureError, GetReceiptPictureResponse, GetReceiptResponse, GetReceiptTextData, GetReceiptTextError, GetReceiptTextResponse, GetSampleData, GetSampleError, GetSampleResponse, GetTraceData, GetTraceError, GetTraceResponse, ListConnectionsData, ListConnectionsResponse, ListPrintersData, ListPrintersResponse, ListProfilesData, ListProfilesResponse, ListReceiptsData, ListReceiptsResponse, ListSamplesData, ListSamplesResponse, PrintBytesData, PrintBytesError, PrintBytesResponse, PrintSampleData, PrintSampleError, PrintSampleResponse, RemovePrinterData, RemovePrinterError, RemovePrinterResponse, SetPrinterStatusData, SetPrinterStatusError, SetPrinterStatusResponse, UpdatePrinterData, UpdatePrinterError, UpdatePrinterResponse, WaitForReceiptData, WaitForReceiptResponse } from '../types.gen';
+import { addPrinter, clearReceipts, decodeBytes, getConnection, getHealth, getIndex, getOpenapi, getPrinter, getReceipt, getReceiptBytes, getReceiptPicture, getReceiptText, getSample, getSampleBytes, getSamplePicture, getSampleText, getTrace, listConnections, listPrinters, listProfiles, listReceipts, listSamples, type Options, printBytes, printSample, removePrinter, setPrinterStatus, updatePrinter, waitForReceipt } from '../sdk.gen';
+import type { AddPrinterData, AddPrinterError, AddPrinterResponse, ClearReceiptsData, ClearReceiptsError, DecodeBytesData, DecodeBytesError, DecodeBytesResponse, GetConnectionData, GetConnectionError, GetConnectionResponse, GetHealthData, GetIndexData, GetOpenapiData, GetPrinterData, GetPrinterError, GetPrinterResponse, GetReceiptBytesData, GetReceiptBytesError, GetReceiptBytesResponse, GetReceiptData, GetReceiptError, GetReceiptPictureData, GetReceiptPictureError, GetReceiptPictureResponse, GetReceiptResponse, GetReceiptTextData, GetReceiptTextError, GetReceiptTextResponse, GetSampleBytesData, GetSampleBytesError, GetSampleBytesResponse, GetSampleData, GetSampleError, GetSamplePictureData, GetSamplePictureError, GetSamplePictureResponse, GetSampleResponse, GetSampleTextData, GetSampleTextError, GetSampleTextResponse, GetTraceData, GetTraceError, GetTraceResponse, ListConnectionsData, ListConnectionsResponse, ListPrintersData, ListPrintersResponse, ListProfilesData, ListProfilesResponse, ListReceiptsData, ListReceiptsResponse, ListSamplesData, ListSamplesResponse, PrintBytesData, PrintBytesError, PrintBytesResponse, PrintSampleData, PrintSampleError, PrintSampleResponse, RemovePrinterData, RemovePrinterError, RemovePrinterResponse, SetPrinterStatusData, SetPrinterStatusError, SetPrinterStatusResponse, UpdatePrinterData, UpdatePrinterError, UpdatePrinterResponse, WaitForReceiptData, WaitForReceiptResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -454,10 +454,7 @@ export const listSamplesOptions = (options?: Options<ListSamplesData>) => queryO
 export const getSampleQueryKey = (options: Options<GetSampleData>) => createQueryKey('getSample', options);
 
 /**
- * One ready made receipt. The id can end in `.bin` for the bytes of one variant, which any
- * program can send to a printer. `library` and `dialect` pick the variant, and the first one is
- * used when they are left out. Without `.bin` the answer says what the receipt is and what it
- * should read as.
+ * One ready made receipt: what it is, and what it should read as.
  */
 export const getSampleOptions = (options: Options<GetSampleData>) => queryOptions<GetSampleResponse, GetSampleError, GetSampleResponse, ReturnType<typeof getSampleQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -470,6 +467,44 @@ export const getSampleOptions = (options: Options<GetSampleData>) => queryOption
         return data;
     },
     queryKey: getSampleQueryKey(options)
+});
+
+export const getSampleBytesQueryKey = (options: Options<GetSampleBytesData>) => createQueryKey('getSampleBytes', options);
+
+/**
+ * The bytes of one variant of a sample, which any program can send to a printer. `library` and
+ * `dialect` pick the variant, and the first one is used when they are left out.
+ */
+export const getSampleBytesOptions = (options: Options<GetSampleBytesData>) => queryOptions<GetSampleBytesResponse, GetSampleBytesError, GetSampleBytesResponse, ReturnType<typeof getSampleBytesQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getSampleBytes({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getSampleBytesQueryKey(options)
+});
+
+export const getSamplePictureQueryKey = (options: Options<GetSamplePictureData>) => createQueryKey('getSamplePicture', options);
+
+/**
+ * A picture of what a variant of a sample prints, on the paper of the model it was written for.
+ * Nothing is printed to draw it. `library` and `dialect` pick the variant.
+ */
+export const getSamplePictureOptions = (options: Options<GetSamplePictureData>) => queryOptions<GetSamplePictureResponse, GetSamplePictureError, GetSamplePictureResponse, ReturnType<typeof getSamplePictureQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getSamplePicture({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getSamplePictureQueryKey(options)
 });
 
 /**
@@ -490,3 +525,22 @@ export const printSampleMutation = (options?: Partial<Options<PrintSampleData>>)
     };
     return mutationOptions;
 };
+
+export const getSampleTextQueryKey = (options: Options<GetSampleTextData>) => createQueryKey('getSampleText', options);
+
+/**
+ * What a variant of a sample prints, as text on the paper of the model it was written for.
+ * Pictures and codes are tags such as `[qr M: hello]`. Nothing is printed to get it.
+ */
+export const getSampleTextOptions = (options: Options<GetSampleTextData>) => queryOptions<GetSampleTextResponse, GetSampleTextError, GetSampleTextResponse, ReturnType<typeof getSampleTextQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getSampleText({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getSampleTextQueryKey(options)
+});

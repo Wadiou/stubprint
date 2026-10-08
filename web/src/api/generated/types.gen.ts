@@ -1714,7 +1714,37 @@ export type GetSampleData = {
     body?: never;
     path: {
         /**
-         * The id of the sample, with .bin after it for the bytes
+         * The id of the sample
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/samples/{id}';
+};
+
+export type GetSampleErrors = {
+    /**
+     * There is no such sample, as `error` says
+     */
+    404: ErrorBody;
+};
+
+export type GetSampleError = GetSampleErrors[keyof GetSampleErrors];
+
+export type GetSampleResponses = {
+    /**
+     * The sample
+     */
+    200: SampleDetail;
+};
+
+export type GetSampleResponse = GetSampleResponses[keyof GetSampleResponses];
+
+export type GetSampleBytesData = {
+    body?: never;
+    path: {
+        /**
+         * The id of the sample
          */
         id: string;
     };
@@ -1728,26 +1758,65 @@ export type GetSampleData = {
          */
         dialect?: string;
     };
-    url: '/api/samples/{id}';
+    url: '/api/samples/{id}/bytes';
 };
 
-export type GetSampleErrors = {
+export type GetSampleBytesErrors = {
     /**
      * There is no such sample or variant, as `error` says
      */
     404: ErrorBody;
 };
 
-export type GetSampleError = GetSampleErrors[keyof GetSampleErrors];
+export type GetSampleBytesError = GetSampleBytesErrors[keyof GetSampleBytesErrors];
 
-export type GetSampleResponses = {
+export type GetSampleBytesResponses = {
     /**
-     * With .bin
+     * The bytes
      */
-    200: Blob | File;
+    200: Binary;
 };
 
-export type GetSampleResponse = GetSampleResponses[keyof GetSampleResponses];
+export type GetSampleBytesResponse = GetSampleBytesResponses[keyof GetSampleBytesResponses];
+
+export type GetSamplePictureData = {
+    body?: never;
+    path: {
+        /**
+         * The id of the sample
+         */
+        id: string;
+    };
+    query?: {
+        /**
+         * Only the variant that this library wrote, such as `python-escpos` or `node-thermal-printer`.
+         */
+        library?: string;
+        /**
+         * Only the variant in this command language, `escpos` or `starline`.
+         */
+        dialect?: string;
+    };
+    url: '/api/samples/{id}/picture';
+};
+
+export type GetSamplePictureErrors = {
+    /**
+     * There is no such sample or variant, as `error` says
+     */
+    404: ErrorBody;
+};
+
+export type GetSamplePictureError = GetSamplePictureErrors[keyof GetSamplePictureErrors];
+
+export type GetSamplePictureResponses = {
+    /**
+     * The picture
+     */
+    200: Binary;
+};
+
+export type GetSamplePictureResponse = GetSamplePictureResponses[keyof GetSamplePictureResponses];
 
 export type PrintSampleData = {
     body?: never;
@@ -1791,3 +1860,42 @@ export type PrintSampleResponses = {
 };
 
 export type PrintSampleResponse = PrintSampleResponses[keyof PrintSampleResponses];
+
+export type GetSampleTextData = {
+    body?: never;
+    path: {
+        /**
+         * The id of the sample
+         */
+        id: string;
+    };
+    query?: {
+        /**
+         * Only the variant that this library wrote, such as `python-escpos` or `node-thermal-printer`.
+         */
+        library?: string;
+        /**
+         * Only the variant in this command language, `escpos` or `starline`.
+         */
+        dialect?: string;
+    };
+    url: '/api/samples/{id}/text';
+};
+
+export type GetSampleTextErrors = {
+    /**
+     * There is no such sample or variant, as `error` says
+     */
+    404: ErrorBody;
+};
+
+export type GetSampleTextError = GetSampleTextErrors[keyof GetSampleTextErrors];
+
+export type GetSampleTextResponses = {
+    /**
+     * The paper as text
+     */
+    200: string;
+};
+
+export type GetSampleTextResponse = GetSampleTextResponses[keyof GetSampleTextResponses];
