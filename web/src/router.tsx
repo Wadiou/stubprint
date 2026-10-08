@@ -17,7 +17,7 @@ const liveRoute = createRoute({
 function LiveRoute() {
   const { receipt } = liveRoute.useSearch();
   const navigate = liveRoute.useNavigate();
-  return <LivePage picked={receipt} onPick={(id) => navigate({ search: { receipt: id } })} />;
+  return <LivePage picked={receipt} onPick={(id) => navigate({ search: id === undefined ? {} : { receipt: id } })} />;
 }
 
 const unbuilt = [

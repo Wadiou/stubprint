@@ -10,6 +10,8 @@ import {
 } from "@/api/generated/@tanstack/react-query.gen";
 import type { ReceiptSummary } from "@/api/generated/types.gen";
 import { CommandList, type Row } from "@/components/commands";
+import { ModelStrip } from "@/components/model-strip";
+import { ReceiptRail } from "@/components/receipt-rail";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -19,7 +21,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { describe, stateRows } from "@/lib/commands";
@@ -77,7 +78,7 @@ function ReceiptView({ receipt, actions }: { receipt: ReceiptSummary; actions: R
   const until = chosen ? chosen.end : 0;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_28rem]">
+    <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
       <Tabs defaultValue="picture" className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <TabsList>
@@ -87,6 +88,9 @@ function ReceiptView({ receipt, actions }: { receipt: ReceiptSummary; actions: R
           </TabsList>
           <div className="flex-1" />
           {actions}
+        </div>
+        <div className="mt-3">
+          <ModelStrip profile={receipt.profile} printer={receipt.printer} />
         </div>
         <Card className="mt-3 items-center bg-muted/40 py-6">
           <CardContent className="w-full overflow-auto">
@@ -181,8 +185,8 @@ function ReceiptView({ receipt, actions }: { receipt: ReceiptSummary; actions: R
   );
 }
 
-/** The newest receipt unless another was picked. */
-export function LivePage({ picked, onPick }: { picked?: number; onPick: (id: number) => void }) {
+/** The newest receipt while it follows them, or the one that was picked. */
+export function LivePage({ picked, onPick }: { picked?: number; onPick: (id?: number) => void }) {
   const receipts = useQuery(listReceiptsOptions());
   const printers = useQuery(listPrintersOptions());
   const clear = useMutation(clearReceiptsMutation());
@@ -192,25 +196,11 @@ export function LivePage({ picked, onPick }: { picked?: number; onPick: (id: num
 
   if (!current) return <Empty address={printer && `${printer.listen}, ${printer.dialect}`} />;
 
-  const items = [...list].reverse().map((receipt) => ({
-    value: String(receipt.id),
-    label: `Receipt #${receipt.id}, ${receipt.printer}, ${time(receipt)}`,
-  }));
-
   const actions = (
     <>
-      <Select items={items} value={String(current.id)} onValueChange={(id) => onPick(Number(id))}>
-        <SelectTrigger size="sm" aria-label="Receipt">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {items.map((item) => (
-            <SelectItem key={item.value} value={item.value}>
-              {item.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <span className="text-sm text-muted-foreground">
+        Receipt #{current.id}, {time(current)}, {current.printer}
+      </span>
       <DropdownMenu>
         <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>Download</DropdownMenuTrigger>
         <DropdownMenuContent align="end">
@@ -230,5 +220,16 @@ export function LivePage({ picked, onPick }: { picked?: number; onPick: (id: num
     </>
   );
 
-  return <ReceiptView key={current.id} receipt={current} actions={actions} />;
+  return (
+    <div className="grid min-w-0 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
+      <ReceiptRail
+        receipts={list}
+        selected={current.id}
+        following={picked === undefined}
+        onPick={onPick}
+        onFollow={(on) => onPick(on ? undefined : current.id)}
+      />
+      <ReceiptView key={current.id} receipt={current} actions={actions} />
+    </div>
+  );
 }

@@ -24,7 +24,28 @@ for (const side of ["offsetHeight", "offsetWidth"]) {
 }
 
 const printer = { name: "front", dialect: "escpos", listen: "127.0.0.1:9100" };
-const receipt = (id: number) => ({ id, printer: "front", dialect: "escpos", at: 0, bytes: 16, events: 3, preview: [] });
+const receipt = (id: number) => ({
+  id,
+  printer: "front",
+  dialect: "escpos",
+  profile: "TM-T88IV",
+  at: 0,
+  bytes: 16,
+  events: 3,
+  preview: ["Green Market", "Total 4.20"],
+});
+const model = {
+  name: "TM-T88IV",
+  vendor: "Epson",
+  model: "TM-T88IV",
+  columns: [42, 56],
+  width_dots: 512,
+  width_mm: 80,
+  dpi: 180,
+  code_pages: 11,
+  manuals: ["https://files.support.epson.com/pdf/pos/bulk/tm-t88iv_eng_trg_revc_02.pdf"],
+  features: ["qrCode", "paperFullCut"],
+};
 const trace = [
   { index: 0, start: 0, end: 2, event: { type: "initialize" }, state: snapshot },
   {
@@ -40,6 +61,7 @@ const trace = [
 function serve(...ids: number[]) {
   answers["/api/receipts"] = ids.map(receipt);
   answers["/api/printers"] = [printer];
+  answers["/api/profiles"] = [model];
   for (const id of ids) {
     answers[`/api/receipts/${id}/trace`] = trace;
     answers[`/api/receipts/${id}/bytes`] = Uint8Array.from([0x1b, 0x40, ...new Array(14).fill(0x47)]);
@@ -47,7 +69,7 @@ function serve(...ids: number[]) {
   }
 }
 
-async function show(picked?: number, onPick = () => {}) {
+async function show(picked?: number, onPick: (id?: number) => void = () => {}) {
   const { LivePage } = await import("./live");
   render(
     <QueryClientProvider client={new QueryClient()}>
@@ -127,4 +149,52 @@ test("without receipts it says where to print", async () => {
   answers["/api/printers"] = [printer];
   await show();
   expect(await screen.findByText(/127\.0\.0\.1:9100/)).toBeTruthy();
+});
+
+test("the receipts are listed newest first and a click picks one", async () => {
+  serve(5, 6, 7);
+  const onPick = vi.fn();
+  await show(undefined, onPick);
+  const ids = (await screen.findAllByRole("button", { name: /^#\d/ })).map((button) => button.textContent?.slice(0, 2));
+  expect(ids).toEqual(["#7", "#6", "#5"]);
+  fireEvent.click(screen.getByRole("button", { name: /^#6/ }));
+  expect(onPick).toHaveBeenCalledWith(6);
+});
+
+test("the list follows the newest until one is picked, and the switch goes back to following", async () => {
+  serve(6, 7);
+  const onPick = vi.fn();
+  await show(undefined, onPick);
+  const follow = await screen.findByRole("switch", { name: "Follow the newest receipt" });
+  expect(follow.getAttribute("aria-checked")).toBe("true");
+  fireEvent.click(follow);
+  expect(onPick).toHaveBeenLastCalledWith(7);
+});
+
+test("a receipt that was picked is not followed and the switch follows again", async () => {
+  serve(6, 7);
+  const onPick = vi.fn();
+  await show(6, onPick);
+  const follow = await screen.findByRole("switch", { name: "Follow the newest receipt" });
+  expect(follow.getAttribute("aria-checked")).toBe("false");
+  fireEvent.click(follow);
+  expect(onPick).toHaveBeenLastCalledWith(undefined);
+});
+
+test("the search keeps the receipts that printed the text", async () => {
+  serve(6, 7);
+  await show();
+  fireEvent.change(await screen.findByLabelText("Search printed text"), { target: { value: "no such text" } });
+  expect(await screen.findByText("No receipt has this text.")).toBeTruthy();
+});
+
+test("the printer model of the receipt is named and its details open", async () => {
+  serve(7);
+  await show();
+  expect(await screen.findByText("Epson, 80 mm, 512 dots, 42 columns")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Details" }));
+  expect(await screen.findByText("80 mm, 512 dots at 180 dpi")).toBeTruthy();
+  expect(screen.getByText("42 in font A, 56 in font B")).toBeTruthy();
+  expect(screen.getByText("QR code")).toBeTruthy();
+  expect(screen.getByRole("link", { name: /files\.support\.epson\.com/ })).toBeTruthy();
 });
