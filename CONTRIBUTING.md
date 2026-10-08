@@ -40,7 +40,8 @@ cargo build -p stubprint-server
 cd web && pnpm install
 pnpm dev                                  # with a stubprint running on 127.0.0.1:8080
                                           # or STUBPRINT_SERVER=http://127.0.0.1:41233 pnpm dev
-pnpm build && ../target/debug/stubprint --web dist   # the program serves the build
+pnpm build && cargo build -p stubprint-server   # the program carries the build
+../target/debug/stubprint                  # and serves it, or `--web dist` to serve a folder instead
 pnpm typecheck && pnpm test
 ```
 
