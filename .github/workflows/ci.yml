@@ -70,6 +70,8 @@ jobs:
         working-directory: web
       - run: pnpm build
         working-directory: web
+      - name: The program carries the page it was built with
+        run: STUBPRINT_REQUIRE_PAGE=1 cargo test -p stubprint-server the_page_in_the_program
 
   licences:
     runs-on: ubuntu-latest
