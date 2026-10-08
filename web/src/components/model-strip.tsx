@@ -40,10 +40,18 @@ export function ModelStrip({ profile, printer }: { profile: string; printer?: st
             {printer && <span className="text-xs text-muted-foreground">printed on {printer}</span>}
           </div>
           <dl className="mt-3 grid grid-cols-[6.5rem_1fr] gap-x-3 gap-y-2 text-sm">
-            <dt className="text-muted-foreground">Paper</dt>
-            <dd>{paperText(model)}</dd>
-            <dt className="text-muted-foreground">Columns</dt>
-            <dd>{columnsText(model.columns)}</dd>
+            {paperText(model) && (
+              <>
+                <dt className="text-muted-foreground">Paper</dt>
+                <dd>{paperText(model)}</dd>
+              </>
+            )}
+            {columnsText(model.columns) && (
+              <>
+                <dt className="text-muted-foreground">Columns</dt>
+                <dd>{columnsText(model.columns)}</dd>
+              </>
+            )}
             <dt className="text-muted-foreground">Code pages</dt>
             <dd>{model.code_pages}</dd>
           </dl>

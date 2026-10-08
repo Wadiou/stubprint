@@ -12,5 +12,14 @@ export function printerState(status: PrinterInfo["status"]): { label: string; to
   return { label: "Online", tone: "ok" };
 }
 
+/** The name a new printer gets: `printer`, or with `_2`, `_3` and so on after it, the first that is not taken. */
+export function freeName(taken: string[], wanted = "printer") {
+  if (!taken.includes(wanted)) return wanted;
+  for (let number = 2; ; number++) {
+    const name = `${wanted}_${number}`;
+    if (!taken.includes(name)) return name;
+  }
+}
+
 /** The port of a printer, such as `:9100`. */
 export const port = (printer: Pick<PrinterInfo, "listen">) => printer.listen.slice(printer.listen.lastIndexOf(":"));

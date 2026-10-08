@@ -23,19 +23,19 @@ export function featureLabels(features: string[]) {
   return FEATURES.filter(([names]) => names.some((name) => features.includes(name))).map(([, label]) => label);
 }
 
-/** The paper as the model says it: `80 mm, 576 dots at 203 dpi`, with what is not known left out. */
+/** The paper as the model says it: `80 mm, 576 dots at 203 dpi`, with what is not known left out. It is empty when nothing is known. */
 export function paperText(profile: Pick<ProfileInfo, "width_mm" | "width_dots" | "dpi">) {
   const parts = [
     profile.width_mm ? `${profile.width_mm} mm` : undefined,
     profile.width_dots ? `${profile.width_dots} dots${profile.dpi ? ` at ${profile.dpi} dpi` : ""}` : undefined,
   ];
-  return parts.filter(Boolean).join(", ") || "Not said";
+  return parts.filter(Boolean).join(", ");
 }
 
-/** How many characters fit on a line in each font that the model has: `48 in font A, 64 in font B`. */
+/** How many characters fit on a line in each font that the model has: `48 in font A, 64 in font B`. It is empty when nothing is known. */
 export function columnsText(columns: number[]) {
   const fonts = columns.flatMap((count, index) =>
     count > 0 ? [`${count} in font ${String.fromCharCode(65 + index)}`] : [],
   );
-  return fonts.join(", ") || "Not said";
+  return fonts.join(", ");
 }

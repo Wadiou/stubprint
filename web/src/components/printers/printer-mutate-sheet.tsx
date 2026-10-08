@@ -5,11 +5,14 @@ import type { Dialect, PrinterInfo } from "@/api/generated/types.gen";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetBody, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useActivePrinter } from "@/lib/active-printer";
-import { DIALECTS, paperText } from "@/lib/profile";
-import { Field, ModelSelect, refused } from "./printer-fields";
+import { freeName } from "@/lib/printer";
+import { DIALECTS } from "@/lib/profile";
+import { Field, refused } from "./printer-fields";
+import { ModelPicker } from "./model-picker";
 import { PrinterStatusSettings } from "./printer-status-settings";
 
 export type PrinterMutateMode = "create" | "edit";
@@ -26,7 +29,7 @@ function MutateForm({
   onRemove: (printer: PrinterInfo) => void;
 }) {
   const queryClient = useQueryClient();
-  const { choose } = useActivePrinter();
+  const { choose, printers } = useActivePrinter();
   const models = useQuery({ ...listProfilesOptions(), staleTime: Number.POSITIVE_INFINITY }).data ?? [];
   const editing = mode === "edit" && printer !== undefined;
   const refresh = () => queryClient.invalidateQueries({ queryKey: listPrintersQueryKey() });
@@ -46,41 +49,47 @@ function MutateForm({
     },
   });
 
-  const [name, setName] = useState(printer?.name ?? "");
+  const [name, setName] = useState(() => printer?.name ?? freeName(printers.map((item) => item.name)));
+  const [anyPort, setAnyPort] = useState(true);
   const [listen, setListen] = useState(printer?.listen ?? "");
   const [dialect, setDialect] = useState<Dialect>(printer?.dialect ?? "escpos");
   const [model, setModel] = useState(printer?.profile ?? "default");
-  const chosen = models.find((item) => item.name === model);
   const failed = add.error ?? update.error;
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (editing) update.mutate({ path: { name: printer.name }, body: { profile: model } });
-    else add.mutate({ body: { name: name || undefined, listen: listen || undefined, dialect, profile: model } });
+    else add.mutate({ body: { name: name || undefined, listen: anyPort ? undefined : listen || undefined, dialect, profile: model } });
   };
 
   return (
     <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
       <SheetHeader>
         <SheetTitle>{editing ? printer.name : "Add printer"}</SheetTitle>
-        <SheetDescription>
-          {editing
-            ? "The model applies to what is printed from now on. The name, the address and the language are set when the printer is made."
-            : "A new port that a program can print to. The language is chosen per port, like the emulation setting of a real printer."}
-        </SheetDescription>
       </SheetHeader>
       <SheetBody>
         <Field label="Name">
-          <Input aria-label="Name" placeholder="printer" disabled={editing} value={name} onChange={(event) => setName(event.target.value)} />
+          <Input aria-label="Name" disabled={editing} value={name} onChange={(event) => setName(event.target.value)} />
         </Field>
         <Field label="Address">
-          <Input
-            aria-label="Address"
-            placeholder="127.0.0.1:0, any free port"
-            disabled={editing}
-            value={listen}
-            onChange={(event) => setListen(event.target.value)}
-          />
+          {editing ? (
+            <Input aria-label="Address" disabled value={listen} />
+          ) : (
+            <>
+              <div className="flex items-center gap-3">
+                <Switch aria-label="Pick a free port" checked={anyPort} onCheckedChange={setAnyPort} />
+                <span className="text-sm">Pick a free port</span>
+              </div>
+              <Input
+                aria-label="Address"
+                placeholder="127.0.0.1:9100"
+                disabled={anyPort}
+                value={anyPort ? "" : listen}
+                onChange={(event) => setListen(event.target.value)}
+              />
+              {anyPort && <span className="text-[13px] text-muted-foreground">The system picks a port that is free, and it is shown in the table once the printer is added.</span>}
+            </>
+          )}
         </Field>
         <Field label="Language">
           <Select
@@ -102,8 +111,7 @@ function MutateForm({
           </Select>
         </Field>
         <Field label="Model">
-          <ModelSelect models={models} value={model} onChange={setModel} label="Model" />
-          {chosen && <span className="text-[13px] text-muted-foreground">{paperText(chosen)}</span>}
+          <ModelPicker models={models} value={model} dialect={dialect} onChange={setModel} />
         </Field>
         {editing && <PrinterStatusSettings printer={printer} />}
         {failed && (
