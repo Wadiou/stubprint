@@ -19,6 +19,7 @@ use std::io;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
 use tokio::net::TcpListener;
 use tokio::sync::watch;
@@ -29,6 +30,9 @@ pub use hub::{Hub, Notice, Stored};
 pub use printer::VirtualPrinter;
 
 use wire::PrinterInfo;
+
+/// How long the API gets to finish its answers when the server stops.
+const API_GRACE: Duration = Duration::from_secs(2);
 
 /// A server that is running.
 pub struct Running {
@@ -55,11 +59,17 @@ impl Running {
         self.hub.printer(name).map(|printer| printer.listen)
     }
 
-    /// Stops listening, closes the connections and waits until they are done.
-    pub async fn stop(self) {
+    /// Stops listening, closes the connections and waits until they are done. A live event stream
+    /// never ends by itself, so the API gets a moment to finish and is cut after it.
+    pub async fn stop(mut self) {
         self.hub.stop_printers().await;
         let _ = self.stop.send(true);
-        let _ = self.api.await;
+        if tokio::time::timeout(API_GRACE, &mut self.api)
+            .await
+            .is_err()
+        {
+            self.api.abort();
+        }
         if let Some(path) = self.ready {
             let _ = std::fs::remove_file(path);
         }

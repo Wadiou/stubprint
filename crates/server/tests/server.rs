@@ -1689,3 +1689,12 @@ async fn a_printer_that_is_stopped_right_after_it_started_stops() {
         .await
         .expect("it should stop");
 }
+
+#[tokio::test]
+async fn the_server_stops_while_a_page_is_watching_the_live_events() {
+    let server = Harness::start(&["name=till"]).await;
+    let _watching = server.get("/api/events").await;
+    timeout(Duration::from_secs(10), server.running.stop())
+        .await
+        .expect("it should stop with the stream open");
+}
