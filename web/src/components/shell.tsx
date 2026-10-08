@@ -10,9 +10,9 @@ import {
   Terminal,
 } from "lucide-react";
 import { useLiveEvents } from "@/api/events";
-import { PrinterPicker } from "@/components/printer-picker";
+import { PrinterStatus } from "@/components/printer-status";
 import { Badge } from "@/components/ui/badge";
-import { ActivePrinter } from "@/lib/active-printer";
+import { Toaster } from "@/components/ui/sonner";
 
 const GROUPS: { label: string; items: { to: string; label: string; icon: LucideIcon }[] }[] = [
   {
@@ -38,7 +38,7 @@ export function Shell() {
   const live = useLiveEvents();
   const title = useMatches({ select: (matches) => matches.at(-1)?.staticData.title });
   return (
-    <ActivePrinter>
+    <>
       <div className="flex min-h-screen bg-background text-foreground">
         <aside className="flex w-58 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
           <div className="flex items-center gap-2 p-4 font-semibold">
@@ -68,7 +68,7 @@ export function Shell() {
           <header className="flex h-14 items-center gap-3 border-b px-5">
             <h1 className="text-base font-semibold">{title}</h1>
             <div className="flex-1" />
-            <PrinterPicker />
+            <PrinterStatus />
             <Badge variant="outline">{live ? "Live" : "Offline"}</Badge>
           </header>
           <main className="flex-1 p-6">
@@ -76,6 +76,7 @@ export function Shell() {
           </main>
         </div>
       </div>
-    </ActivePrinter>
+      <Toaster position="top-center" />
+    </>
   );
 }

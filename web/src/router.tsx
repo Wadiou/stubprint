@@ -38,7 +38,8 @@ const printersRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/printers",
   staticData: { title: "Printers" },
-  validateSearch: (search: Record<string, unknown>): { add?: boolean; remove?: string } => ({
+  validateSearch: (search: Record<string, unknown>): { printer?: string; add?: boolean; remove?: string } => ({
+    ...(typeof search.printer === "string" ? { printer: search.printer } : {}),
     ...(search.add === true || search.add === "true" ? { add: true } : {}),
     ...(typeof search.remove === "string" ? { remove: search.remove } : {}),
   }),

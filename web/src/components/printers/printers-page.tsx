@@ -5,20 +5,22 @@ import { PageLayout } from "@/components/layout/page";
 import { SplitLayout } from "@/components/layout/split-layout";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
-import { useActivePrinter } from "@/lib/active-printer";
+import { usePrinters } from "@/lib/use-printers";
 import { PrinterCard } from "./printer-card";
 import { PrinterCreateSheet } from "./printer-create-sheet";
 import { PrinterRemoveDialog } from "./printer-remove-dialog";
 import { type PrinterRow, printersColumns } from "./printers-columns";
 
 export interface PrintersSearch {
+  /** The printer whose card is shown. The first one while none is named. */
+  printer?: string;
   add?: boolean;
   remove?: string;
 }
 
 /** The printers and how each is doing. The one that is chosen has its card at the side. */
 export function PrintersPage({ search, onSearchChange }: { search: PrintersSearch; onSearchChange: (next: PrintersSearch) => void }) {
-  const { printer: active, printers, choose } = useActivePrinter();
+  const printers = usePrinters();
   const receipts = useQuery(listReceiptsOptions()).data ?? [];
 
   const items = useMemo<PrinterRow[]>(
@@ -26,10 +28,12 @@ export function PrintersPage({ search, onSearchChange }: { search: PrintersSearc
     [printers, receipts],
   );
 
+  const chosen = printers.find((printer) => printer.name === search.printer) ?? printers[0];
+
   return (
     <PageLayout width="wide">
       <div className="flex justify-end">
-        <Button onClick={() => onSearchChange({ add: true })}>Add printer</Button>
+        <Button onClick={() => onSearchChange({ ...search, add: true })}>Add printer</Button>
       </div>
       <SplitLayout
         list={
@@ -37,15 +41,22 @@ export function PrintersPage({ search, onSearchChange }: { search: PrintersSearc
             data={items}
             columns={printersColumns}
             getRowId={(printer) => printer.name}
-            selected={active?.name}
-            onSelect={choose}
+            selected={chosen?.name}
+            onSelect={(name) => onSearchChange({ printer: name })}
             empty="There is no printer. Add one to print to."
           />
         }
-        detail={active && <PrinterCard key={active.name} printer={active} onRemove={(printer) => onSearchChange({ remove: printer.name })} />}
+        detail={chosen && <PrinterCard key={chosen.name} printer={chosen} onRemove={(printer) => onSearchChange({ printer: chosen.name, remove: printer.name })} />}
       />
-      <PrinterCreateSheet open={search.add === true} onClose={() => onSearchChange({})} />
-      <PrinterRemoveDialog printer={printers.find((printer) => printer.name === search.remove)} onClose={() => onSearchChange({})} />
+      <PrinterCreateSheet
+        open={search.add === true}
+        onAdded={(name) => onSearchChange({ printer: name })}
+        onClose={() => onSearchChange({ printer: search.printer })}
+      />
+      <PrinterRemoveDialog
+        printer={printers.find((printer) => printer.name === search.remove)}
+        onClose={() => onSearchChange({ printer: search.printer })}
+      />
     </PageLayout>
   );
 }

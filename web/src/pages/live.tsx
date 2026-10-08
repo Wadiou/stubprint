@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { describe, stateRows } from "@/lib/commands";
-import { useActivePrinter } from "@/lib/active-printer";
+import { usePrinters } from "@/lib/use-printers";
 import { hexBytes, hexDump } from "@/lib/hex";
 import { save } from "@/lib/save";
 import { useObjectUrl } from "@/lib/use-object-url";
@@ -41,13 +41,24 @@ const DOWNLOADS = [
 const time = (receipt: ReceiptSummary) => new Date(receipt.at).toLocaleTimeString();
 const offset = (at: number) => `0x${at.toString(16).padStart(4, "0")}`;
 
-function Empty({ address }: { address?: string }) {
+/** Nothing was printed yet: where to print to. */
+function Empty({ printers }: { printers: { name: string; listen: string; dialect: string }[] }) {
   return (
     <Card className="mx-auto max-w-lg">
       <CardHeader>
         <CardTitle>No receipts yet</CardTitle>
-        <CardDescription>Print to {address ?? "a printer"} from your app, or try a sample.</CardDescription>
+        <CardDescription>Print to {printers.length === 0 ? "a printer" : "one of the printers"} from your app, or try a sample.</CardDescription>
       </CardHeader>
+      {printers.length > 0 && (
+        <CardContent className="flex flex-col gap-1 text-sm">
+          {printers.map((printer) => (
+            <div key={printer.name} className="flex gap-2">
+              <span className="font-medium">{printer.name}</span>
+              <span className="font-mono text-[13px] text-muted-foreground">{printer.listen}</span>
+            </div>
+          ))}
+        </CardContent>
+      )}
     </Card>
   );
 }
@@ -192,11 +203,11 @@ function ReceiptView({ receipt, actions }: { receipt: ReceiptSummary; actions: R
 export function LivePage({ picked, onPick }: { picked?: number; onPick: (id?: number) => void }) {
   const receipts = useQuery(listReceiptsOptions());
   const clear = useMutation(clearReceiptsMutation());
-  const { printer } = useActivePrinter();
-  const list = (receipts.data ?? []).filter((receipt) => receipt.printer === printer?.name);
+  const printers = usePrinters();
+  const list = receipts.data ?? [];
   const current = list.find((receipt) => receipt.id === picked) ?? list.at(-1);
 
-  if (!current) return <Empty address={printer && `${printer.listen}, ${printer.dialect}`} />;
+  if (!current) return <Empty printers={printers} />;
 
   const actions = (
     <>
@@ -213,7 +224,7 @@ export function LivePage({ picked, onPick }: { picked?: number; onPick: (id?: nu
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
-      <Button variant="ghost" size="sm" onClick={() => clear.mutate({ query: { printer: printer?.name } })}>
+      <Button variant="ghost" size="sm" onClick={() => clear.mutate({})}>
         Clear
       </Button>
     </>
