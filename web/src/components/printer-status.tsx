@@ -55,7 +55,7 @@ export function PrinterStatus() {
               <Dot tone={state.tone} />
               <span className="flex-1 font-medium">{printer.name}</span>
               <span className="text-xs text-muted-foreground">
-                {DIALECTS[printer.dialect]}, {port(printer)}
+                {DIALECTS[printer.dialect]}, :{port(printer)}
               </span>
               <span className="sr-only">{state.label}</span>
             </Link>

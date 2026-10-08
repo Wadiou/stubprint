@@ -21,5 +21,5 @@ export function freeName(taken: string[], wanted = "printer") {
   }
 }
 
-/** The port of a printer, such as `:9100`. */
-export const port = (printer: Pick<PrinterInfo, "listen">) => printer.listen.slice(printer.listen.lastIndexOf(":"));
+/** The port of a printer, such as `9100`. */
+export const port = (printer: Pick<PrinterInfo, "listen">) => printer.listen.slice(printer.listen.lastIndexOf(":") + 1);

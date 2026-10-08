@@ -19,6 +19,6 @@ test("a new printer is called printer, and with a number after it when that is t
 });
 
 test("the port is what follows the last colon", () => {
-  expect(port({ listen: "127.0.0.1:9100" })).toBe(":9100");
-  expect(port({ listen: "[::1]:9101" })).toBe(":9101");
+  expect(port({ listen: "127.0.0.1:9100" })).toBe("9100");
+  expect(port({ listen: "[::1]:9101" })).toBe("9101");
 });

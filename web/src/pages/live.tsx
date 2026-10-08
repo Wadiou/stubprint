@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { ChevronLeft, ChevronRight, LayoutGrid, Printer, Receipt } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import {
   clearReceiptsMutation,
@@ -26,7 +27,6 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { describe, stateRows } from "@/lib/commands";
-import { usePrinters } from "@/lib/use-printers";
 import { hexBytes, hexDump } from "@/lib/hex";
 import { save } from "@/lib/save";
 import { useObjectUrl } from "@/lib/use-object-url";
@@ -41,25 +41,30 @@ const DOWNLOADS = [
 const time = (receipt: ReceiptSummary) => new Date(receipt.at).toLocaleTimeString();
 const offset = (at: number) => `0x${at.toString(16).padStart(4, "0")}`;
 
-/** Nothing was printed yet: where to print to. */
-function Empty({ printers }: { printers: { name: string; listen: string; dialect: string }[] }) {
+/** Nothing was printed yet: a way to try a sample at once, and to the printers. */
+function Empty() {
   return (
-    <Card className="mx-auto max-w-lg">
-      <CardHeader>
-        <CardTitle>No receipts yet</CardTitle>
-        <CardDescription>Print to {printers.length === 0 ? "a printer" : "one of the printers"} from your app, or try a sample.</CardDescription>
-      </CardHeader>
-      {printers.length > 0 && (
-        <CardContent className="flex flex-col gap-1 text-sm">
-          {printers.map((printer) => (
-            <div key={printer.name} className="flex gap-2">
-              <span className="font-medium">{printer.name}</span>
-              <span className="font-mono text-[13px] text-muted-foreground">{printer.listen}</span>
-            </div>
-          ))}
-        </CardContent>
-      )}
-    </Card>
+    <PageLayout width="narrow">
+      <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed px-6 py-16 text-center">
+        <div className="flex size-14 items-center justify-center rounded-xl bg-muted">
+          <Receipt className="size-7 text-muted-foreground" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <h2 className="text-xl font-semibold tracking-tight">No receipts yet</h2>
+          <p className="text-sm text-muted-foreground">They appear here as your app prints.</p>
+        </div>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button render={<Link to="/samples" />}>
+            <LayoutGrid />
+            Try a sample
+          </Button>
+          <Button variant="outline" render={<Link to="/printers" />}>
+            <Printer />
+            Printers
+          </Button>
+        </div>
+      </div>
+    </PageLayout>
   );
 }
 
@@ -203,11 +208,10 @@ function ReceiptView({ receipt, actions }: { receipt: ReceiptSummary; actions: R
 export function LivePage({ picked, onPick }: { picked?: number; onPick: (id?: number) => void }) {
   const receipts = useQuery(listReceiptsOptions());
   const clear = useMutation(clearReceiptsMutation());
-  const printers = usePrinters();
   const list = receipts.data ?? [];
   const current = list.find((receipt) => receipt.id === picked) ?? list.at(-1);
 
-  if (!current) return <Empty printers={printers} />;
+  if (!current) return <Empty />;
 
   const actions = (
     <>
