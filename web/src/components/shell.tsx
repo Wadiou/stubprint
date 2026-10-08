@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { useLiveEvents } from "@/api/events";
 import { PrinterStatus } from "@/components/printer-status";
-import { Badge } from "@/components/ui/badge";
 import { Toaster } from "@/components/ui/sonner";
 
 const GROUPS: { label: string; items: { to: string; label: string; icon: LucideIcon }[] }[] = [
@@ -19,7 +18,6 @@ const GROUPS: { label: string; items: { to: string; label: string; icon: LucideI
     label: "Watch",
     items: [
       { to: "/", label: "Live paper", icon: Activity },
-      { to: "/receipts", label: "Receipts", icon: Receipt },
       { to: "/connections", label: "Connections", icon: Plug },
     ],
   },
@@ -35,7 +33,7 @@ const GROUPS: { label: string; items: { to: string; label: string; icon: LucideI
 ];
 
 export function Shell() {
-  const live = useLiveEvents();
+  useLiveEvents();
   const title = useMatches({ select: (matches) => matches.at(-1)?.staticData.title });
   return (
     <>
@@ -69,7 +67,6 @@ export function Shell() {
             <h1 className="text-base font-semibold">{title}</h1>
             <div className="flex-1" />
             <PrinterStatus />
-            <Badge variant="outline">{live ? "Live" : "Offline"}</Badge>
           </header>
           <main className="flex-1 p-6">
             <Outlet />

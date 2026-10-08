@@ -53,7 +53,6 @@ function PrintersRoute() {
 }
 
 const unbuilt = [
-  { path: "/receipts", title: "Receipts" },
   { path: "/connections", title: "Connections" },
   { path: "/playground", title: "Send and decode" },
   { path: "/settings", title: "Settings" },
