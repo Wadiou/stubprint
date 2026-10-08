@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use stubprint_core::{Printer, PrinterStatus, Pushed};
+use stubprint_core::{Printer, PrinterStatus, Profile, Pushed};
 
 use crate::hub::{Hub, Notice};
 use crate::printer::VirtualPrinter;
@@ -11,6 +11,8 @@ use crate::printer::VirtualPrinter;
 pub struct Session {
     hub: Arc<Hub>,
     virtual_printer: Arc<VirtualPrinter>,
+    /// The model it read as when it opened.
+    profile: Arc<Profile>,
     printer: Printer,
     peer: String,
     id: u64,
@@ -21,8 +23,8 @@ pub struct Session {
 
 impl Session {
     pub fn open(hub: Arc<Hub>, virtual_printer: Arc<VirtualPrinter>, peer: String) -> Self {
-        let mut printer =
-            Printer::with_dialect(virtual_printer.dialect, virtual_printer.profile.clone());
+        let profile = virtual_printer.profile();
+        let mut printer = Printer::with_dialect(virtual_printer.dialect, (*profile).clone());
         printer.set_status(virtual_printer.status());
         virtual_printer.connected();
         let id = hub.open_connection(&virtual_printer.name, &peer);
@@ -35,6 +37,7 @@ impl Session {
         Self {
             hub,
             virtual_printer,
+            profile,
             printer,
             peer,
             id,
@@ -99,8 +102,12 @@ impl Session {
 
     fn keep(&mut self, receipts: Vec<stubprint_core::Receipt>) {
         for receipt in receipts {
-            self.stored
-                .push(self.hub.store(&self.virtual_printer, self.id, receipt));
+            self.stored.push(self.hub.store(
+                &self.virtual_printer,
+                self.profile.clone(),
+                self.id,
+                receipt,
+            ));
         }
     }
 }

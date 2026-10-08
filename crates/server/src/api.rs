@@ -50,7 +50,10 @@ pub fn router(hub: Arc<Hub>, web: &Web) -> Router {
         .route("/api/printers", get(printers).post(add_printer))
         .route(
             "/api/printers/{name}",
-            get(printer).post(set_printer).delete(remove_printer),
+            get(printer)
+                .post(set_printer)
+                .patch(update_printer)
+                .delete(remove_printer),
         )
         .route("/api/receipts", get(list).delete(clear))
         .route("/api/receipts/next", get(next))
@@ -151,6 +154,7 @@ async fn health() -> Json<serde_json::Value> {
         add_printer,
         remove_printer,
         set_printer,
+        update_printer,
         list,
         clear,
         next,
@@ -334,6 +338,42 @@ async fn set_printer(
     Ok(Json(PrinterInfo::of(&printer)))
 }
 
+/// What a request changes about the printer itself. What is left out stays as it is.
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+struct PrinterChange {
+    /// The printer model, as `GET /api/profiles` lists them. Receipts printed from now on are read
+    /// and drawn as this model. The ones already kept stay as they were printed.
+    profile: Option<String>,
+}
+
+/// Sets the printer to another model, as if another printer stood on its port.
+#[utoipa::path(patch, path = "/api/printers/{name}", operation_id = "update_printer", tag = "printers", params(("name" = String, Path, description = "The name of the printer")),
+    request_body = PrinterChange, responses(
+        (status = 200, description = "The printer", body = PrinterInfo),
+        (status = 400, description = "There is no such model, as `error` says", body = ErrorBody),
+        (status = 404, description = "There is no such printer, receipt or connection, as `error` says", body = ErrorBody)))]
+async fn update_printer(
+    State(hub): State<Arc<Hub>>,
+    Path(name): Path<String>,
+    Json(change): Json<PrinterChange>,
+) -> Reply<Json<PrinterInfo>> {
+    let printer = hub
+        .printer(&name)
+        .ok_or_else(|| ApiError::not_found(format!("no printer called {name}")))?;
+    if let Some(model) = change.profile {
+        let profile = Profile::named(&model).ok_or_else(|| {
+            ApiError(
+                StatusCode::BAD_REQUEST,
+                format!("{model} is not a printer model, see GET /api/profiles"),
+            )
+        })?;
+        printer.set_profile(profile);
+        hub.notify(Notice::PrinterChanged(PrinterInfo::of(&printer)));
+    }
+    Ok(Json(PrinterInfo::of(&printer)))
+}
+
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
 struct ListQuery {
@@ -471,7 +511,7 @@ async fn receipt_text(
     Query(view): Query<ViewQuery>,
 ) -> Reply<Response> {
     let stored = stored(&hub, id)?;
-    let options = Options::for_profile(&stored.printer.profile);
+    let options = Options::for_profile(&stored.profile);
     let part = view.upto.map(|count| stored.receipt.until(count));
     Ok((
         [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
@@ -492,7 +532,7 @@ async fn receipt_picture(
     Query(view): Query<ViewQuery>,
 ) -> Reply<Response> {
     let stored = stored(&hub, id)?;
-    let mut options = Options::for_profile(&stored.printer.profile);
+    let mut options = Options::for_profile(&stored.profile);
     options.scale = view.scale.unwrap_or(1);
     let part = view.upto.map(|count| stored.receipt.until(count));
     // Drawing takes a while for a long receipt, so it does not hold up the other requests.

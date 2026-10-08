@@ -159,7 +159,7 @@ pub async fn run(config: Config) -> io::Result<()> {
             printer.name,
             printer.dialect.name(),
             printer.listen,
-            printer.profile.name
+            printer.profile().name
         );
     }
     shutdown_signal().await;

@@ -19,6 +19,8 @@ pub struct ReceiptSummary {
     /// The name of the printer that printed it.
     pub printer: String,
     pub dialect: Dialect,
+    /// The printer model it was printed on, as `GET /api/profiles` lists them.
+    pub profile: String,
     /// When it was cut, in milliseconds since 1970.
     pub at: u64,
     /// How many bytes made it.
@@ -35,6 +37,7 @@ impl ReceiptSummary {
             id: stored.id,
             printer: stored.printer.name.clone(),
             dialect: stored.printer.dialect,
+            profile: stored.profile.name.clone(),
             at: stored.at,
             bytes: stored.receipt.raw().len(),
             events: stored.receipt.events().len(),
@@ -89,7 +92,7 @@ impl PrinterInfo {
         Self {
             name: printer.name.clone(),
             dialect: printer.dialect,
-            profile: printer.profile.name.clone(),
+            profile: printer.profile().name.clone(),
             listen: printer.listen.to_string(),
             status: printer.status(),
             connections: printer.connections(),

@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use stubprint_core::{Dialect, PrinterStatus, Profile};
 use tokio::sync::watch;
@@ -11,7 +11,8 @@ use tokio::task::JoinHandle;
 pub struct VirtualPrinter {
     pub name: String,
     pub dialect: Dialect,
-    pub profile: Profile,
+    /// The printer model, which can be changed while it runs.
+    profile: Mutex<Arc<Profile>>,
     /// The address it really listens on, which differs from the configured one for port 0.
     pub listen: SocketAddr,
     status: watch::Sender<PrinterStatus>,
@@ -32,13 +33,30 @@ impl VirtualPrinter {
         Self {
             name,
             dialect,
-            profile,
+            profile: Mutex::new(Arc::new(profile)),
             listen,
             status: watch::channel(PrinterStatus::default()).0,
             connections: AtomicUsize::new(0),
             stop: watch::channel(false).0,
             task: Mutex::new(None),
         }
+    }
+
+    /// The model it is now. A receipt keeps the model it was printed on.
+    pub fn profile(&self) -> Arc<Profile> {
+        self.profile
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone()
+    }
+
+    /// Swaps the model, as if another printer stood on the port. Connections that are open keep
+    /// reading as the one they started with.
+    pub fn set_profile(&self, profile: Profile) {
+        *self
+            .profile
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Arc::new(profile);
     }
 
     pub fn status(&self) -> PrinterStatus {

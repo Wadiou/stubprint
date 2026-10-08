@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
-use stubprint_core::{Event, PrinterStatus, Receipt, Snapshot};
+use stubprint_core::{Event, PrinterStatus, Profile, Receipt, Snapshot};
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tokio::time::Instant;
@@ -21,6 +21,8 @@ use crate::wire::{PrinterInfo, ReceiptSummary};
 pub struct Stored {
     pub id: u64,
     pub printer: Arc<VirtualPrinter>,
+    /// The model the printer was when it printed this, which draws it.
+    pub profile: Arc<Profile>,
     /// When it was cut, in milliseconds since 1970.
     pub at: u64,
     pub receipt: Receipt,
@@ -84,6 +86,8 @@ pub enum Notice {
     },
     /// A printer was added while the server runs, or at its start.
     PrinterAdded(PrinterInfo),
+    /// A printer was set to another model.
+    PrinterChanged(PrinterInfo),
     /// A printer was removed, and its receipts were kept.
     PrinterRemoved {
         name: String,
@@ -113,6 +117,7 @@ impl Notice {
             Notice::Connection { .. } => "connection",
             Notice::Action { .. } => "action",
             Notice::PrinterAdded(_) => "printer_added",
+            Notice::PrinterChanged(_) => "printer_changed",
             Notice::PrinterRemoved { .. } => "printer_removed",
         }
     }
@@ -365,7 +370,13 @@ impl Hub {
 
     /// Keeps a receipt and tells the watchers. Returns its id. `connection` is the one that
     /// printed it.
-    pub fn store(&self, printer: &Arc<VirtualPrinter>, connection: u64, receipt: Receipt) -> u64 {
+    pub fn store(
+        &self,
+        printer: &Arc<VirtualPrinter>,
+        profile: Arc<Profile>,
+        connection: u64,
+        receipt: Receipt,
+    ) -> u64 {
         let at = now();
         let stored = {
             let mut shelf = self.shelf();
@@ -374,6 +385,7 @@ impl Hub {
             let stored = Arc::new(Stored {
                 id,
                 printer: printer.clone(),
+                profile,
                 at,
                 receipt,
             });

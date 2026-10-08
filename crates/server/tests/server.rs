@@ -670,6 +670,56 @@ async fn the_models_that_can_be_chosen_are_listed_and_a_printer_uses_its_model()
 }
 
 #[tokio::test]
+async fn a_printer_can_be_set_to_another_model_and_each_receipt_keeps_the_one_it_was_printed_on() {
+    let server = Harness::start(&["name=till,profile=TM-T88IV"]).await;
+    server.print("till", &receipt_bytes("one"), 64).await;
+    server.after(0).await;
+
+    let patch = |body: Value| {
+        server
+            .client
+            .patch(format!("{}/api/printers/till", server.base))
+            .json(&body)
+    };
+    let answer = patch(json!({"profile": "TM-T20III"})).send().await.unwrap();
+    assert_eq!(answer.status(), 200);
+    assert_eq!(
+        answer.json::<Value>().await.unwrap()["profile"],
+        "TM-T20III"
+    );
+    server.print("till", &receipt_bytes("two"), 64).await;
+    server.after(1).await;
+
+    let width = |file: &[u8]| u32::from_be_bytes(file[16..20].try_into().unwrap());
+    let mut widths = Vec::new();
+    for (id, model) in [(1, "TM-T88IV"), (2, "TM-T20III")] {
+        let summary = server.json(&format!("/api/receipts/{id}")).await;
+        assert_eq!(summary["profile"], model);
+        let picture = server.get(&format!("/api/receipts/{id}/picture")).await;
+        widths.push(width(&picture.bytes().await.unwrap()));
+    }
+    // What each model prints: 512 dots, then 576.
+    assert_eq!(widths, [512, 576]);
+
+    for body in [json!({"profile": "nope"}), json!({"dialect": "starline"})] {
+        let answer = patch(body.clone()).send().await.unwrap();
+        assert!(answer.status().is_client_error(), "{body}");
+    }
+    assert_eq!(
+        server.json("/api/printers/till").await["profile"],
+        "TM-T20III"
+    );
+    let missing = server
+        .client
+        .patch(format!("{}/api/printers/nowhere", server.base))
+        .json(&json!({"profile": "TM-T20III"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(missing.status(), 404);
+}
+
+#[tokio::test]
 async fn the_description_of_the_api_covers_every_route_and_the_names_events_use() {
     let server = Harness::start(&["name=till"]).await;
     let document = server.json("/api/openapi.json").await;
