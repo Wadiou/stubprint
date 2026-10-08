@@ -1,16 +1,11 @@
-"""Builds the samples: the receipts in receipts/*.json, printed by real printing libraries.
+"""Prints the receipts in receipts/*.json with python-escpos and node/build.mjs, and writes out/.
 
     python python/build.py                  write out/
     python python/build.py --update-lock    the same, then accept the bytes as the new lock
+    python python/build.py --no-previews    skip the pictures, which need cargo
 
-out/python and out/node hold each variant's bytes (.bin) and a picture of the paper (.png) that
-Stubprint draws from them, to look at. out/samples.json is what the server embeds.
-
-Each receipt file says what is printed and what it is called. This file prints it with
-python-escpos, and node/build.mjs prints it with node-thermal-printer, so every byte comes from
-a library that real programs use and none from Stubprint. Both only collect the bytes they would
-send to a printer. samples.lock.json holds a hash of each result, so a library update that moves
-a byte is noticed. Nothing in out/ is committed.
+out/python and out/node hold the bytes and a picture of each variant. out/samples.json is what
+the server embeds. samples.lock.json holds a hash of every variant.
 """
 import base64
 import hashlib
@@ -51,7 +46,7 @@ def specs():
 
 
 def expected(spec):
-    """What a decoder must find on the paper, from what the receipt asks for."""
+    """What the decoder must find on the paper."""
     columns = spec["columns"]
     answer = {"texts": [], "barcodes": [], "qrs": [], "pdf417": [], "images": 0, "cuts": 0}
     for block in spec["blocks"]:
@@ -107,7 +102,7 @@ def with_python_escpos(spec):
         elif "barcode" in block:
             code = block["barcode"]
             style(printer, {"align": block.get("align")})
-            # Code 128 data starts with the character set to use, such as {B.
+            # Code 128 data starts with its character set
             data = "{B" + code["data"] if code["type"] == "code128" else code["data"]
             printer.barcode(data, SYMBOLOGIES[code["type"]], height=code["height"], width=code["width"], pos=TEXT_POSITIONS[code["text"]], align_ct=False)
         elif "qr" in block:
@@ -124,7 +119,7 @@ def with_python_escpos(spec):
 
 
 def with_node_thermal_printer():
-    """Runs node/build.mjs once, which prints every receipt that asks for node-thermal-printer."""
+    """Runs node/build.mjs, which prints the receipts that ask for node-thermal-printer."""
     if not (ROOT / "node" / "node_modules").is_dir():
         raise SystemExit("run `npm ci` in samples/node first")
     folder = OUT / "node"
@@ -137,7 +132,7 @@ def with_node_thermal_printer():
 
 
 def preview(folder, name, dialect, paper_mm):
-    """Draws the paper of a variant with Stubprint's own renderer, to look at what it reads."""
+    """Draws a variant with Stubprint's renderer."""
     paper = ["384:32,42"] if paper_mm == 58 else []
     subprocess.run(
         ["cargo", "run", "-q", "-p", "stubprint-render", "--example", "render", "--", str(folder / f"{name}.bin"), str(folder / f"{name}.png"), dialect, *paper],
@@ -182,7 +177,7 @@ def build(previews):
 
 
 def check_lock(hashes):
-    """Fails when a library wrote other bytes than the lock says, so it is reviewed."""
+    """Fails when a library wrote other bytes than the lock says."""
     locked = json.loads(LOCK.read_text()) if LOCK.exists() else {}
     problems = [f"{key}: {'new' if key not in locked else 'bytes changed'}" for key, value in hashes.items() if locked.get(key) != value]
     problems += [f"{key}: no longer built" for key in locked if key not in hashes]
@@ -191,7 +186,7 @@ def check_lock(hashes):
 
 
 if __name__ == "__main__":
-    samples, hashes = build(shutil.which("cargo") is not None)
+    samples, hashes = build("--no-previews" not in sys.argv and shutil.which("cargo") is not None)
     if "--update-lock" in sys.argv:
         LOCK.write_text(json.dumps(hashes, indent=2, sort_keys=True) + "\n")
     else:

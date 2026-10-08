@@ -1,9 +1,6 @@
-// Builds the Node variants of the samples. It reads the receipts in samples/receipts and prints
-// each with node-thermal-printer, which only collects the bytes it would send to a printer.
+// Prints the receipts that ask for node-thermal-printer and writes a .bin for each variant.
 //
 //     node build.mjs <receipts folder> <assets folder> <out folder>
-//
-// It writes one .bin for each variant and says what it wrote as JSON on its output.
 import { createRequire } from "node:module";
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -14,7 +11,6 @@ const { version } = require("node-thermal-printer/package.json");
 
 const LIBRARY = "node-thermal-printer";
 const TYPES = { escpos: PrinterTypes.EPSON, starline: PrinterTypes.STAR };
-// The numbers each family of commands gives the symbologies.
 const BARCODES = {
   escpos: { upca: 65, upce: 66, ean13: 67, ean8: 68, code39: 69, itf: 70, codabar: 71, code93: 72, code128: 73 },
   starline: { upce: 0, upca: 1, ean8: 2, ean13: 3, code39: 4, itf: 5, code128: 6, code93: 7, codabar: 8 },
@@ -28,11 +24,10 @@ function align(printer, name) {
   ({ left: () => printer.alignLeft(), center: () => printer.alignCenter(), right: () => printer.alignRight() })[name ?? "left"]();
 }
 
-// Star's commands in this library know four sizes: normal, double width, double height and both.
+// Star mode has four sizes: normal, double width, double height and both.
 function size(printer, dialect, width, height) {
   if (dialect === "escpos") {
-    // The library is documented as setTextSize(height, width), but it writes its first argument
-    // as the width, so a double height line needs the arguments the other way round.
+    // setTextSize takes (height, width) but writes the first one as the width.
     return width === 1 && height === 1 ? printer.setTextNormal() : printer.setTextSize(width - 1, height - 1);
   }
   if (width === 1 && height === 1) return printer.setTextNormal();
@@ -43,7 +38,7 @@ function size(printer, dialect, width, height) {
 
 function style(printer, dialect, block) {
   const [width, height] = block.size ?? [1, 1];
-  // The size comes first: "normal text" resets the font, bold and underline too.
+  // Normal size resets the font, so the size is set first.
   size(printer, dialect, width, height);
   block.font === "b" ? printer.setTypeFontB() : printer.setTypeFontA();
   printer.bold(Boolean(block.bold));
