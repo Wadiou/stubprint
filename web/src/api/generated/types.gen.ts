@@ -630,6 +630,40 @@ export type PrinterStatus = {
 };
 
 /**
+ * A printer model that a printer can be set to.
+ */
+export type ProfileInfo = {
+    /**
+     * How many code pages `ESC t` can choose.
+     */
+    code_pages: number;
+    /**
+     * How many columns each font has, font A first. A font the model does not have has 0.
+     */
+    columns: Array<number>;
+    /**
+     * What the model can do, such as `qrCode`, `pdf417Code` or `starCommands`.
+     */
+    features: Array<string>;
+    /**
+     * The model as the maker names it.
+     */
+    model: string;
+    /**
+     * The name to give as the `profile` of a printer.
+     */
+    name: string;
+    /**
+     * The maker, which is empty for the generic models.
+     */
+    vendor: string;
+    /**
+     * How wide the paper prints, in dots, when the model says.
+     */
+    width_dots?: number | null;
+};
+
+/**
  * The cash drawer kick.
  */
 export type Pulse = {
@@ -1322,9 +1356,9 @@ export type ListProfilesData = {
 
 export type ListProfilesResponses = {
     /**
-     * The names of the printer models that a printer can be set to
+     * The printer models that a printer can be set to, with what each says about itself
      */
-    200: Array<string>;
+    200: Array<ProfileInfo>;
 };
 
 export type ListProfilesResponse = ListProfilesResponses[keyof ListProfilesResponses];
