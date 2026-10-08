@@ -2,6 +2,7 @@ import { createRootRoute, createRoute, createRouter } from "@tanstack/react-rout
 import { Shell } from "@/components/shell";
 import { LivePage } from "@/pages/live";
 import { Placeholder } from "@/pages/placeholder";
+import { PrintersPage } from "@/components/printers/printers-page";
 import { SamplesPage } from "@/pages/samples";
 
 const rootRoute = createRootRoute({ component: Shell });
@@ -33,17 +34,34 @@ function SamplesRoute() {
   return <SamplesPage onOpen={(receipt) => navigate({ to: "/", search: { receipt } })} />;
 }
 
+const printersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/printers",
+  staticData: { title: "Printers" },
+  validateSearch: (search: Record<string, unknown>): { add?: boolean; edit?: string; remove?: string } => ({
+    ...(search.add === true || search.add === "true" ? { add: true } : {}),
+    ...(typeof search.edit === "string" ? { edit: search.edit } : {}),
+    ...(typeof search.remove === "string" ? { remove: search.remove } : {}),
+  }),
+  component: PrintersRoute,
+});
+
+function PrintersRoute() {
+  const search = printersRoute.useSearch();
+  const navigate = printersRoute.useNavigate();
+  return <PrintersPage search={search} onSearchChange={(next) => navigate({ search: next })} />;
+}
+
 const unbuilt = [
   { path: "/receipts", title: "Receipts" },
   { path: "/connections", title: "Connections" },
-  { path: "/printers", title: "Printers" },
   { path: "/playground", title: "Send and decode" },
   { path: "/settings", title: "Settings" },
 ].map(({ path, title }) =>
   createRoute({ getParentRoute: () => rootRoute, path, staticData: { title }, component: Placeholder }),
 );
 
-export const router = createRouter({ routeTree: rootRoute.addChildren([liveRoute, samplesRoute, ...unbuilt]) });
+export const router = createRouter({ routeTree: rootRoute.addChildren([liveRoute, samplesRoute, printersRoute, ...unbuilt]) });
 
 declare module "@tanstack/react-router" {
   interface Register {

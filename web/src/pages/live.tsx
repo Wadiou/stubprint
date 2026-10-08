@@ -6,12 +6,12 @@ import {
   getReceiptPictureOptions,
   getReceiptTextOptions,
   getTraceOptions,
-  listPrintersOptions,
   listReceiptsOptions,
 } from "@/api/generated/@tanstack/react-query.gen";
 import { getReceiptBytes, getReceiptPicture, getReceiptText } from "@/api/generated/sdk.gen";
 import type { ReceiptSummary } from "@/api/generated/types.gen";
 import { CommandList, type Row } from "@/components/commands";
+import { PageLayout } from "@/components/layout/page";
 import { ModelStrip } from "@/components/model-strip";
 import { ReceiptRail } from "@/components/receipt-rail";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { describe, stateRows } from "@/lib/commands";
+import { useActivePrinter } from "@/lib/active-printer";
 import { hexBytes, hexDump } from "@/lib/hex";
 import { save } from "@/lib/save";
 import { useObjectUrl } from "@/lib/use-object-url";
@@ -190,11 +191,10 @@ function ReceiptView({ receipt, actions }: { receipt: ReceiptSummary; actions: R
 /** The newest receipt while it follows them, or the one that was picked. */
 export function LivePage({ picked, onPick }: { picked?: number; onPick: (id?: number) => void }) {
   const receipts = useQuery(listReceiptsOptions());
-  const printers = useQuery(listPrintersOptions());
   const clear = useMutation(clearReceiptsMutation());
-  const list = receipts.data ?? [];
+  const { printer } = useActivePrinter();
+  const list = (receipts.data ?? []).filter((receipt) => receipt.printer === printer?.name);
   const current = list.find((receipt) => receipt.id === picked) ?? list.at(-1);
-  const printer = printers.data?.[0];
 
   if (!current) return <Empty address={printer && `${printer.listen}, ${printer.dialect}`} />;
 
@@ -213,22 +213,24 @@ export function LivePage({ picked, onPick }: { picked?: number; onPick: (id?: nu
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
-      <Button variant="ghost" size="sm" onClick={() => clear.mutate({})}>
+      <Button variant="ghost" size="sm" onClick={() => clear.mutate({ query: { printer: printer?.name } })}>
         Clear
       </Button>
     </>
   );
 
   return (
-    <div className="grid min-w-0 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
-      <ReceiptRail
-        receipts={list}
-        selected={current.id}
-        following={picked === undefined}
-        onPick={onPick}
-        onFollow={(on) => onPick(on ? undefined : current.id)}
-      />
-      <ReceiptView key={current.id} receipt={current} actions={actions} />
-    </div>
+    <PageLayout width="full">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
+        <ReceiptRail
+          receipts={list}
+          selected={current.id}
+          following={picked === undefined}
+          onPick={onPick}
+          onFollow={(on) => onPick(on ? undefined : current.id)}
+        />
+        <ReceiptView key={current.id} receipt={current} actions={actions} />
+      </div>
+    </PageLayout>
   );
 }
