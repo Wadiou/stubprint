@@ -37,6 +37,7 @@ impl Harness {
             printers,
             keep,
             web,
+            ready: None,
         };
         let running = serve(config).await.unwrap();
         let base = format!("http://{}", running.http_addr());
@@ -701,6 +702,7 @@ async fn an_address_that_is_taken_is_said_before_anything_runs() {
         }],
         keep: 5,
         web: None,
+        ready: None,
     };
     let error = match serve(config).await {
         Ok(_) => panic!("the port was taken"),
@@ -1612,4 +1614,55 @@ async fn the_description_puts_each_parameter_where_it_belongs() {
         assert_eq!(found["required"], false, "{path} {name}");
     }
     assert_eq!(parameter("/api/receipts/{id}", "get", "id")["in"], "path");
+}
+
+#[tokio::test]
+async fn the_ready_file_says_where_a_server_on_port_zero_listens_and_goes_with_it() {
+    let path = std::env::temp_dir().join(format!("stubprint-ready-{}.json", std::process::id()));
+    let config = Config {
+        http: ([127, 0, 0, 1], 0).into(),
+        printers: vec![PrinterConfig::parse("name=front,listen=127.0.0.1:0").unwrap()],
+        ready: Some(path.clone()),
+        ..Config::default()
+    };
+    let running = serve(config).await.unwrap();
+
+    let ready: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    assert_eq!(ready["pid"], std::process::id());
+    assert_eq!(ready["http"], running.http_addr().to_string());
+    assert_eq!(ready["printers"][0]["name"], "front");
+    assert_eq!(
+        ready["printers"][0]["listen"],
+        running.printer_addr("front").unwrap().to_string()
+    );
+    assert_ne!(running.http_addr().port(), 0);
+
+    running.stop().await;
+    assert!(!path.exists());
+}
+
+#[tokio::test]
+async fn a_ready_file_that_cannot_be_written_stops_the_server_from_starting() {
+    let config = Config {
+        http: ([127, 0, 0, 1], 0).into(),
+        printers: vec![PrinterConfig::parse("listen=127.0.0.1:0").unwrap()],
+        ready: Some("/nowhere/at/all/ready.json".into()),
+        ..Config::default()
+    };
+    let error = serve(config).await.err().expect("it should not start");
+    assert!(error.to_string().contains("cannot write"), "{error}");
+}
+
+#[tokio::test]
+async fn a_printer_that_is_stopped_right_after_it_started_stops() {
+    let running = serve(Config {
+        http: ([127, 0, 0, 1], 0).into(),
+        printers: vec![PrinterConfig::parse("listen=127.0.0.1:0").unwrap()],
+        ..Config::default()
+    })
+    .await
+    .unwrap();
+    timeout(Duration::from_secs(5), running.stop())
+        .await
+        .expect("it should stop");
 }

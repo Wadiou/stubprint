@@ -10,8 +10,8 @@ use stubprint_server::Config;
 #[derive(Parser)]
 #[command(name = "stubprint", version)]
 struct Options {
-    /// A JSON file with `http`, `keep`, `web` and `printers`. The other options are not used with it.
-    #[arg(long, conflicts_with_all = ["http", "keep", "web", "printer"])]
+    /// A JSON file with `http`, `keep`, `web`, `ready_file` and `printers`. The other options are not used with it.
+    #[arg(long, conflicts_with_all = ["http", "keep", "web", "ready_file", "printer"])]
     config: Option<PathBuf>,
 
     /// Where the REST API listens. It has no password, so keep it on this machine unless the
@@ -27,8 +27,14 @@ struct Options {
     #[arg(long)]
     web: Option<PathBuf>,
 
+    /// A file to write the addresses into once everything listens, as JSON with the process, the
+    /// address of the API and the printers. It is removed when the server stops. With port 0 for
+    /// the API or a printer, this is how a program finds out which port it got.
+    #[arg(long)]
+    ready_file: Option<PathBuf>,
+
     /// Print the description of the API as an OpenAPI document, and stop.
-    #[arg(long, conflicts_with_all = ["config", "http", "keep", "web", "printer"])]
+    #[arg(long, conflicts_with_all = ["config", "http", "keep", "web", "ready_file", "printer"])]
     openapi: bool,
 
     /// A printer, as `name=front,listen=127.0.0.1:9100,dialect=escpos,profile=TM-T88IV`. Say it
@@ -44,7 +50,13 @@ fn configuration(options: Options) -> Result<Config, String> {
                 .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
             Config::from_json(&text)
         }
-        None => Config::from_options(options.http, options.keep, options.web, &options.printer),
+        None => Config::from_options(
+            options.http,
+            options.keep,
+            options.web,
+            options.ready_file,
+            &options.printer,
+        ),
     }
 }
 

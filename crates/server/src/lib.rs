@@ -16,6 +16,7 @@ mod wire;
 
 use std::io;
 use std::net::SocketAddr;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use tokio::net::TcpListener;
@@ -26,12 +27,16 @@ pub use config::{Config, PrinterConfig};
 pub use hub::{Hub, Notice, Stored};
 pub use printer::VirtualPrinter;
 
+use wire::PrinterInfo;
+
 /// A server that is running.
 pub struct Running {
     hub: Arc<Hub>,
     http: SocketAddr,
     stop: watch::Sender<bool>,
     api: JoinHandle<()>,
+    ready: Option<PathBuf>,
+    web: bool,
 }
 
 impl Running {
@@ -54,6 +59,9 @@ impl Running {
         self.hub.stop_printers().await;
         let _ = self.stop.send(true);
         let _ = self.api.await;
+        if let Some(path) = self.ready {
+            let _ = std::fs::remove_file(path);
+        }
     }
 }
 
@@ -78,6 +86,15 @@ pub async fn serve(config: Config) -> io::Result<Running> {
             return Err(error);
         }
     }
+    if let Some(path) = &config.ready {
+        if let Err(error) = write_ready(path, http, &hub) {
+            hub.stop_printers().await;
+            return Err(io::Error::new(
+                error.kind(),
+                format!("cannot write {}: {error}", path.display()),
+            ));
+        }
+    }
     let (stop, mut stopped) = watch::channel(false);
     let app = api::router(hub.clone(), config.web.as_deref());
     let api = tokio::spawn(async move {
@@ -92,7 +109,27 @@ pub async fn serve(config: Config) -> io::Result<Running> {
         http,
         stop,
         api,
+        ready: config.ready,
+        web: config.web.is_some(),
     })
+}
+
+/// Writes the process, the address of the API and the printers as they are at the start, apart
+/// from the ones added later. The file appears whole or not at all.
+fn write_ready(path: &Path, http: SocketAddr, hub: &Hub) -> io::Result<()> {
+    let printers: Vec<PrinterInfo> = hub
+        .printers()
+        .iter()
+        .map(|printer| PrinterInfo::of(printer))
+        .collect();
+    let text = serde_json::to_vec_pretty(&serde_json::json!({
+        "pid": std::process::id(),
+        "http": http.to_string(),
+        "printers": printers,
+    }))?;
+    let temporary = path.with_extension("tmp");
+    std::fs::write(&temporary, text)?;
+    std::fs::rename(temporary, path)
 }
 
 /// Serves until the process gets Ctrl+C or a termination signal.
@@ -102,6 +139,9 @@ pub async fn run(config: Config) -> io::Result<()> {
         "API and live events: http://{}/api/openapi.json",
         running.http_addr()
     );
+    if running.web {
+        println!("web page: http://{}/", running.http_addr());
+    }
     for printer in running.hub().printers() {
         println!(
             "printer {} reads {} on {} as {}",

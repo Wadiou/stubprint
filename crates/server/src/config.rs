@@ -14,6 +14,9 @@ pub struct Config {
     pub keep: usize,
     /// A folder with the built web page, which the program then serves next to the API.
     pub web: Option<PathBuf>,
+    /// A file to write the addresses into once everything listens, so a program that started the
+    /// server on port 0 can find it. It is removed when the server stops.
+    pub ready: Option<PathBuf>,
 }
 
 /// One virtual printer. It listens on its own port, which is what sets its command language, like
@@ -34,6 +37,7 @@ impl Default for Config {
             printers: vec![PrinterConfig::default()],
             keep: 500,
             web: None,
+            ready: None,
         }
     }
 }
@@ -75,6 +79,7 @@ struct FileSettings {
     http: Option<String>,
     keep: Option<usize>,
     web: Option<PathBuf>,
+    ready_file: Option<PathBuf>,
     printers: Option<Vec<PrinterSettings>>,
 }
 
@@ -151,7 +156,7 @@ impl PrinterConfig {
 }
 
 impl Config {
-    /// A configuration written as JSON, with `http`, `keep`, `web` and `printers` that each have `name`,
+    /// A configuration written as JSON, with `http`, `keep`, `web`, `ready_file` and `printers` that each have `name`,
     /// `listen`, `dialect` and `profile`. What is left out is the default.
     pub fn from_json(text: &str) -> Result<Self, String> {
         let file: FileSettings =
@@ -164,6 +169,7 @@ impl Config {
             config.keep = keep;
         }
         config.web = file.web;
+        config.ready = file.ready_file;
         if let Some(printers) = file.printers {
             config.printers = printers
                 .into_iter()
@@ -179,6 +185,7 @@ impl Config {
         http: Option<SocketAddr>,
         keep: Option<usize>,
         web: Option<PathBuf>,
+        ready: Option<PathBuf>,
         printers: &[String],
     ) -> Result<Self, String> {
         let mut config = Config::default();
@@ -189,6 +196,7 @@ impl Config {
             config.keep = keep;
         }
         config.web = web;
+        config.ready = ready;
         if !printers.is_empty() {
             config.printers = printers
                 .iter()
@@ -272,11 +280,12 @@ mod tests {
 
     #[test]
     fn printers_must_differ_and_names_must_be_safe_in_a_path() {
-        let two = |a: &str, b: &str| Config::from_options(None, None, None, &[a.into(), b.into()]);
+        let two =
+            |a: &str, b: &str| Config::from_options(None, None, None, None, &[a.into(), b.into()]);
         assert!(two("name=a,listen=127.0.0.1:1", "name=a,listen=127.0.0.1:2").is_err());
         assert!(two("name=a,listen=127.0.0.1:1", "name=b,listen=127.0.0.1:1").is_err());
         assert!(two("name=a,listen=127.0.0.1:0", "name=b,listen=127.0.0.1:0").is_ok());
         assert!(two("name=a/b", "name=c,listen=127.0.0.1:2").is_err());
-        assert!(Config::from_options(None, Some(0), None, &[]).is_err());
+        assert!(Config::from_options(None, Some(0), None, None, &[]).is_err());
     }
 }
