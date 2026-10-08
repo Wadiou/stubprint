@@ -45,7 +45,7 @@ pnpm build && cargo build -p stubprint-server   # the program carries the build
 pnpm typecheck && pnpm test
 ```
 
-To keep the server open while working on the page, `make up` (`docker compose up -d`) starts it in one
+To keep the server open while working on the page, `make up` (`docker compose up -d --build`) starts it in one
 container and the page in another (compose.yaml, for development only). The page is at
 http://127.0.0.1:5173 and reloads as it is edited. The server is built and started again whenever
 the Rust code changes, which empties its receipts. `make down` stops both and `make logs` follows

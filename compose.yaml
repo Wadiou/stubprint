@@ -4,23 +4,22 @@
 # The page is at http://127.0.0.1:5173, the API at http://127.0.0.1:8080 and the printer on 9100.
 services:
   backend:
-    image: rust:1
-    working_dir: /work
-    command: sh scripts/dev-backend.sh
+    build:
+      context: docker
+      dockerfile: backend.dev.Dockerfile
     restart: unless-stopped
     volumes:
       - .:/work
       - cargo:/usr/local/cargo/registry
       - target:/work/target
-      - tools:/tools
     ports:
       - "127.0.0.1:8080:8080"
       - "127.0.0.1:9100:9100"
 
   web:
-    image: node:24
-    working_dir: /work/web
-    command: sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm dev --host 0.0.0.0"
+    build:
+      context: docker
+      dockerfile: web.dev.Dockerfile
     restart: unless-stopped
     environment:
       STUBPRINT_SERVER: http://backend:8080
@@ -37,6 +36,5 @@ services:
 volumes:
   cargo:
   target:
-  tools:
   modules:
   pnpm:
