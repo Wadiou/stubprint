@@ -8,7 +8,7 @@ contains the packages and the assets below, under their own licences.
 | Asset | Licence | Where |
 |---|---|---|
 | Noto Sans Mono, Noto Naskh Arabic, Noto Sans Thai, Noto Sans JP (cut down to the characters of JIS X 0208) | SIL Open Font License 1.1 | `crates/render/fonts`, with the licence texts next to the fonts |
-| The printer model data of the escpos-printer-db project | MIT | `crates/core/profiles`, see `LICENSE.md` and `NOTICE.md` there |
+| The printer model data of the escpos-printer-db project | CC-BY-4.0 | `profiles`, see `LICENSE.md`, `NOTICE.md` and `UPSTREAM.json` there |
 | Streams written by other people's programs, used only to test the decoder and not part of a build | MIT | `fixtures/captured`, see `NOTICE.md` there |
 
 ## Rust packages

@@ -1,0 +1,97 @@
+{
+ "CT-S651": [
+  "https://www.citizen-systems.com/resource/support/POS/CT-S651/Official_Docs/CT-S651II_Manual_ENG.pdf"
+ ],
+ "P822D": [
+  "http://www.pbmpos.com/goods/911283"
+ ],
+ "POS-5890": [
+  "https://drv.oemdrivers.com/printer-pos-58-usb-drivers/58MM-user-manual.pdf"
+ ],
+ "RP-F10-80mm": [
+  "https://www.sii-ps.com/rpf10/RPF_UG_EN_04.pdf"
+ ],
+ "RP326": [
+  "https://www.rongtatech.com/rp326-80mm-thermal-printer-for-receipt-printting_p68.html"
+ ],
+ "SP2000": [
+  "https://www.manualslib.com/manual/165071/Star-Micronics-Sp2000.html?page=154#manual"
+ ],
+ "SRP-S300": [
+  "https://www.bixolon.com/_upload/manual/Manual_User_SRP-S320_ENG_V2.00.pdf",
+  "https://www.bixolon.com/_upload/manual/Manual_Command_Thermal_POS_Printer_ENG_V1.00[11].pdf"
+ ],
+ "T-1": [
+  "https://www.manualslib.com/manual/1051268/Metapace-T-1.html?page=20#manual"
+ ],
+ "TEP-200M": [
+  "https://github.com/mike42/escpos-php/issues/6",
+  "https://www.dreamits.net/product/e-pos-thermal-printer-tep-220mc/"
+ ],
+ "TH230": [
+  "https://archive.org/details/manualzilla-id-7309077/"
+ ],
+ "TM-L90": [
+  "https://www.epson-biz.com/modules/pos/index.php?page=single_doc&cid=6420&pcat=3&pid=27"
+ ],
+ "TM-P80": [
+  "https://files.support.epson.com/pdf/pos/bulk/tm-p80_trg_en_revc.pdf"
+ ],
+ "TM-T20II": [
+  "https://files.support.epson.com/pdf/pos/bulk/tm-t20ii_trg_en_revd.pdf"
+ ],
+ "TM-T20III": [
+  "https://www.epson-biz.com/modules/pos/index.php?page=single_doc&cid=4537&scat=20&pcat=3"
+ ],
+ "TM-T70": [
+  "https://support.epson.net/setupnavi/?PINF=bsmanual&OSC=WS&LG2=EN&MKN=TM-T70"
+ ],
+ "TM-T70-SA": [
+  "https://support.epson.net/setupnavi/?PINF=bsmanual&OSC=WS&LG2=EN&MKN=TM-T70"
+ ],
+ "TM-T70II": [
+  "https://support.epson.net/setupnavi/?PINF=bsmanual&OSC=WS&LG2=EN&MKN=TM-T70II"
+ ],
+ "TM-T70II-CH": [
+  "https://support.epson.net/setupnavi/?PINF=bsmanual&OSC=WS&LG2=EN&MKN=TM-T70II"
+ ],
+ "TM-T70II-CH-58mm": [
+  "https://support.epson.net/setupnavi/?PINF=bsmanual&OSC=WS&LG2=EN&MKN=TM-T70II"
+ ],
+ "TM-T70II-SA": [
+  "https://support.epson.net/setupnavi/?PINF=bsmanual&OSC=WS&LG2=EN&MKN=TM-T70II"
+ ],
+ "TM-T88II": [
+  "https://download.epson-biz.com/modules/pos/index.php?page=single_doc&cid=1352&pcat=3&pid=21&ml_lang=de"
+ ],
+ "TM-T88III": [
+  "https://download.epson-biz.com/modules/pos/index.php?page=single_doc&cid=1352&pcat=3&pid=21&ml_lang=de"
+ ],
+ "TM-T88IV": [
+  "https://files.support.epson.com/pdf/pos/bulk/tm-t88iv_eng_trg_revc_02.pdf"
+ ],
+ "TM-T88V": [
+  "https://files.support.epson.com/pdf/pos/bulk/tmt88v_trg_reve.pdf"
+ ],
+ "TM-U220": [
+  "https://files.support.epson.com/pdf/pos/bulk/tm-u220_trg_en_std_reve.pdf"
+ ],
+ "TM-U220B": [
+  "https://files.support.epson.com/pdf/pos/bulk/tm-u220_trg_en_std_reve.pdf"
+ ],
+ "TM-m30III": [
+  "https://download4.epson.biz/sec_pubs/bs/pdf/TM-m30III_trg_en_revE.pdf"
+ ],
+ "TSP600": [
+  "https://www.manualslib.es/manual/496700/Star-Tsp600-Serie.html?page=12"
+ ],
+ "TSP800": [
+  "https://www.starmicronics.com/support/Mannualfolder/tsp800ii_hm_en.pdf"
+ ],
+ "TUP500": [
+  "http://www.starasia.com/ProductDetail.asp?ID=138"
+ ],
+ "ZJ-5870": [
+  "http://www.cnfujun.com/en/init.php/product/index?id=23"
+ ]
+}

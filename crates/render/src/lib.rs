@@ -67,6 +67,7 @@ impl Options {
         let columns = self
             .columns
             .get(usize::from(font))
+            .filter(|columns| **columns > 0)
             .or(self.columns.first())
             .copied()
             .unwrap_or(48);

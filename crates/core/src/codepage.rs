@@ -41,52 +41,65 @@ enum Table {
     Encoding(&'static Encoding),
     /// The single byte half of Shift JIS: the Japanese katakana at 0xA1 to 0xDF.
     Katakana,
+    /// A table from the printer database, for the upper half.
+    Chars(&'static [char; 128]),
+    /// ISO 8859-1: every byte is the character with that number.
+    Latin1,
 }
 
-/// The table for a code page name from a printer profile. A few names have no table here and are
-/// read as the closest page there is: CP851, CP853, CP1098, CP1125, CP772, CP774, CP856, RK1048
-/// and the Vietnamese pages. Names that are specific to one maker, such as Star's CP3012, are read
-/// as Windows 1252.
+/// The table for a code page name from a printer profile. The pages that the printer database gives
+/// as a table, such as Star's CP3012 and the Vietnamese TCVN pages, are read with it. A few names
+/// have no table here and are read as the closest page there is: CP851, CP853, CP1098, CP1125,
+/// CP772, CP774, CP856 and RK1048. The Star pages that the database itself calls unimplemented are
+/// read as Windows 1252.
 fn table(name: &str) -> Table {
+    lookup(name).unwrap_or(Table::Encoding(WINDOWS_1252))
+}
+
+/// The table for a name, or none when nothing here knows the name.
+fn lookup(name: &str) -> Option<Table> {
+    if let Some(table) = crate::profile::char_table(name) {
+        return Some(Table::Chars(table));
+    }
     let name = name.to_ascii_uppercase();
     if let Some(number) = name.strip_prefix("CP").and_then(|n| n.parse::<u16>().ok()) {
         match number {
             437 | 720 | 737 | 775 | 850 | 852 | 855 | 857 | 858 | 860 | 861 | 862 | 863 | 864
-            | 865 | 866 | 869 | 874 => return Table::Ibm(number),
-            932 => return Table::Katakana,
-            1250 => return Table::Encoding(WINDOWS_1250),
-            1251 => return Table::Encoding(WINDOWS_1251),
-            1252 => return Table::Encoding(WINDOWS_1252),
-            1253 => return Table::Encoding(WINDOWS_1253),
-            1254 => return Table::Encoding(WINDOWS_1254),
-            1255 => return Table::Encoding(WINDOWS_1255),
-            1256 => return Table::Encoding(WINDOWS_1256),
-            1257 => return Table::Encoding(WINDOWS_1257),
-            1258 => return Table::Encoding(WINDOWS_1258),
-            928 => return Table::Encoding(ISO_8859_7),
+            | 865 | 866 | 869 | 874 => return Some(Table::Ibm(number)),
+            932 => return Some(Table::Katakana),
+            1250 => return Some(Table::Encoding(WINDOWS_1250)),
+            1251 => return Some(Table::Encoding(WINDOWS_1251)),
+            1252 => return Some(Table::Encoding(WINDOWS_1252)),
+            1253 => return Some(Table::Encoding(WINDOWS_1253)),
+            1254 => return Some(Table::Encoding(WINDOWS_1254)),
+            1255 => return Some(Table::Encoding(WINDOWS_1255)),
+            1256 => return Some(Table::Encoding(WINDOWS_1256)),
+            1257 => return Some(Table::Encoding(WINDOWS_1257)),
+            1258 => return Some(Table::Encoding(WINDOWS_1258)),
+            928 => return Some(Table::Encoding(ISO_8859_7)),
             // The closest page there is.
-            851 => return Table::Encoding(WINDOWS_1253),
-            853 => return Table::Encoding(WINDOWS_1254),
-            856 => return Table::Encoding(WINDOWS_1255),
-            1098 => return Table::Encoding(WINDOWS_1256),
-            1125 => return Table::Encoding(IBM866),
-            772 | 774 => return Table::Encoding(WINDOWS_1257),
+            851 => return Some(Table::Encoding(WINDOWS_1253)),
+            853 => return Some(Table::Encoding(WINDOWS_1254)),
+            856 => return Some(Table::Encoding(WINDOWS_1255)),
+            1098 => return Some(Table::Encoding(WINDOWS_1256)),
+            1125 => return Some(Table::Encoding(IBM866)),
+            772 | 774 => return Some(Table::Encoding(WINDOWS_1257)),
             _ => {}
         }
     }
     match name.as_str() {
-        "ISO_8859-2" => Table::Encoding(ISO_8859_2),
-        "ISO_8859-3" => Table::Encoding(ISO_8859_3),
-        "ISO_8859-4" => Table::Encoding(ISO_8859_4),
-        "ISO_8859-5" => Table::Encoding(ISO_8859_5),
-        "ISO_8859-6" => Table::Encoding(ISO_8859_6),
-        "ISO_8859-7" => Table::Encoding(ISO_8859_7),
-        "ISO_8859-8" => Table::Encoding(ISO_8859_8),
-        "ISO_8859-9" => Table::Encoding(WINDOWS_1254),
-        "ISO_8859-15" => Table::Encoding(ISO_8859_15),
-        "RK1048" => Table::Encoding(WINDOWS_1251),
-        "TCVN-3-1" | "TCVN-3-2" => Table::Encoding(WINDOWS_1258),
-        _ => Table::Encoding(WINDOWS_1252),
+        "ISO_8859-1" => Some(Table::Latin1),
+        "ISO_8859-2" => Some(Table::Encoding(ISO_8859_2)),
+        "ISO_8859-3" => Some(Table::Encoding(ISO_8859_3)),
+        "ISO_8859-4" => Some(Table::Encoding(ISO_8859_4)),
+        "ISO_8859-5" => Some(Table::Encoding(ISO_8859_5)),
+        "ISO_8859-6" => Some(Table::Encoding(ISO_8859_6)),
+        "ISO_8859-7" => Some(Table::Encoding(ISO_8859_7)),
+        "ISO_8859-8" => Some(Table::Encoding(ISO_8859_8)),
+        "ISO_8859-9" => Some(Table::Encoding(WINDOWS_1254)),
+        "ISO_8859-15" => Some(Table::Encoding(ISO_8859_15)),
+        "RK1048" => Some(Table::Encoding(WINDOWS_1251)),
+        _ => None,
     }
 }
 
@@ -103,6 +116,14 @@ fn decode_run(table: &Table, bytes: &[u8]) -> String {
                 .0
                 .into_owned(),
         },
+        Table::Latin1 => bytes.iter().map(|byte| char::from(*byte)).collect(),
+        Table::Chars(chars) => bytes
+            .iter()
+            .map(|byte| match byte {
+                0x00..=0x7f => char::from(*byte),
+                high => chars[usize::from(high - 0x80)],
+            })
+            .collect(),
         Table::Katakana => bytes
             .iter()
             .map(|byte| match byte {
@@ -298,6 +319,7 @@ pub(crate) fn decode_line(context: &TextContext, bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::profile::Profile;
 
     fn context(page: &str) -> TextContext<'_> {
         TextContext {
@@ -311,6 +333,32 @@ mod tests {
 
     fn read(page: &str, bytes: &[u8]) -> String {
         decode_line(&context(page), bytes)
+    }
+
+    /// Names that a profile uses and no table here knows, which are read as Windows 1252. A new name
+    /// in the printer data fails this test, so that it gets a table or is added here on purpose.
+    const READ_AS_WINDOWS_1252: &[&str] = &[
+        // Star's own pages, which the printer database calls unimplemented. Star's manuals have them.
+        "CP1001", "CP2001", "CP3001", "CP3002", "CP3021", "CP3041", "CP3840", "CP3841", "CP3843",
+        "CP3844", "CP3845", "CP3846", "CP3847", "CP3848",
+        // No table for these in the libraries used here, and none in the database.
+        "CP747", "CP871",
+    ];
+
+    #[test]
+    fn every_code_page_a_profile_names_has_a_table_or_is_listed_as_read_as_windows_1252() {
+        let mut unknown = std::collections::BTreeSet::new();
+        for name in Profile::names() {
+            let profile = Profile::named(&name).unwrap();
+            for number in 0..=255u8 {
+                if let Some(page) = profile.code_page(number) {
+                    if lookup(page).is_none() && !READ_AS_WINDOWS_1252.contains(&page) {
+                        unknown.insert(format!("{page} ({name}, ESC t {number})"));
+                    }
+                }
+            }
+        }
+        assert!(unknown.is_empty(), "no table for: {unknown:#?}");
     }
 
     #[test]
@@ -346,7 +394,17 @@ mod tests {
         let mut context = context("CP437");
         context.page = None;
         assert_eq!(decode_line(&context, &[0x80]), "€");
-        assert_eq!(read("CP3012", &[0x80]), "€");
+        assert_eq!(read("CP3001", &[0x80]), "€");
+    }
+
+    #[test]
+    fn a_page_the_database_gives_as_a_table_is_read_with_it() {
+        // Star's Cyrillic page starts with the capital letters.
+        assert_eq!(read("CP3012", &[0x80, 0x81, 0x8f, 0x9f]), "АБПЯ");
+        assert_eq!(read("cp3012", b"A"), "A");
+        // The Vietnamese page is not Windows 1258, which has other letters in these places.
+        assert_eq!(read("TCVN-3-1", &[0xa8]), "ă");
+        assert_eq!(read("ISO_8859-1", &[0x80, 0xe9]), "\u{80}é");
     }
 
     #[test]

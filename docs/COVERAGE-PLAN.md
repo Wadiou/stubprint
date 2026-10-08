@@ -137,7 +137,7 @@ choose the right one.
 
 Plan: **printer profiles as data.** A profile holds the code page map (number to name), font sizes
 and columns, paper width in dots, and feature flags (graphics, QR, PDF417, Star commands). The
-database already has 24 of them and is MIT licensed, so we copy it into `crates/core/profiles/` with
+database already has 24 of them and is MIT licensed, so we copy it into `profiles/` with
 its notice. Each listening port picks a profile. The default is a generic Epson one, so nothing
 changes for people who do not choose.
 
