@@ -29,4 +29,22 @@ cargo fmt --all && cargo clippy --workspace --all-targets && cargo test --worksp
 in `fixtures/out/previews`, and when the change is right, accept it with
 `python generate.py --update-lock` in the same commit.
 
+## Samples
+
+The ready made receipts the server ships are made by real printing libraries, never by Stubprint.
+`samples/receipts/*.json` says what each receipt prints and what it is called. Two small programs
+print them: `samples/python/build.py` with python-escpos and `samples/node/build.mjs` with
+node-thermal-printer, and each receipt lists the libraries that print it. `samples/samples.lock.json`
+holds a hash of every result, so a library update that moves a byte is reviewed.
+
+```bash
+cd samples/python && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && cd ../..
+(cd samples/node && npm ci)
+samples/python/.venv/bin/python samples/python/build.py        # add --update-lock to accept a change
+```
+
+It writes `samples/out/`: the bytes and a picture of every variant in `python/` and `node/`, and
+`samples.json`, which the server embeds when it is built. Nothing in `out/` is committed, and a
+build without it has no samples, so the sample tests need this step first.
+
 Commit messages follow Conventional Commits: `feat(core): ...`, `fix(server): ...`, `docs: ...`.
