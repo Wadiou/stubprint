@@ -10,7 +10,8 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-ab_glyph = "0.2.32"
+skrifa = "0.48.0"
+zeno = "0.3.3"
 png = "0.18.1"
 stubprint-core = { version = "0.0.1", path = "../core" }
 rxing = { version = "0.9.3", default-features = false, features = ["encoders", "encoding_rs", "aztec", "datamatrix", "oned", "pdf417", "qrcode"] }
