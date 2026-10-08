@@ -74,6 +74,10 @@ pub enum Notice {
     Cleared {
         printer: Option<String>,
     },
+    /// One receipt was removed.
+    ReceiptRemoved {
+        id: u64,
+    },
     Status {
         printer: String,
         status: PrinterStatus,
@@ -113,6 +117,7 @@ impl Notice {
         match self {
             Notice::Receipt(_) => "receipt",
             Notice::Cleared { .. } => "cleared",
+            Notice::ReceiptRemoved { .. } => "receipt_removed",
             Notice::Status { .. } => "status",
             Notice::Connection { .. } => "connection",
             Notice::Action { .. } => "action",
@@ -429,6 +434,20 @@ impl Hub {
             .iter()
             .find(|stored| stored.id == id)
             .cloned()
+    }
+
+    /// Forgets one receipt. Its number is not used again.
+    pub fn remove_receipt(&self, id: u64) -> bool {
+        let removed = {
+            let mut shelf = self.shelf();
+            let before = shelf.receipts.len();
+            shelf.receipts.retain(|stored| stored.id != id);
+            before != shelf.receipts.len()
+        };
+        if removed {
+            self.notify(Notice::ReceiptRemoved { id });
+        }
+        removed
     }
 
     /// Forgets the receipts of one printer or of all, and returns how many.

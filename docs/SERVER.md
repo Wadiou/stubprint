@@ -49,6 +49,7 @@ the code and is served at `/api/openapi.json`, with every route, parameter and f
 |---|---|
 | `GET /api/receipts` | the receipts, oldest first. `?printer=`, `?after=<id>`, `?limit=` (the latest) |
 | `GET /api/receipts/{id}` | one receipt: its lines, every event, and where each unknown command was |
+| `DELETE /api/receipts/{id}` | removes one receipt. Its number is not used again |
 | `GET /api/receipts/{id}/bytes` | the bytes the printer was sent for it |
 | `GET /api/receipts/{id}/text` | the paper as text. Pictures and codes are tags such as `[qr M: hello]` |
 | `GET /api/receipts/{id}/picture` | a picture of the paper. `?scale=1..4` |
@@ -65,7 +66,7 @@ the code and is served at `/api/openapi.json`, with every route, parameter and f
 | `DELETE /api/printers/{name}` | removes a printer: its port and its connections close, and the receipts it printed stay |
 | `POST /api/printers/{name}` | changes what the printer pretends: `online`, `cover_open`, `paper` (`adequate`, `near_end`, `end`), `drawer_open`, `feed_button`, `fault` (`cutter`, `unrecoverable`, `recoverable` or `null`) |
 | `PATCH /api/printers/{name}` | sets the printer to another model, `{"profile": "TM-T20III"}`, as if another printer stood on its port. Receipts printed from then on are read and drawn as that model, and each receipt keeps the one it was printed on (`profile` in the receipt) |
-| `GET /api/events` | live events: `receipt`, `cleared`, `status`, `connection`, `printer_added`, `printer_changed`, `printer_removed`, and `lagged` when a watcher was too slow. With `?detail=actions` also `action`, one for each command as it is read, with where its bytes are and what the printer believed after it. Commands are only made while someone watches them |
+| `GET /api/events` | live events: `receipt`, `receipt_removed`, `cleared`, `status`, `connection`, `printer_added`, `printer_changed`, `printer_removed`, and `lagged` when a watcher was too slow. With `?detail=actions` also `action`, one for each command as it is read, with where its bytes are and what the printer believed after it. Commands are only made while someone watches them |
 | `GET /api/connections`, `GET /api/connections/{id}` | the programs that connected: when, in what pieces and at what times the bytes came, how many bytes the printer answered, and which receipts they printed. The latest 200 are kept |
 | `POST /api/decode` | reads the body as a printer would, in `?dialect=` and `?profile=`, and says every command, the answers and how many receipts. Nothing is kept. It shows what the same bytes mean to another language or model |
 | `GET /api/profiles` | the models a printer can be set to, with their maker, columns, paper width in millimetres and dots, dpi, code pages, features and links to manuals |

@@ -424,6 +424,26 @@ async fn the_receipts_keep_only_the_latest_and_can_be_listed_after_an_id() {
 }
 
 #[tokio::test]
+async fn one_receipt_can_be_removed() {
+    let server = Harness::start(&["name=till"]).await;
+    for _ in 0..2 {
+        server
+            .client
+            .post(format!("{}/api/print", server.base))
+            .body(receipt_bytes("x"))
+            .send()
+            .await
+            .unwrap();
+    }
+    let url = format!("{}/api/receipts/1", server.base);
+    let removed = server.client.delete(&url).send().await.unwrap();
+    assert_eq!(removed.status(), 204);
+    assert_eq!(server.ids().await, [2]);
+    let again = server.client.delete(&url).send().await.unwrap();
+    assert_eq!(again.status(), 404);
+}
+
+#[tokio::test]
 async fn receipts_can_be_cleared_for_one_printer_or_for_all() {
     let server = Harness::start(&["name=till", "name=bar"]).await;
     for printer in ["till", "bar", "bar"] {

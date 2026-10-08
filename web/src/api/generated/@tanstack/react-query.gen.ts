@@ -3,8 +3,8 @@
 import { type DefaultError, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { addPrinter, clearReceipts, decodeBytes, getConnection, getHealth, getIndex, getOpenapi, getPrinter, getReceipt, getReceiptBytes, getReceiptPicture, getReceiptText, getSample, getSampleBytes, getSamplePicture, getSampleText, getTrace, listConnections, listPrinters, listProfiles, listReceipts, listSamples, type Options, printBytes, printSample, removePrinter, setPrinterStatus, updatePrinter, waitForReceipt } from '../sdk.gen';
-import type { AddPrinterData, AddPrinterError, AddPrinterResponse, ClearReceiptsData, ClearReceiptsError, DecodeBytesData, DecodeBytesError, DecodeBytesResponse, GetConnectionData, GetConnectionError, GetConnectionResponse, GetHealthData, GetIndexData, GetOpenapiData, GetPrinterData, GetPrinterError, GetPrinterResponse, GetReceiptBytesData, GetReceiptBytesError, GetReceiptBytesResponse, GetReceiptData, GetReceiptError, GetReceiptPictureData, GetReceiptPictureError, GetReceiptPictureResponse, GetReceiptResponse, GetReceiptTextData, GetReceiptTextError, GetReceiptTextResponse, GetSampleBytesData, GetSampleBytesError, GetSampleBytesResponse, GetSampleData, GetSampleError, GetSamplePictureData, GetSamplePictureError, GetSamplePictureResponse, GetSampleResponse, GetSampleTextData, GetSampleTextError, GetSampleTextResponse, GetTraceData, GetTraceError, GetTraceResponse, ListConnectionsData, ListConnectionsResponse, ListPrintersData, ListPrintersResponse, ListProfilesData, ListProfilesResponse, ListReceiptsData, ListReceiptsResponse, ListSamplesData, ListSamplesResponse, PrintBytesData, PrintBytesError, PrintBytesResponse, PrintSampleData, PrintSampleError, PrintSampleResponse, RemovePrinterData, RemovePrinterError, RemovePrinterResponse, SetPrinterStatusData, SetPrinterStatusError, SetPrinterStatusResponse, UpdatePrinterData, UpdatePrinterError, UpdatePrinterResponse, WaitForReceiptData, WaitForReceiptResponse } from '../types.gen';
+import { addPrinter, clearReceipts, decodeBytes, getConnection, getHealth, getIndex, getOpenapi, getPrinter, getReceipt, getReceiptBytes, getReceiptPicture, getReceiptText, getSample, getSampleBytes, getSamplePicture, getSampleText, getTrace, listConnections, listPrinters, listProfiles, listReceipts, listSamples, type Options, printBytes, printSample, removePrinter, removeReceipt, setPrinterStatus, updatePrinter, waitForReceipt } from '../sdk.gen';
+import type { AddPrinterData, AddPrinterError, AddPrinterResponse, ClearReceiptsData, ClearReceiptsError, DecodeBytesData, DecodeBytesError, DecodeBytesResponse, GetConnectionData, GetConnectionError, GetConnectionResponse, GetHealthData, GetIndexData, GetOpenapiData, GetPrinterData, GetPrinterError, GetPrinterResponse, GetReceiptBytesData, GetReceiptBytesError, GetReceiptBytesResponse, GetReceiptData, GetReceiptError, GetReceiptPictureData, GetReceiptPictureError, GetReceiptPictureResponse, GetReceiptResponse, GetReceiptTextData, GetReceiptTextError, GetReceiptTextResponse, GetSampleBytesData, GetSampleBytesError, GetSampleBytesResponse, GetSampleData, GetSampleError, GetSamplePictureData, GetSamplePictureError, GetSamplePictureResponse, GetSampleResponse, GetSampleTextData, GetSampleTextError, GetSampleTextResponse, GetTraceData, GetTraceError, GetTraceResponse, ListConnectionsData, ListConnectionsResponse, ListPrintersData, ListPrintersResponse, ListProfilesData, ListProfilesResponse, ListReceiptsData, ListReceiptsResponse, ListSamplesData, ListSamplesResponse, PrintBytesData, PrintBytesError, PrintBytesResponse, PrintSampleData, PrintSampleError, PrintSampleResponse, RemovePrinterData, RemovePrinterError, RemovePrinterResponse, RemoveReceiptData, RemoveReceiptError, RemoveReceiptResponse, SetPrinterStatusData, SetPrinterStatusError, SetPrinterStatusResponse, UpdatePrinterData, UpdatePrinterError, UpdatePrinterResponse, WaitForReceiptData, WaitForReceiptResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -342,6 +342,23 @@ export const waitForReceiptOptions = (options?: Options<WaitForReceiptData>) => 
     },
     queryKey: waitForReceiptQueryKey(options)
 });
+
+/**
+ * Forgets one receipt. Its number is not used again.
+ */
+export const removeReceiptMutation = (options?: Partial<Options<RemoveReceiptData>>): UseMutationOptions<RemoveReceiptResponse, RemoveReceiptError, Options<RemoveReceiptData>> => {
+    const mutationOptions: UseMutationOptions<RemoveReceiptResponse, RemoveReceiptError, Options<RemoveReceiptData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await removeReceipt({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
 
 export const getReceiptQueryKey = (options: Options<GetReceiptData>) => createQueryKey('getReceipt', options);
 

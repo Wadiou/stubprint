@@ -57,7 +57,7 @@ pub fn router(hub: Arc<Hub>, web: &Web) -> Router {
         )
         .route("/api/receipts", get(list).delete(clear))
         .route("/api/receipts/next", get(next))
-        .route("/api/receipts/{id}", get(receipt))
+        .route("/api/receipts/{id}", get(receipt).delete(remove_receipt))
         .route("/api/receipts/{id}/bytes", get(receipt_bytes))
         .route("/api/receipts/{id}/text", get(receipt_text))
         .route("/api/receipts/{id}/picture", get(receipt_picture))
@@ -162,6 +162,7 @@ async fn health() -> Json<serde_json::Value> {
         clear,
         next,
         receipt,
+        remove_receipt,
         receipt_bytes,
         receipt_text,
         receipt_picture,
@@ -485,6 +486,20 @@ fn stored(hub: &Hub, id: u64) -> Reply<Arc<Stored>> {
 async fn receipt(State(hub): State<Arc<Hub>>, Path(id): Path<u64>) -> Reply<Response> {
     let stored = stored(&hub, id)?;
     Ok(Json(ReceiptDetail::of(&stored)).into_response())
+}
+
+/// Forgets one receipt. Its number is not used again.
+#[utoipa::path(delete, path = "/api/receipts/{id}", operation_id = "remove_receipt", tag = "receipts",
+    params(("id" = u64, Path, description = "The id of the receipt")),
+    responses(
+        (status = 204, description = "The receipt was removed"),
+        (status = 404, description = "There is no such printer, receipt or connection, as `error` says", body = ErrorBody)))]
+async fn remove_receipt(State(hub): State<Arc<Hub>>, Path(id): Path<u64>) -> Reply<StatusCode> {
+    if hub.remove_receipt(id) {
+        Ok(StatusCode::NO_CONTENT)
+    } else {
+        Err(ApiError::not_found(format!("no receipt {id}")))
+    }
 }
 
 /// The bytes the printer was sent for a receipt. With `upto`, only those of its first events.
@@ -891,7 +906,7 @@ struct EventsQuery {
     detail: Option<String>,
 }
 
-/// The live events, as server sent events: receipt, cleared, status, connection and lagged, and
+/// The live events, as server sent events: receipt, receipt_removed, cleared, status, connection and lagged, and
 /// with `detail=actions` also action, one for each command as it is read.
 #[utoipa::path(get, path = "/api/events", operation_id = "stream_events", tag = "live", params(EventsQuery), responses((status = 200, description = "A stream of events", content_type = "text/event-stream")))]
 async fn events(

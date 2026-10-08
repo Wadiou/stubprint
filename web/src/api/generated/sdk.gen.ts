@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AddPrinterData, AddPrinterErrors, AddPrinterResponses, ClearReceiptsData, ClearReceiptsErrors, ClearReceiptsResponses, DecodeBytesData, DecodeBytesErrors, DecodeBytesResponses, GetConnectionData, GetConnectionErrors, GetConnectionResponses, GetHealthData, GetHealthResponses, GetIndexData, GetIndexResponses, GetOpenapiData, GetOpenapiResponses, GetPrinterData, GetPrinterErrors, GetPrinterResponses, GetReceiptBytesData, GetReceiptBytesErrors, GetReceiptBytesResponses, GetReceiptData, GetReceiptErrors, GetReceiptPictureData, GetReceiptPictureErrors, GetReceiptPictureResponses, GetReceiptResponses, GetReceiptTextData, GetReceiptTextErrors, GetReceiptTextResponses, GetSampleBytesData, GetSampleBytesErrors, GetSampleBytesResponses, GetSampleData, GetSampleErrors, GetSamplePictureData, GetSamplePictureErrors, GetSamplePictureResponses, GetSampleResponses, GetSampleTextData, GetSampleTextErrors, GetSampleTextResponses, GetTraceData, GetTraceErrors, GetTraceResponses, ListConnectionsData, ListConnectionsResponses, ListPrintersData, ListPrintersResponses, ListProfilesData, ListProfilesResponses, ListReceiptsData, ListReceiptsResponses, ListSamplesData, ListSamplesResponses, PrintBytesData, PrintBytesErrors, PrintBytesResponses, PrintSampleData, PrintSampleErrors, PrintSampleResponses, RemovePrinterData, RemovePrinterErrors, RemovePrinterResponses, SetPrinterStatusData, SetPrinterStatusErrors, SetPrinterStatusResponses, StreamEventsData, StreamEventsResponses, UpdatePrinterData, UpdatePrinterErrors, UpdatePrinterResponses, WaitForReceiptData, WaitForReceiptResponses } from './types.gen';
+import type { AddPrinterData, AddPrinterErrors, AddPrinterResponses, ClearReceiptsData, ClearReceiptsErrors, ClearReceiptsResponses, DecodeBytesData, DecodeBytesErrors, DecodeBytesResponses, GetConnectionData, GetConnectionErrors, GetConnectionResponses, GetHealthData, GetHealthResponses, GetIndexData, GetIndexResponses, GetOpenapiData, GetOpenapiResponses, GetPrinterData, GetPrinterErrors, GetPrinterResponses, GetReceiptBytesData, GetReceiptBytesErrors, GetReceiptBytesResponses, GetReceiptData, GetReceiptErrors, GetReceiptPictureData, GetReceiptPictureErrors, GetReceiptPictureResponses, GetReceiptResponses, GetReceiptTextData, GetReceiptTextErrors, GetReceiptTextResponses, GetSampleBytesData, GetSampleBytesErrors, GetSampleBytesResponses, GetSampleData, GetSampleErrors, GetSamplePictureData, GetSamplePictureErrors, GetSamplePictureResponses, GetSampleResponses, GetSampleTextData, GetSampleTextErrors, GetSampleTextResponses, GetTraceData, GetTraceErrors, GetTraceResponses, ListConnectionsData, ListConnectionsResponses, ListPrintersData, ListPrintersResponses, ListProfilesData, ListProfilesResponses, ListReceiptsData, ListReceiptsResponses, ListSamplesData, ListSamplesResponses, PrintBytesData, PrintBytesErrors, PrintBytesResponses, PrintSampleData, PrintSampleErrors, PrintSampleResponses, RemovePrinterData, RemovePrinterErrors, RemovePrinterResponses, RemoveReceiptData, RemoveReceiptErrors, RemoveReceiptResponses, SetPrinterStatusData, SetPrinterStatusErrors, SetPrinterStatusResponses, StreamEventsData, StreamEventsResponses, UpdatePrinterData, UpdatePrinterErrors, UpdatePrinterResponses, WaitForReceiptData, WaitForReceiptResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -49,7 +49,7 @@ export const decodeBytes = <ThrowOnError extends boolean = false>(options: Optio
 });
 
 /**
- * The live events, as server sent events: receipt, cleared, status, connection and lagged, and
+ * The live events, as server sent events: receipt, receipt_removed, cleared, status, connection and lagged, and
  * with `detail=actions` also action, one for each command as it is read.
  */
 export const streamEvents = <ThrowOnError extends boolean = false>(options?: Options<StreamEventsData, ThrowOnError, unknown>): Promise<ServerSentEventsResult<StreamEventsResponses>> => (options?.client ?? client).sse.get<StreamEventsResponses, unknown, ThrowOnError>({ url: '/api/events', ...options });
@@ -150,6 +150,11 @@ export const listReceipts = <ThrowOnError extends boolean = false>(options?: Opt
  * Waits for the next receipt. Test code prints, then calls this to get what came out.
  */
 export const waitForReceipt = <ThrowOnError extends boolean = false>(options?: Options<WaitForReceiptData, ThrowOnError>): RequestResult<WaitForReceiptResponses, unknown, ThrowOnError> => (options?.client ?? client).get<WaitForReceiptResponses, unknown, ThrowOnError>({ url: '/api/receipts/next', ...options });
+
+/**
+ * Forgets one receipt. Its number is not used again.
+ */
+export const removeReceipt = <ThrowOnError extends boolean = false>(options: Options<RemoveReceiptData, ThrowOnError>): RequestResult<RemoveReceiptResponses, RemoveReceiptErrors, ThrowOnError> => (options.client ?? client).delete<RemoveReceiptResponses, RemoveReceiptErrors, ThrowOnError>({ url: '/api/receipts/{id}', ...options });
 
 /**
  * One receipt as data: where and when it was printed, its commands and the text on it.

@@ -411,6 +411,14 @@ export type Notice = {
         printer?: string | null;
     };
 } | {
+    type: 'receipt_removed';
+    /**
+     * One receipt was removed.
+     */
+    value: {
+        id: number;
+    };
+} | {
     type: 'status';
     value: {
         printer: string;
@@ -1516,6 +1524,36 @@ export type WaitForReceiptResponses = {
 };
 
 export type WaitForReceiptResponse = WaitForReceiptResponses[keyof WaitForReceiptResponses];
+
+export type RemoveReceiptData = {
+    body?: never;
+    path: {
+        /**
+         * The id of the receipt
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/receipts/{id}';
+};
+
+export type RemoveReceiptErrors = {
+    /**
+     * There is no such printer, receipt or connection, as `error` says
+     */
+    404: ErrorBody;
+};
+
+export type RemoveReceiptError = RemoveReceiptErrors[keyof RemoveReceiptErrors];
+
+export type RemoveReceiptResponses = {
+    /**
+     * The receipt was removed
+     */
+    204: void;
+};
+
+export type RemoveReceiptResponse = RemoveReceiptResponses[keyof RemoveReceiptResponses];
 
 export type GetReceiptData = {
     body?: never;
