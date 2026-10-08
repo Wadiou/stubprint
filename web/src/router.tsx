@@ -3,7 +3,7 @@ import { Shell } from "@/components/shell";
 import { LivePage } from "@/pages/live";
 import { Placeholder } from "@/pages/placeholder";
 import { PrintersPage } from "@/components/printers/printers-page";
-import { SamplesPage } from "@/pages/samples";
+import { SamplesPage } from "@/components/samples/samples-page";
 
 const rootRoute = createRootRoute({ component: Shell });
 
@@ -38,9 +38,8 @@ const printersRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/printers",
   staticData: { title: "Printers" },
-  validateSearch: (search: Record<string, unknown>): { add?: boolean; edit?: string; remove?: string } => ({
+  validateSearch: (search: Record<string, unknown>): { add?: boolean; remove?: string } => ({
     ...(search.add === true || search.add === "true" ? { add: true } : {}),
-    ...(typeof search.edit === "string" ? { edit: search.edit } : {}),
     ...(typeof search.remove === "string" ? { remove: search.remove } : {}),
   }),
   component: PrintersRoute,

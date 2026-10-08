@@ -1,0 +1,64 @@
+import type { ColumnDef } from "@tanstack/react-table";
+import type { PrinterInfo, SampleSummary, VariantInfo } from "@/api/generated/types.gen";
+import { Button } from "@/components/ui/button";
+
+/** A printer reads one command language, so a variant goes to a printer that is set to it. */
+export const reads = (printer: PrinterInfo, variant: VariantInfo) => printer.dialect === variant.dialect;
+
+const libraries = (sample: SampleSummary) => [...new Set(sample.variants.map((variant) => variant.library))].join(", ");
+
+export interface SamplesColumnsOptions {
+  /** How wide the paper of a model is, in millimetres, when it says. */
+  paperMm: (profile: string) => number | null | undefined;
+  printers: PrinterInfo[];
+  printing: boolean;
+  onPrint: (printer: PrinterInfo, sample: SampleSummary, variant: VariantInfo) => void;
+}
+
+export function createSamplesColumns({ paperMm, printers, printing, onPrint }: SamplesColumnsOptions): ColumnDef<SampleSummary>[] {
+  return [
+    {
+      accessorKey: "title",
+      header: "Sample",
+      cell: ({ row }) => <span className="font-medium">{row.original.title}</span>,
+    },
+    {
+      accessorKey: "profile",
+      header: "Made for",
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">
+          {row.original.profile}
+          {paperMm(row.original.profile) ? `, ${paperMm(row.original.profile)} mm` : ""}
+        </span>
+      ),
+    },
+    {
+      id: "libraries",
+      header: "Written by",
+      cell: ({ row }) => <span className="text-[13px] text-muted-foreground">{libraries(row.original)}</span>,
+    },
+    {
+      id: "print",
+      header: () => <span className="sr-only">Print</span>,
+      cell: ({ row }) => {
+        const first = row.original.variants[0];
+        const target = first && printers.find((printer) => reads(printer, first));
+        return (
+          <div className="text-right">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!target || printing}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (target && first) onPrint(target, row.original, first);
+              }}
+            >
+              Print
+            </Button>
+          </div>
+        );
+      },
+    },
+  ];
+}
