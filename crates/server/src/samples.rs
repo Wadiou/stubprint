@@ -1,7 +1,4 @@
-//! The ready made samples: receipts that real printing libraries wrote, kept as bytes.
-//!
-//! `samples/python/build.py` prints the receipts of `samples/receipts` with each library and writes
-//! `samples/out/samples.json`, which `build.rs` embeds. Nothing here makes bytes up.
+//! The samples that `samples/python/build.py` wrote, embedded by `build.rs`.
 
 use std::sync::LazyLock;
 
@@ -13,7 +10,7 @@ use stubprint_core::Dialect;
 
 const DATA: &str = include_str!(concat!(env!("OUT_DIR"), "/samples.json"));
 
-/// A receipt, and every way a library wrote it.
+/// A receipt and the variants that libraries wrote of it.
 #[derive(Debug)]
 pub struct Sample {
     pub id: String,
@@ -22,14 +19,14 @@ pub struct Sample {
     pub paper_mm: u32,
     pub columns: u32,
     pub tags: Vec<String>,
-    /// What a decoder must find on the paper, from what the receipt asks for.
+    /// What a decoder must find on the paper.
     pub expect: Value,
-    /// The receipt as data, which every library printed.
+    /// The receipt as data.
     pub receipt: Value,
     pub variants: Vec<Variant>,
 }
 
-/// One library's bytes for a sample.
+/// The bytes one library wrote.
 #[derive(Debug)]
 pub struct Variant {
     pub library: String,
@@ -101,7 +98,7 @@ static ALL: LazyLock<Vec<Sample>> = LazyLock::new(|| {
         .expect("samples/out/samples.json is made by samples/python/build.py and can be read")
 });
 
-/// Every sample, in the order they are shown.
+/// Every sample, in display order.
 pub fn all() -> &'static [Sample] {
     &ALL
 }
@@ -112,7 +109,7 @@ pub fn find(id: &str) -> Option<&'static Sample> {
 }
 
 impl Sample {
-    /// The first variant that is by this library and in this dialect, when they are given.
+    /// The first variant matching the library and dialect that are given.
     pub fn variant(&self, library: Option<&str>, dialect: Option<Dialect>) -> Option<&Variant> {
         self.variants.iter().find(|variant| {
             library.is_none_or(|library| variant.library == library)

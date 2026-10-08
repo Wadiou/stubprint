@@ -1442,7 +1442,6 @@ async fn a_sample_is_printed_in_the_language_of_the_printer() {
         .unwrap()
         .contains("Harbour Books"));
 
-    // The Star receipt has no ESC/POS variant, so there is nothing a printer of that language reads.
     for path in [
         "/api/samples/bookshop/print?printer=epson",
         "/api/samples/nothing/print?printer=epson",
@@ -1469,12 +1468,10 @@ async fn a_sample_is_printed_in_the_language_of_the_printer() {
         .bytes()
         .await
         .unwrap();
-    // A receipt ends at its cut. node-thermal-printer adds a reset after the cut, which belongs to
-    // the next receipt and prints nothing.
+    // the library adds a reset after the cut
     assert_eq!(sent.strip_prefix(kept.as_ref()), Some(b"\x1b@".as_slice()));
 }
 
-/// The printed lines of a receipt, put together from its events.
 fn lines_of(receipt: &Value) -> Vec<String> {
     let mut lines = Vec::new();
     let mut line = String::new();

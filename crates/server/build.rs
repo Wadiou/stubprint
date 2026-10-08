@@ -1,5 +1,4 @@
-//! Takes the samples that samples/python/build.py wrote, if it has been run, to be embedded in the
-//! program. Without them the program has no samples, and everything else works.
+//! Copies samples/out/samples.json into the build, or an empty list when it was not built.
 
 use std::path::{Path, PathBuf};
 use std::{env, fs};
