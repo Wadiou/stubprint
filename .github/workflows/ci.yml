@@ -38,6 +38,8 @@ jobs:
           samples/python/.venv/bin/pip install -r samples/python/requirements.txt
           npm ci --prefix samples/node
           samples/python/.venv/bin/python samples/python/build.py --no-previews
+      - name: The copied upstream files are the release they say they are
+        run: python3 scripts/upstream.py --check
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace

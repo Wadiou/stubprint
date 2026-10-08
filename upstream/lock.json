@@ -1,0 +1,49 @@
+{
+  "printer-db": {
+    "repository": "receipt-print-hq/escpos-printer-db",
+    "ref": "v26.07.27",
+    "commit": "c01b8dbcff1b464d05fb6ea22bb3586684705bd3",
+    "files": {
+      "profiles/LICENSE.md": "fd3a263fe19ed8faa9068b43abaebafc02c77897b0c6fc09abc04bb592e5f16e",
+      "profiles/manuals.json": "3ec01ea65dd582fab2e577dc561f6879594d46d5c39308ca277006d4856675d6",
+      "profiles/profiles.json": "ee5fc9ed354aee475ba287669d729d46bf89e3f448636b5ff7e90f462f8d1fb3"
+    }
+  },
+  "escpos-php": {
+    "repository": "mike42/escpos-php",
+    "ref": "v5.0",
+    "commit": "985d57cbfbef60bb98c08cb139714735f28d4518",
+    "files": {
+      "fixtures/captured/escpos-php/LICENSE.md": "eda0140ffe6d4b54ef001d56ef34ef9350b88c2e179cebb513c689c8204ccd3c",
+      "fixtures/captured/escpos-php/barcode.bin": "3e7a4c9ec05be5d3eef493f7b6a6b8dbda777ce47ba62af1aa26c5cf2357ca3e",
+      "fixtures/captured/escpos-php/bit-image.bin": "ab61b590b8ef55f7e3f005d91d1ea40a513f6ffc3d1a669b2ca430e3a0aea8f5",
+      "fixtures/captured/escpos-php/character-encodings.bin": "b9d45ad30e92424cf0e1ded768c109d85c78e2f86c4f08c0e2a1808f08bcdd47",
+      "fixtures/captured/escpos-php/character-tables.bin": "f4d44709a704b7f376cda02fcf573805a75987c031d7ee9114801faa41403aca",
+      "fixtures/captured/escpos-php/graphics.bin": "e9666d55edad5a6e9977aae43d2ad496e60a108aa30fcc36ed8855ec55c65f86",
+      "fixtures/captured/escpos-php/margins-and-spacing.bin": "6554937681e3eed3dea1fa3721b3147411128efaa77c512c71b28eed6c4e002e",
+      "fixtures/captured/escpos-php/pdf417-code.bin": "a674e3b44f2e526265e64984b00bbba2b44ae694175f0ef24d3a9d59c6bd0c29",
+      "fixtures/captured/escpos-php/qr-code.bin": "5a8b5780df193bb76e0209f1b6d2b96b355a36e0177e334d434f3d2f9cc401e5",
+      "fixtures/captured/escpos-php/receipt-with-logo.bin": "d41d218ce4a988ae14bb06d6de32beb2b0ab5c8c8040a2c3d6d1b12a32203872",
+      "fixtures/captured/escpos-php/text-size.bin": "7092b4ba6fd42aa5b09eb3002153c3107eb39f50d8138031222384505eeecb82",
+      "fixtures/captured/escpos-php/unifont-print-buffer.bin": "3483eda73a06b85dc5cb6818dbcae60d24cf42fead4fccff7fee45f9034ff960"
+    }
+  },
+  "escpresso": {
+    "repository": "jflaflamme/escpresso",
+    "ref": "v0.1.3",
+    "commit": "776e3fae53ec97f63b9ed118fcdc8172ba911627",
+    "files": {
+      "fixtures/captured/escpresso/LICENSE": "f0fe3b90eba8830ed8f92c2b060df38cca82c3c3e5bc7aec93ac452062f4e625",
+      "fixtures/captured/escpresso/escpos_capture.raw": "1fb126257d9129f9e197382b9f7e4064e01e003f8f1cf2282dca2a0e02441815",
+      "fixtures/captured/escpresso/test1_format.raw": "4af261b1d58d67f6a71f9943e1d0797e9f9819527e3a57585f6ff746e197f56a",
+      "fixtures/captured/escpresso/test2_qrcode.raw": "473b66b059e2a63df53686db6c362685ca3fab6106c19d255f3a2b44430aa8e3",
+      "fixtures/captured/escpresso/test3_simple.raw": "e814c2f570a5c7ee0ad3d31b481e7524608a5a73c03a4a7a709a9a431654f83f",
+      "fixtures/captured/escpresso/test4_receipt.raw": "0ff225242b0817105fa63237cf1231aff91ece0549b9c9f051449ce1ac1b071b",
+      "fixtures/captured/escpresso/test5_special.raw": "ae662f587ca273ee5e9d3297edd9a6f2933597ad504ca642dd64f6d366adb4e0",
+      "fixtures/captured/escpresso/test6_spacing.raw": "2bb1c979db57b91a79d27deb93bafdf8b4ff6ccb4d7764cddee5bb41d1ad09bf",
+      "fixtures/captured/escpresso/test7_combined.raw": "d32899f2964aae8c3cc0ec33d688594ae1802457512b6afe3e99356cf6d775b9",
+      "fixtures/captured/escpresso/test_cp437.raw": "38755948f924585e10da017379cc6aebdc2aab4131360bf903254441a565dfae",
+      "fixtures/captured/escpresso/test_win1252.raw": "b77d064ef3358ca3d7224d3bc35096fea9866ed87a6d252b491a277a013b079e"
+    }
+  }
+}

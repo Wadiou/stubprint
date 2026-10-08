@@ -1,0 +1,46 @@
+name: Upstream
+
+# Looks for new releases of the projects we copy data from every week and opens one pull request
+# for each that moved, so that the tests run on it and a person reads what changed.
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    name: Update the copied upstream files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Look for a new release of each project
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for name in $(python3 scripts/upstream.py --list); do
+            git switch --detach "$GITHUB_SHA"
+            python3 scripts/upstream.py --latest "$name"
+            if git diff --quiet; then
+              echo "$name is up to date."
+              continue
+            fi
+            ref=$(python3 -c "import json; print(json.load(open('upstream/sources.json'))['sources']['$name']['ref'])")
+            branch="chore/upstream-$name-$ref"
+            git switch -c "$branch"
+            git add -A upstream profiles fixtures
+            git commit -m "chore(repo): update $name to $ref" -m "A new release of $name. This is the data as scripts/upstream.py writes it."
+            git push --force origin "$branch"
+            gh pr create --base main --head "$branch" \
+              --title "chore(repo): update $name to $ref" \
+              --body "## Summary
+          A new release of $name, $ref. This is the data as scripts/upstream.py writes it.
+
+          ## Things to Know
+          - A pull request made by a workflow does not start CI by itself. Run the checks on this branch, or push an empty commit to it."
+          done

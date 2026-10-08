@@ -1,0 +1,52 @@
+{
+  "sources": {
+    "printer-db": {
+      "repository": "receipt-print-hq/escpos-printer-db",
+      "ref": "v26.07.27",
+      "files": {
+        "profiles/LICENSE.md": "LICENSE.md",
+        "profiles/profiles.json": {
+          "transform": "printer-db-profiles"
+        },
+        "profiles/manuals.json": {
+          "transform": "printer-db-manuals"
+        }
+      }
+    },
+    "escpos-php": {
+      "repository": "mike42/escpos-php",
+      "ref": "v5.0",
+      "files": {
+        "fixtures/captured/escpos-php/LICENSE.md": "LICENSE.md",
+        "fixtures/captured/escpos-php/barcode.bin": "test/integration/resources/output/barcode.bin",
+        "fixtures/captured/escpos-php/bit-image.bin": "test/integration/resources/output/bit-image.bin",
+        "fixtures/captured/escpos-php/character-encodings.bin": "test/integration/resources/output/character-encodings.bin",
+        "fixtures/captured/escpos-php/character-tables.bin": "test/integration/resources/output/character-tables.bin",
+        "fixtures/captured/escpos-php/graphics.bin": "test/integration/resources/output/graphics.bin",
+        "fixtures/captured/escpos-php/margins-and-spacing.bin": "test/integration/resources/output/margins-and-spacing.bin",
+        "fixtures/captured/escpos-php/pdf417-code.bin": "test/integration/resources/output/pdf417-code.bin",
+        "fixtures/captured/escpos-php/qr-code.bin": "test/integration/resources/output/qr-code.bin",
+        "fixtures/captured/escpos-php/receipt-with-logo.bin": "test/integration/resources/output/receipt-with-logo.bin",
+        "fixtures/captured/escpos-php/text-size.bin": "test/integration/resources/output/text-size.bin",
+        "fixtures/captured/escpos-php/unifont-print-buffer.bin": "test/integration/resources/output/unifont-print-buffer.bin"
+      }
+    },
+    "escpresso": {
+      "repository": "jflaflamme/escpresso",
+      "ref": "v0.1.3",
+      "files": {
+        "fixtures/captured/escpresso/LICENSE": "LICENSE",
+        "fixtures/captured/escpresso/escpos_capture.raw": "tests/raw/escpos_capture.raw",
+        "fixtures/captured/escpresso/test1_format.raw": "tests/raw/test1_format.raw",
+        "fixtures/captured/escpresso/test2_qrcode.raw": "tests/raw/test2_qrcode.raw",
+        "fixtures/captured/escpresso/test3_simple.raw": "tests/raw/test3_simple.raw",
+        "fixtures/captured/escpresso/test4_receipt.raw": "tests/raw/test4_receipt.raw",
+        "fixtures/captured/escpresso/test5_special.raw": "tests/raw/test5_special.raw",
+        "fixtures/captured/escpresso/test6_spacing.raw": "tests/raw/test6_spacing.raw",
+        "fixtures/captured/escpresso/test7_combined.raw": "tests/raw/test7_combined.raw",
+        "fixtures/captured/escpresso/test_cp437.raw": "tests/raw/test_cp437.raw",
+        "fixtures/captured/escpresso/test_win1252.raw": "tests/raw/test_win1252.raw"
+      }
+    }
+  }
+}
