@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use axum::body::Bytes;
 use serde::Serialize;
 use stubprint_core::{Event, PrinterStatus, Profile, Receipt, Snapshot};
 use tokio::net::TcpListener;
@@ -13,6 +14,7 @@ use utoipa::ToSchema;
 
 use crate::config::PrinterConfig;
 use crate::listener;
+use crate::pictures::{PictureKey, Pictures};
 use crate::printer::VirtualPrinter;
 use crate::wire::{PrinterInfo, ReceiptSummary};
 
@@ -139,6 +141,8 @@ struct Shelf {
     receipts: VecDeque<Arc<Stored>>,
     /// The id the next receipt gets. The first is 1.
     next_id: u64,
+    /// The pictures drawn of these receipts.
+    pictures: Pictures,
 }
 
 /// What every connection and every request shares: the printers, the receipts they printed and
@@ -163,6 +167,7 @@ impl Hub {
             shelf: Mutex::new(Shelf {
                 receipts: VecDeque::new(),
                 next_id: 1,
+                pictures: Pictures::default(),
             }),
             log: Mutex::new(Log {
                 connections: VecDeque::new(),
@@ -409,7 +414,9 @@ impl Hub {
             });
             shelf.receipts.push_back(stored.clone());
             while shelf.receipts.len() > self.keep {
-                shelf.receipts.pop_front();
+                if let Some(old) = shelf.receipts.pop_front() {
+                    shelf.pictures.forget(|id| id == old.id);
+                }
             }
             stored
         };
@@ -436,12 +443,26 @@ impl Hub {
             .cloned()
     }
 
+    /// A picture that was drawn before, if it is still kept.
+    pub fn picture(&self, key: &PictureKey) -> Option<Bytes> {
+        self.shelf().pictures.get(key)
+    }
+
+    /// Keeps a picture that was drawn, unless its receipt is gone by now.
+    pub fn keep_picture(&self, key: PictureKey, file: Bytes) {
+        let mut shelf = self.shelf();
+        if shelf.receipts.iter().any(|stored| stored.id == key.0) {
+            shelf.pictures.put(key, file);
+        }
+    }
+
     /// Forgets one receipt. Its number is not used again.
     pub fn remove_receipt(&self, id: u64) -> bool {
         let removed = {
             let mut shelf = self.shelf();
             let before = shelf.receipts.len();
             shelf.receipts.retain(|stored| stored.id != id);
+            shelf.pictures.forget(|gone| gone == id);
             before != shelf.receipts.len()
         };
         if removed {
@@ -458,6 +479,8 @@ impl Hub {
             shelf
                 .receipts
                 .retain(|stored| printer.is_some_and(|name| stored.printer.name != name));
+            let kept: Vec<u64> = shelf.receipts.iter().map(|stored| stored.id).collect();
+            shelf.pictures.forget(|id| !kept.contains(&id));
             before - shelf.receipts.len()
         };
         self.notify(Notice::Cleared {

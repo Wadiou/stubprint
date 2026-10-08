@@ -4,6 +4,7 @@ use std::convert::Infallible;
 use std::sync::Arc;
 use std::time::Duration;
 
+use axum::body::Bytes;
 use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::{header, StatusCode};
 use axum::response::sse::{Event as Sse, KeepAlive};
@@ -561,9 +562,14 @@ async fn receipt_picture(
     Path(id): Path<u64>,
     Query(view): Query<ViewQuery>,
 ) -> Reply<Response> {
+    let scale = view.scale.unwrap_or(1);
+    let key = (id, view.upto, scale);
+    if let Some(file) = hub.picture(&key) {
+        return Ok(([(header::CONTENT_TYPE, "image/png")], file).into_response());
+    }
     let stored = stored(&hub, id)?;
     let mut options = Options::for_profile(&stored.profile);
-    options.scale = view.scale.unwrap_or(1);
+    options.scale = scale;
     let part = view.upto.map(|count| stored.receipt.until(count));
     // Drawing takes a while for a long receipt, so it does not hold up the other requests.
     let file = tokio::task::spawn_blocking(move || {
@@ -572,6 +578,8 @@ async fn receipt_picture(
     .await
     .map_err(|error| ApiError(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
     .map_err(|error| ApiError(StatusCode::INTERNAL_SERVER_ERROR, error))?;
+    let file = Bytes::from(file);
+    hub.keep_picture(key, file.clone());
     Ok(([(header::CONTENT_TYPE, "image/png")], file).into_response())
 }
 
