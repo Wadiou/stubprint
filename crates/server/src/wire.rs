@@ -109,6 +109,7 @@ pub struct TraceItem<'a> {
     pub index: usize,
     /// Where its bytes start and end. A command that made several events gives each the same.
     pub start: usize,
+    /// Where it ends, counted in bytes from the start of the receipt.
     pub end: usize,
     pub event: &'a Event,
     pub state: &'a Snapshot,
