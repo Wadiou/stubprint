@@ -28,7 +28,7 @@ use tokio::net::TcpListener;
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
 
-pub use config::{default_state_file, Config, PrinterConfig, Web};
+pub use config::{default_state_file, Config, PrinterConfig, PrinterSettings, Web};
 pub use hub::{Hub, Notice, Stored};
 pub use printer::VirtualPrinter;
 
@@ -99,7 +99,7 @@ pub async fn serve(config: Config) -> io::Result<Running> {
         _ => None,
     };
     let started = match saved {
-        Some(saved) => restore(&hub, saved).await,
+        Some(saved) => restore(&hub, saved, config.given).await,
         None => start(&hub, config.printers).await,
     };
     if let Err(error) = started {
@@ -145,13 +145,25 @@ async fn start(hub: &Arc<Hub>, printers: Vec<PrinterConfig>) -> io::Result<()> {
     Ok(())
 }
 
-/// Opens the printers of the state file as they were, with what they reported. A port that is taken
-/// now is not a reason to stay down: the printer takes a free one and the output says so.
-async fn restore(hub: &Arc<Hub>, saved: Vec<state::Saved>) -> io::Result<()> {
-    for printer in saved {
+/// Opens the printers of the state file as they were, with what they reported. A printer that is
+/// asked for as well gets what is written for it over what was kept, and keeps the rest. A printer
+/// that is asked for and was not kept is added. A port that is taken now is not a reason to stay
+/// down: the printer takes a free one and the output says so.
+async fn restore(
+    hub: &Arc<Hub>,
+    saved: Vec<state::Saved>,
+    asked: Vec<PrinterSettings>,
+) -> io::Result<()> {
+    for printer in &saved {
         let mut settings = printer
             .config()
             .map_err(|message| io::Error::new(io::ErrorKind::InvalidData, message))?;
+        if let Some(wanted) = asked.iter().find(|other| other.name() == settings.name) {
+            settings = wanted
+                .clone()
+                .apply(settings)
+                .map_err(|message| io::Error::new(io::ErrorKind::InvalidInput, message))?;
+        }
         let started = match hub.add_printer(settings.clone()).await {
             Err(error) if error.kind() != io::ErrorKind::InvalidInput => {
                 let wanted = settings.listen;
@@ -170,6 +182,17 @@ async fn restore(hub: &Arc<Hub>, saved: Vec<state::Saved>) -> io::Result<()> {
             other => other?,
         };
         started.set_status(printer.status);
+    }
+    for settings in asked {
+        if saved
+            .iter()
+            .all(|printer| printer.name() != settings.name())
+        {
+            let settings = settings
+                .build()
+                .map_err(|message| io::Error::new(io::ErrorKind::InvalidInput, message))?;
+            hub.add_printer(settings).await?;
+        }
     }
     Ok(())
 }

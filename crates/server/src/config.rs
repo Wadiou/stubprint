@@ -19,9 +19,13 @@ pub struct Config {
     pub ready: Option<PathBuf>,
     /// A file to keep the printers in between runs, each with its settings and what it reports.
     pub state: Option<PathBuf>,
-    /// Start the printers of `state` when it exists, instead of `printers`. It is false when the
-    /// printers were given, since what is asked for now wins over what was kept.
+    /// Start the printers of `state` when it exists. It is false when what was kept is to be
+    /// forgotten.
     pub restore: bool,
+    /// The printers as they were asked for, with `--printer` or in a configuration, with only the
+    /// settings that were written. Empty when the default printer is used. With a state file, what
+    /// is written wins over what was kept, and what is left out is what was kept.
+    pub given: Vec<PrinterSettings>,
 }
 
 /// Where the web page served next to the API comes from.
@@ -78,6 +82,7 @@ impl Default for Config {
             ready: None,
             state: None,
             restore: false,
+            given: Vec::new(),
         }
     }
 }
@@ -97,7 +102,7 @@ impl Default for PrinterConfig {
 
 /// A printer as it is written in a configuration file or in a request, where what is left out is
 /// the default.
-#[derive(Debug, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, utoipa::ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PrinterSettings {
     /// What the API calls it: letters, digits, `-` and `_`. `printer` when left out.
@@ -178,8 +183,24 @@ impl PrinterSettings {
         Ok(settings)
     }
 
+    /// A printer written as `key=value` pairs, with only what is written.
+    pub fn parse(text: &str) -> Result<Self, String> {
+        Self::from_pairs(text)
+    }
+
+    /// What the printer is called: what is written, or the default.
+    pub fn name(&self) -> String {
+        self.name
+            .clone()
+            .unwrap_or_else(|| PrinterConfig::default().name)
+    }
+
     pub(crate) fn build(self) -> Result<PrinterConfig, String> {
-        let mut printer = PrinterConfig::default();
+        self.apply(PrinterConfig::default())
+    }
+
+    /// The printer with what is written here put over what it was.
+    pub fn apply(self, mut printer: PrinterConfig) -> Result<PrinterConfig, String> {
         if let Some(name) = self.name {
             printer.name = name;
         }
@@ -268,8 +289,9 @@ impl Config {
         }
         config.ready = file.ready_file;
         config.state = file.state_file;
-        config.restore = file.printers.is_none();
+        config.restore = true;
         if let Some(printers) = file.printers {
+            config.given = printers.clone();
             config.printers = printers
                 .into_iter()
                 .map(PrinterSettings::build)
@@ -298,7 +320,11 @@ impl Config {
             config.web = Web::Folder(folder);
         }
         config.ready = ready;
-        config.restore = printers.is_empty();
+        config.restore = true;
+        config.given = printers
+            .iter()
+            .map(|text| PrinterSettings::parse(text))
+            .collect::<Result<_, _>>()?;
         if !printers.is_empty() {
             config.printers = printers
                 .iter()

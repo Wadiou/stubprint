@@ -49,6 +49,11 @@ impl Saved {
         }
     }
 
+    /// What the printer is called.
+    pub(crate) fn name(&self) -> &str {
+        &self.name
+    }
+
     /// The settings to start the printer with. A model that the database no longer has is the
     /// generic one.
     pub(crate) fn config(&self) -> Result<PrinterConfig, String> {

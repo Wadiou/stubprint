@@ -52,7 +52,8 @@ struct Options {
     openapi: bool,
 
     /// A printer, as `name=front,listen=127.0.0.1:9100,dialect=escpos,profile=TM-T88IV`. Say it
-    /// again for more printers. Without it there is one ESC/POS printer on 127.0.0.1:9100.
+    /// again for more printers. What is written wins over what was kept from the last run, and
+    /// what is left out is what was kept. Without it there is one ESC/POS printer on 127.0.0.1:9100.
     #[arg(long)]
     printer: Vec<String>,
 }

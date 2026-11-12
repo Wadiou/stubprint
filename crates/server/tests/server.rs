@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use serde_json::{json, Value};
-use stubprint_server::{serve, Config, PrinterConfig, Running, Web};
+use stubprint_server::{serve, Config, PrinterConfig, PrinterSettings, Running, Web};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
@@ -40,6 +40,7 @@ impl Harness {
             ready: None,
             state: None,
             restore: false,
+            given: Vec::new(),
         };
         let running = serve(config).await.unwrap();
         let base = format!("http://{}", running.http_addr());
@@ -874,6 +875,7 @@ async fn an_address_that_is_taken_is_said_before_anything_runs() {
         ready: None,
         state: None,
         restore: false,
+        given: Vec::new(),
     };
     let error = match serve(config).await {
         Ok(_) => panic!("the port was taken"),
@@ -2224,10 +2226,21 @@ impl Harness {
     /// Starts a server that keeps its printers in a file, with the printers of the configuration
     /// when the file does not exist yet.
     async fn start_keeping_state(printers: &[&str], file: &std::path::Path, restore: bool) -> Self {
-        let printers: Vec<PrinterConfig> = printers
+        // No printers is a run that is given none, which has the default one.
+        let given: Vec<PrinterSettings> = printers
+            .iter()
+            .map(|text| PrinterSettings::parse(&format!("listen=127.0.0.1:0,{text}")).unwrap())
+            .collect();
+        let mut printers: Vec<PrinterConfig> = printers
             .iter()
             .map(|text| PrinterConfig::parse(&format!("listen=127.0.0.1:0,{text}")).unwrap())
             .collect();
+        if printers.is_empty() {
+            printers.push(PrinterConfig {
+                listen: ([127, 0, 0, 1], 0).into(),
+                ..PrinterConfig::default()
+            });
+        }
         let config = Config {
             http: ([127, 0, 0, 1], 0).into(),
             printers,
@@ -2236,6 +2249,7 @@ impl Harness {
             ready: None,
             state: Some(file.to_path_buf()),
             restore,
+            given,
         };
         let running = serve(config).await.unwrap();
         let base = format!("http://{}", running.http_addr());
@@ -2279,8 +2293,8 @@ async fn the_printers_and_what_they_report_are_there_again_after_a_restart() {
         .unwrap();
     first.running.stop().await;
 
-    // The printer that the configuration names now is not used, since the file has the printers.
-    let second = Harness::start_keeping_state(&["name=other"], &file, true).await;
+    // A run that is given no printers has the ones that were kept, and not the default one.
+    let second = Harness::start_keeping_state(&[], &file, true).await;
     let printers = second.json("/api/printers").await;
     let names: Vec<&str> = printers
         .as_array()
@@ -2309,8 +2323,9 @@ async fn a_port_that_is_taken_after_a_restart_gives_the_printer_another_and_it_s
     let before = first.printer("till");
     first.running.stop().await;
 
+    // Nothing is written for the printer, so it asks for the port that was kept.
     let _squatter = tokio::net::TcpListener::bind(before).await.unwrap();
-    let second = Harness::start_keeping_state(&["name=till"], &file, true).await;
+    let second = Harness::start_keeping_state(&[], &file, true).await;
     assert_ne!(second.printer("till"), before);
     second
         .print("till", &receipt_bytes("Still here"), 100)
@@ -2338,6 +2353,7 @@ async fn a_state_file_that_is_not_one_stops_the_server_from_starting_and_is_left
         ready: None,
         state: Some(file.clone()),
         restore: true,
+        given: Vec::new(),
     };
     let error = match serve(config).await {
         Ok(_) => panic!("the file is broken"),
@@ -2349,20 +2365,46 @@ async fn a_state_file_that_is_not_one_stops_the_server_from_starting_and_is_left
 }
 
 #[tokio::test]
-async fn printers_that_are_given_win_over_the_ones_that_were_kept_and_are_kept_in_their_place() {
+async fn what_is_written_for_a_printer_wins_over_what_was_kept_and_the_rest_is_what_was_kept() {
     let file = state_file("given");
     let first = Harness::start_keeping_state(&["name=till"], &file, true).await;
+    first
+        .report("till", json!({"cover_open": true, "paper": "near_end"}))
+        .await;
+    first
+        .client
+        .patch(format!("{}/api/printers/till", first.base))
+        .json(&json!({"hold_offline": 512, "receive_buffer": 8192, "profile": "TM-T20III"}))
+        .send()
+        .await
+        .unwrap();
     first.running.stop().await;
 
-    let second = Harness::start_keeping_state(&["name=other"], &file, false).await;
+    // The same command line again, with the size it holds written and one more printer.
+    let second =
+        Harness::start_keeping_state(&["name=till,hold_offline=4096", "name=other"], &file, true)
+            .await;
     let printers = second.json("/api/printers").await;
-    assert_eq!(printers.as_array().unwrap().len(), 1);
-    assert_eq!(printers[0]["name"], "other");
+    let names: Vec<&str> = printers
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|printer| printer["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names, ["till", "other"]);
+    // What is written wins, and what is not is what was kept.
+    assert_eq!(printers[0]["hold_offline"], 4096);
+    assert_eq!(printers[0]["receive_buffer"], 8192);
+    assert_eq!(printers[0]["profile"], "TM-T20III");
+    assert_eq!(printers[0]["status"]["cover_open"], true);
+    assert_eq!(printers[0]["status"]["paper"], "near_end");
     second.running.stop().await;
 
-    // What was given is what is kept now.
-    let third = Harness::start_keeping_state(&["name=ignored"], &file, true).await;
-    assert_eq!(third.json("/api/printers").await[0]["name"], "other");
+    // A run that forgets what was kept starts with what is given and nothing else.
+    let third = Harness::start_keeping_state(&["name=other"], &file, false).await;
+    let printers = third.json("/api/printers").await;
+    assert_eq!(printers.as_array().unwrap().len(), 1);
+    assert_eq!(printers[0]["name"], "other");
     third.running.stop().await;
     let _ = std::fs::remove_file(&file);
 }
