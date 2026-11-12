@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 use std::io;
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
@@ -13,10 +14,10 @@ use tokio::time::Instant;
 use utoipa::ToSchema;
 
 use crate::config::PrinterConfig;
+use crate::file;
 use crate::listener;
 use crate::pictures::{PictureKey, Pictures};
 use crate::printer::VirtualPrinter;
-use crate::state;
 use crate::wire::{PrinterInfo, ReceiptSummary};
 
 /// A receipt the server keeps, and where it came from.
@@ -42,8 +43,6 @@ pub struct Chunk {
 
 /// How many pieces of one connection are told apart. Later ones are added to the last.
 const MAX_CHUNKS: usize = 10_000;
-/// How many connections are remembered.
-const MAX_CONNECTIONS: usize = 200;
 
 /// One program talking to a printer: when, how, and what came of it.
 #[derive(Debug, Clone, Serialize, ToSchema)]
@@ -202,22 +201,26 @@ struct Shelf {
 #[derive(Debug)]
 pub struct Hub {
     printers: RwLock<Vec<Arc<VirtualPrinter>>>,
-    keep: usize,
     shelf: Mutex<Shelf>,
     log: Mutex<Log>,
     notices: broadcast::Sender<Notice>,
     /// How many watchers want every action, so they are only made when someone looks.
     action_watchers: AtomicUsize,
-    /// The file the printers are kept in, when there is one.
-    state: Mutex<Option<PathBuf>>,
+    /// The config file, and the address of the API it says, when there is one.
+    state: Mutex<Option<(PathBuf, SocketAddr)>>,
+}
+
+impl Default for Hub {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Hub {
     /// A hub with no printers. [`Hub::add_printer`] gives it some.
-    pub fn new(keep: usize) -> Self {
+    pub fn new() -> Self {
         Self {
             printers: RwLock::new(Vec::new()),
-            keep,
             shelf: Mutex::new(Shelf {
                 receipts: VecDeque::new(),
                 next_id: 1,
@@ -233,13 +236,13 @@ impl Hub {
         }
     }
 
-    /// Starts keeping the printers in a file, which is written now and after each change to a
-    /// printer or to what it reports.
-    pub fn keep_state_in(&self, path: PathBuf) {
+    /// Starts keeping the address of the API and the printers in the config file, which is written
+    /// now and after each change to a printer or to what it reports.
+    pub fn keep_state_in(&self, path: PathBuf, http: SocketAddr) {
         *self
             .state
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(path);
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some((path, http));
         self.save_state();
     }
 
@@ -248,8 +251,8 @@ impl Hub {
             .state
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        if let Some(path) = guard.as_ref() {
-            if let Err(error) = state::write(path, &self.printers()) {
+        if let Some((path, http)) = guard.as_ref() {
+            if let Err(error) = file::write(path, *http, &self.printers()) {
                 eprintln!("stubprint: cannot save {}: {error}", path.display());
             }
         }
@@ -283,7 +286,7 @@ impl Hub {
                 format!("there is already a printer called {}", settings.name),
             ));
         }
-        let socket = listener::open(settings.listen, settings.receive_buffer).map_err(|error| {
+        let socket = listener::open(settings.listen, settings.network_buffer).map_err(|error| {
             io::Error::new(
                 error.kind(),
                 format!(
@@ -297,8 +300,8 @@ impl Hub {
             settings.dialect,
             settings.profile,
             socket.local_addr()?,
-            settings.hold_offline,
-            settings.receive_buffer,
+            settings.printer_buffer,
+            settings.network_buffer,
         ));
         {
             let mut printers = self
@@ -432,9 +435,6 @@ impl Hub {
         };
         let opened = ConnectionChange::of(&connection, None);
         log.connections.push_back(connection);
-        while log.connections.len() > MAX_CONNECTIONS {
-            log.connections.pop_front();
-        }
         drop(log);
         self.notify(Notice::Connection(opened));
         id
@@ -559,11 +559,6 @@ impl Hub {
                 receipt,
             });
             shelf.receipts.push_back(stored.clone());
-            while shelf.receipts.len() > self.keep {
-                if let Some(old) = shelf.receipts.pop_front() {
-                    shelf.pictures.forget(|id| id == old.id);
-                }
-            }
             stored
         };
         self.update(connection, |c| {

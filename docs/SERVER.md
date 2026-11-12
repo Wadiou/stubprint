@@ -9,7 +9,7 @@ that another program can start.
 cargo run -p stubprint-server -- --printer name=till,listen=127.0.0.1:9100,dialect=escpos
 ```
 
-Contents: [Running it](#running-it) · [Printers](#printers) · [Where settings come from](#where-settings-come-from) ·
+Contents: [Running it](#running-it) · [Printers](#printers) · [The config file](#the-config-file) ·
 [What a printer does](#what-a-printer-does) · [While it cannot print](#while-it-cannot-print) ·
 [How much a program can send before it waits](#how-much-a-program-can-send-before-it-waits) · [The API](#the-api)
 
@@ -17,15 +17,16 @@ Contents: [Running it](#running-it) · [Printers](#printers) · [Where settings 
 
 | Option | Meaning | Default |
 |---|---|---|
-| `--printer` | a printer, as `name=front,listen=127.0.0.1:9100`. Say it again for more printers | one ESC/POS printer on `127.0.0.1:9100` |
-| `--http` | where the API listens. It has no password, so keep it on this machine unless the network can be trusted | `127.0.0.1:8080` |
-| `--keep` | how many receipts are kept. The oldest are forgotten first | `500` |
-| `--web <folder>` | serve a built web page from that folder at the address of the API | the page in the program |
-| `--state <file>` | where the printers are kept between runs | the state folder of the system |
-| `--no-state` | keep nothing between runs | |
-| `--clear-state` | forget what was kept and start again | |
+| `--http <address>` | where the API and the web page listen. It is written to the config file and used from then on, until another is given. It has no password, so keep it on this machine unless the network can be trusted | what the file says, else `127.0.0.1:8080` |
+| `--printer <settings>` | a printer, as `name=front,listen=127.0.0.1:9100`. Say it again for more printers. `--help` lists every setting. See [Printers](#printers) | one ESC/POS printer on `127.0.0.1:9100` |
+| `--ephemeral` | keep nothing: read no config file and write none, so the printers and the address are gone when the server stops | |
+| `--reset` | start again from the printers given, or the default one, and write that over the file | |
 | `--ready-file <file>` | write the addresses there once everything listens, and remove it on stop. With port 0 it is how a program finds out which port it got | |
-| `--config <file.json>` | read the same settings from a file instead: `{"http": "...", "keep": 100, "state_file": "...", "printers": [{"name": "..."}]}` | |
+
+Receipts and connections are kept in memory, with no limit, and are gone when the server stops.
+Clear the receipts from the page or with `DELETE /api/receipts`.
+
+The web page is in the program and is served at the address of the API.
 
 The API allows no other origin (no CORS), so a web page from somewhere else cannot read the receipts
 of a printer on this machine. During development the page uses a proxy to reach it. Any path that
@@ -42,43 +43,65 @@ a real printer, since the same bytes mean different things in ESC/POS and in Sta
 | `listen` | the address of its TCP port. Port 0 picks a free one | `127.0.0.1:9100` | no |
 | `dialect` | `escpos`, `starline` or `starprnt` | `escpos` | no |
 | `profile` | the model, which sets the code pages, the columns and the answers to questions | `default` | yes, `PATCH /api/printers/{name}` |
-| `hold_offline` | how many bytes it holds while it cannot print. 0 holds nothing. See [While it cannot print](#while-it-cannot-print) | `4096` | yes, `PATCH` |
-| `receive_buffer` | how many bytes the network keeps for a program before the printer reads them. 0 leaves it to the system. See [How much a program can send before it waits](#how-much-a-program-can-send-before-it-waits) | `0` | yes, `PATCH`, for connections that open after |
+| `printer_buffer` | how many bytes it holds while it cannot print. 0 holds nothing. See [While it cannot print](#while-it-cannot-print) | `4096` | yes, `PATCH` |
+| `network_buffer` | how many bytes the network keeps for a program before the printer reads them. 0 leaves it to the system. See [How much a program can send before it waits](#how-much-a-program-can-send-before-it-waits) | `0` | yes, `PATCH`, for connections that open after |
 | status | what it reports: `online`, `cover_open`, `paper`, `drawer_open`, `feed_button`, `fault` | online, nothing wrong | yes, `POST /api/printers/{name}` |
 
-The status is not set on the command line. It is set in the page or with the API.
+## The config file
 
-## Where settings come from
+One file says where the API listens and what the printers are. The server reads it when it starts,
+and writes it when it starts and after every change: the address, a printer added or removed, its
+model, its two sizes and its status. The page and the API change the file, so it is always what is
+running. It is `state.json` in the state folder of the system, `~/.local/state/stubprint/` on Linux,
+and the output says where it is.
 
-A setting can come from three places. The first one that has it wins, for each setting on its own:
+```json
+{
+  "http": "127.0.0.1:8080",
+  "printers": [
+    {
+      "name": "till",
+      "listen": "0.0.0.0:9100",
+      "dialect": "escpos",
+      "profile": "TM-T20III",
+      "printer_buffer": 4096,
+      "network_buffer": 0,
+      "status": { "online": true, "cover_open": false, "paper": "adequate", "drawer_open": false, "feed_button": false, "fault": null }
+    }
+  ]
+}
+```
 
-1. **What is written for the printer**, with `--printer` or in a configuration file.
-2. **What was kept** from the last run, in the state file.
-3. **The default** in the table above.
+It can be written by hand. Whatever is left out is the default, so `{"printers": [{"name": "till"}]}`
+is a file. A file that is not a config file stops the server and is not changed. The receipts, the
+connections and the bytes a printer holds are not kept.
 
-The printers and their settings are written to the state file when the server starts and after every
-change: a printer added or removed, its model, its two sizes and its status. The default place is
-`~/.local/state/stubprint/state.json` on Linux. The receipts, the connections and the bytes a
-printer holds are not kept.
+The two sizes were called `hold_offline` and `receive_buffer`. A file, a `--printer` and a request
+that still use those names are read as before, and the file is written with the new ones.
 
-Say `name=till,listen=0.0.0.0:9100`, and set the model of `till` to `TM-T20III` in the page:
+**Choosing how it is kept:**
 
-| Run | What `till` is |
+| You want | Run |
 |---|---|
-| the first | listens on `0.0.0.0:9100`, the model is `default` |
-| after the model was set in the page, the same command again | still listens on `0.0.0.0:9100`, and the model is still `TM-T20III`, since the command does not write one |
-| the command now has `profile=TM-T88IV` | the model is `TM-T88IV` on every run, since what is written wins, until the command stops writing it |
+| the printers and the address kept, in the default place | `stubprint` |
+| nothing kept, a session that is gone when the server stops | `stubprint --ephemeral` |
+| to start again from the default printer, or the ones given | `stubprint --reset` |
 
-More about it:
+The file is always in the default place. To keep it somewhere else, such as a volume, put that
+folder there: the development container mounts one at `/root/.local/state/stubprint`.
 
-- A printer that was kept comes back even when the command line does not name it. A printer that
-  is written comes back after it is deleted in the page, since the command line says it exists.
-- `--clear-state` forgets what was kept: the run starts with what is written, or the default
-  printer, and keeps that from then on.
-- `--no-state` keeps nothing and leaves the file as it is, for tests and read-only folders.
-- A configuration file keeps nothing unless it names `state_file`.
-- If the port of a kept printer is taken when it starts again, it listens on a free one and the
-  output says which. A file that is not a state file stops the server and is not changed.
+**`--printer` and the file.** `--printer` is for a printer that should exist. It is added when the
+file has no printer of that name, and the file wins for one it has: change the model in the page
+and the next run keeps it, even if `--printer` writes another. To change a printer that is in the
+file, change it in the page, edit the file, or use `--reset`. The address works the other way: what
+`--http` gives wins over the file, and is written to it. With `--ephemeral` there is no file,
+and `--printer` says what the printers are.
+
+- A printer that is in the file is started even when the command line does not name it.
+- If the port of a printer is taken when it starts, it listens on a free one and the output says
+  which.
+- The development container passes `--http 0.0.0.0:8080` and `--printer name=printer,listen=0.0.0.0:9100`, so the first run
+  makes that printer reachable from outside the container, and the file is in a volume after that.
 
 ## What a printer does
 
@@ -94,7 +117,7 @@ More about it:
 
 A real printer that cannot print does not throw away what it is sent. It keeps it in its receive
 buffer, and when the buffer is full it stops taking more, so the program that sends has to wait.
-A printer here does the same, with a buffer of `hold_offline` bytes.
+A printer here does the same, with a buffer of `printer_buffer` bytes.
 
 **Which statuses stop it:**
 
@@ -125,11 +148,11 @@ A printer here does the same, with a buffer of `hold_offline` bytes.
 - A program that has gone leaves its bytes in the printer, and they print when it can, as the
   receipts of that connection. There is one buffer for the printer, so those bytes take room from
   the next program.
-- A connection that is open follows `hold_offline` as it changes. Turning it off prints what was
+- A connection that is open follows `printer_buffer` as it changes. Turning it off prints what was
   held.
 - `held` in the printer, and the `held` event, say how many bytes it holds now.
 - A request (`POST /api/print`, a sample) cannot wait, so one that does not fit is refused with 503.
-- With `hold_offline` at 0 the printer prints whatever it receives, whatever the status. That is
+- With `printer_buffer` at 0 the printer prints whatever it receives, whatever the status. That is
   what a test that does not care about the status wants.
 
 ## How much a program can send before it waits
@@ -138,12 +161,12 @@ A program that sends to a printer waits when nobody reads what it sent. Its byte
 places, one after the other, and the program waits when all three are full:
 
 ```
-program  ->  its own system  ->  the network of the printer  ->  the printer buffer (hold_offline)
+program  ->  its own system  ->  the network of the printer  ->  the printer buffer (printer_buffer)
 ```
 
 Stubprint runs on a computer whose system keeps a lot for each connection, so a receipt of 70 KB goes
 in without the program ever waiting, even when the printer cannot print. A real printer keeps far
-less. `receive_buffer` sets how much the network keeps on the printer's side, so a program that
+less. `network_buffer` sets how much the network keeps on the printer's side, so a program that
 sends a lot has to wait for the printer, as it does for a real one.
 
 - It is set when the port opens and again when a connection opens, so a change applies to the
@@ -176,12 +199,12 @@ the code and is served at `/api/openapi.json`, with every route, parameter and f
 | `POST /api/samples/{id}/print` | prints a sample to a printer (`?printer=`, the first by default) like `POST /api/print`, with a variant in the printer's own command language unless `?dialect=` or `?library=` say otherwise |
 | `GET /api/network` | the addresses of this computer on its networks. They are what a program on another device connects to, and what a printer can listen on |
 | `GET /api/printers`, `GET /api/printers/{name}` | the printers, their status and how many programs are connected |
-| `POST /api/printers` | adds a printer while the server runs, from the same settings as `--printer` (`name`, `listen`, `dialect`, `profile`, `hold_offline`, `receive_buffer`), and opens its port at once. Without `listen` the system picks a free port, and a name that is taken gets `_2`, `_3` and so on after it, which the answer says. 409 when the address is taken |
+| `POST /api/printers` | adds a printer while the server runs, from the same settings as `--printer` (`name`, `listen`, `dialect`, `profile`, `printer_buffer`, `network_buffer`), and opens its port at once. Without `listen` the system picks a free port, and a name that is taken gets `_2`, `_3` and so on after it, which the answer says. 409 when the address is taken |
 | `DELETE /api/printers/{name}` | removes a printer: its port and its connections close, and the receipts it printed stay |
 | `POST /api/printers/{name}` | changes what the printer pretends: `online`, `cover_open`, `paper` (`adequate`, `near_end`, `end`), `drawer_open`, `feed_button`, `fault` (`cutter`, `unrecoverable`, `recoverable` or `null`) |
-| `PATCH /api/printers/{name}` | sets the printer to another model, `{"profile": "TM-T20III"}`, as if another printer stood on its port. Receipts printed from then on are read and drawn as that model, and each receipt keeps the one it was printed on (`profile` in the receipt). It also sets how much the printer holds while it cannot print, `{"hold_offline": 4096}`, and how much the network keeps for a program, `{"receive_buffer": 8192}` |
+| `PATCH /api/printers/{name}` | sets the printer to another model, `{"profile": "TM-T20III"}`, as if another printer stood on its port. Receipts printed from then on are read and drawn as that model, and each receipt keeps the one it was printed on (`profile` in the receipt). It also sets how much the printer holds while it cannot print, `{"printer_buffer": 4096}`, and how much the network keeps for a program, `{"network_buffer": 8192}` |
 | `GET /api/events` | live events: `receipt`, `receipt_removed`, `cleared`, `status`, `connection` (each time one opens, receives or answers bytes, prints a receipt or closes, with its state then: its bytes, how many pieces, its receipts, and in `chunk` the piece that just came in), `printer_added`, `printer_changed`, `printer_removed`, `held` (how many bytes a printer holds changed), and `lagged` when a watcher was too slow. With `?detail=actions` also `action`, one for each command as it is read, with where its bytes are and what the printer believed after it. Commands are only made while someone watches them |
-| `GET /api/connections`, `GET /api/connections/{id}` | the programs that connected: when, in what pieces and at what times the bytes came, how many bytes the printer answered, and which receipts they printed. The latest 200 are kept |
+| `GET /api/connections`, `GET /api/connections/{id}` | the programs that connected: when, in what pieces and at what times the bytes came, how many bytes the printer answered, and which receipts they printed |
 | `POST /api/decode` | reads the body as a printer would, in `?dialect=` and `?profile=`, and says every command, the answers and how many receipts. Nothing is kept. It shows what the same bytes mean to another language or model |
 | `GET /api/profiles` | the models a printer can be set to, with their maker, columns, paper width in millimetres and dots, dpi, code pages, features and links to manuals |
 | `GET /api/health` | `{"ok": true}` |

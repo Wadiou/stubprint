@@ -18,10 +18,9 @@ use stubprint_render::Options;
 use tokio_stream::wrappers::errors::BroadcastStreamRecvError;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::{Stream, StreamExt};
-use tower_http::services::{ServeDir, ServeFile};
 use utoipa::{OpenApi, ToSchema};
 
-use crate::config::{PrinterConfig, PrinterSettings, Web};
+use crate::config::{PrinterConfig, PrinterSettings};
 use crate::hub::{Connection, Hub, Notice, Stored};
 use crate::network::NetworkInfo;
 use crate::page;
@@ -41,9 +40,9 @@ const DEFAULT_LIMIT: usize = 100;
 const DEFAULT_WAIT: u64 = 10;
 const LONGEST_WAIT: u64 = 120;
 
-/// The API, and the web page of `web` when there is one. A path of the API that does not exist is a
+/// The API, and the web page of the program when it was built with one. A path of the API that does not exist is a
 /// 404 and not the page, so a program that asks for it gets an answer it can read.
-pub fn router(hub: Arc<Hub>, web: &Web) -> Router {
+pub fn router(hub: Arc<Hub>) -> Router {
     let api = Router::new()
         .route("/api", get(index))
         .route("/api/health", get(health))
@@ -79,13 +78,11 @@ pub fn router(hub: Arc<Hub>, web: &Web) -> Router {
         .route("/api/{*rest}", any(no_such_route))
         .layer(DefaultBodyLimit::max(MAX_PRINT_BYTES))
         .with_state(hub);
-    match web {
-        // Any other path is the page, which finds its own route in the address.
-        Web::Folder(folder) => api.fallback_service(
-            ServeDir::new(folder).fallback(ServeFile::new(folder.join("index.html"))),
-        ),
-        Web::Embedded if page::is_built() => api.fallback(get(page::serve)),
-        Web::Embedded | Web::Off => api,
+    // Any other path is the page, which finds its own route in the address.
+    if page::is_built() {
+        api.fallback(get(page::serve))
+    } else {
+        api
     }
 }
 
@@ -377,11 +374,13 @@ struct PrinterChange {
     /// How many bytes it holds while it cannot print, as a real printer keeps them in its receive
     /// buffer. 0 holds nothing and prints whatever it receives. Connections that are open follow
     /// the change.
-    hold_offline: Option<usize>,
+    #[serde(alias = "hold_offline")]
+    printer_buffer: Option<usize>,
     /// How many bytes the network keeps for what a program sends before the printer reads it, as
     /// the network chip of a real printer does. 0 leaves it to the system, which keeps a lot. It
     /// applies to connections that open from now on.
-    receive_buffer: Option<usize>,
+    #[serde(alias = "receive_buffer")]
+    network_buffer: Option<usize>,
 }
 
 /// Sets the printer to another model, as if another printer stood on its port, or changes how much it holds while it cannot print and how much the network keeps for a program.
@@ -407,13 +406,13 @@ async fn update_printer(
         })?;
         printer.set_profile(profile);
     }
-    if let Some(bytes) = change.hold_offline {
-        printer.set_hold_offline(bytes);
+    if let Some(bytes) = change.printer_buffer {
+        printer.set_printer_buffer(bytes);
         // A printer that holds nothing prints what it has, if it can.
         hub.release_held(&printer, printer.status());
     }
-    if let Some(bytes) = change.receive_buffer {
-        printer.set_receive_buffer(bytes);
+    if let Some(bytes) = change.network_buffer {
+        printer.set_network_buffer(bytes);
     }
     hub.notify(Notice::PrinterChanged(PrinterInfo::of(&printer)));
     Ok(Json(PrinterInfo::of(&printer)))

@@ -27,7 +27,6 @@ serde_json = "1.0.151"
 tokio = { version = "1.53.2", features = ["rt-multi-thread", "net", "io-util", "sync", "time", "macros", "signal"] }
 tokio-stream = { version = "0.1.19", features = ["sync"] }
 utoipa = "6.0.0"
-tower-http = { version = "0.7.1", features = ["fs"] }
 if-addrs = "0.15.0"
 socket2 = "0.6.5"
 

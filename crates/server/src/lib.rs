@@ -7,6 +7,7 @@
 
 pub mod api;
 mod config;
+mod file;
 mod hub;
 mod listener;
 mod network;
@@ -15,7 +16,6 @@ mod pictures;
 mod printer;
 mod samples;
 mod session;
-mod state;
 mod wire;
 
 use std::io;
@@ -28,11 +28,17 @@ use tokio::net::TcpListener;
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
 
-pub use config::{default_state_file, Config, PrinterConfig, PrinterSettings, Web};
+pub use config::{default_config_file, Config, PrinterConfig, DEFAULT_HTTP};
 pub use hub::{Hub, Notice, Stored};
 pub use printer::VirtualPrinter;
 
 use wire::PrinterInfo;
+
+/// Whether the program was built with the web page in it, which it then serves at the address of
+/// the API.
+pub fn has_page() -> bool {
+    page::is_built()
+}
 
 /// How long the API gets to finish its answers when the server stops.
 const API_GRACE: Duration = Duration::from_secs(2);
@@ -85,29 +91,46 @@ pub async fn serve(config: Config) -> io::Result<Running> {
         .check()
         .map_err(|message| io::Error::new(io::ErrorKind::InvalidInput, message))?;
 
-    let web = TcpListener::bind(config.http).await.map_err(|error| {
+    let kept = match (&config.file, config.reset) {
+        (Some(path), false) => file::read(path)?,
+        _ => None,
+    };
+    let (saved_http, saved) = match kept {
+        Some(kept) => (
+            kept.http,
+            Some(kept.printers).filter(|printers| !printers.is_empty()),
+        ),
+        None => (None, None),
+    };
+    // What is given wins, then what the file says, then the default.
+    let wanted = config.http.or(saved_http).unwrap_or(DEFAULT_HTTP);
+
+    let web = TcpListener::bind(wanted).await.map_err(|error| {
         io::Error::new(
             error.kind(),
-            format!("the API cannot listen on {}: {error}", config.http),
+            format!("the API cannot listen on {wanted}: {error}"),
         )
     })?;
     let http = web.local_addr()?;
 
-    let hub = Arc::new(Hub::new(config.keep));
-    let saved = match (&config.state, config.restore) {
-        (Some(path), true) => state::read(path)?,
-        _ => None,
-    };
+    let hub = Arc::new(Hub::new());
     let started = match saved {
-        Some(saved) => restore(&hub, saved, config.given).await,
+        Some(saved) => {
+            let written = if config.given {
+                config.printers
+            } else {
+                Vec::new()
+            };
+            restore(&hub, saved, written).await
+        }
         None => start(&hub, config.printers).await,
     };
     if let Err(error) = started {
         hub.stop_printers().await;
         return Err(error);
     }
-    if let Some(path) = config.state {
-        hub.keep_state_in(path);
+    if let Some(path) = config.file {
+        hub.keep_state_in(path, wanted);
     }
     if let Some(path) = &config.ready {
         if let Err(error) = write_ready(path, http, &hub) {
@@ -119,7 +142,7 @@ pub async fn serve(config: Config) -> io::Result<Running> {
         }
     }
     let (stop, mut stopped) = watch::channel(false);
-    let app = api::router(hub.clone(), &config.web);
+    let app = api::router(hub.clone());
     let api = tokio::spawn(async move {
         let _ = axum::serve(web, app)
             .with_graceful_shutdown(async move {
@@ -133,7 +156,7 @@ pub async fn serve(config: Config) -> io::Result<Running> {
         stop,
         api,
         ready: config.ready,
-        web: config.web.is_served(),
+        web: page::is_built(),
     })
 }
 
@@ -145,25 +168,19 @@ async fn start(hub: &Arc<Hub>, printers: Vec<PrinterConfig>) -> io::Result<()> {
     Ok(())
 }
 
-/// Opens the printers of the state file as they were, with what they reported. A printer that is
-/// asked for as well gets what is written for it over what was kept, and keeps the rest. A printer
-/// that is asked for and was not kept is added. A port that is taken now is not a reason to stay
+/// Opens the printers of the config file, each with what it reports. A printer that is written on
+/// the command line is added when the file has none with its name, and is left alone when it has
+/// one, since the file says what the printers are. A port that is taken now is not a reason to stay
 /// down: the printer takes a free one and the output says so.
 async fn restore(
     hub: &Arc<Hub>,
-    saved: Vec<state::Saved>,
-    asked: Vec<PrinterSettings>,
+    saved: Vec<file::Saved>,
+    written: Vec<PrinterConfig>,
 ) -> io::Result<()> {
     for printer in &saved {
         let mut settings = printer
             .config()
             .map_err(|message| io::Error::new(io::ErrorKind::InvalidData, message))?;
-        if let Some(wanted) = asked.iter().find(|other| other.name() == settings.name) {
-            settings = wanted
-                .clone()
-                .apply(settings)
-                .map_err(|message| io::Error::new(io::ErrorKind::InvalidInput, message))?;
-        }
         let started = match hub.add_printer(settings.clone()).await {
             Err(error) if error.kind() != io::ErrorKind::InvalidInput => {
                 let wanted = settings.listen;
@@ -181,16 +198,10 @@ async fn restore(
             }
             other => other?,
         };
-        started.set_status(printer.status);
+        started.set_status(printer.status());
     }
-    for settings in asked {
-        if saved
-            .iter()
-            .all(|printer| printer.name() != settings.name())
-        {
-            let settings = settings
-                .build()
-                .map_err(|message| io::Error::new(io::ErrorKind::InvalidInput, message))?;
+    for settings in written {
+        if saved.iter().all(|printer| printer.name() != settings.name) {
             hub.add_printer(settings).await?;
         }
     }
@@ -217,7 +228,7 @@ fn write_ready(path: &Path, http: SocketAddr, hub: &Hub) -> io::Result<()> {
 
 /// Serves until the process gets Ctrl+C or a termination signal.
 pub async fn run(config: Config) -> io::Result<()> {
-    let state = config.state.clone();
+    let file = config.file.clone();
     let running = serve(config).await?;
     println!(
         "API and live events: http://{}/api/openapi.json",
@@ -235,8 +246,12 @@ pub async fn run(config: Config) -> io::Result<()> {
             printer.profile().name
         );
     }
-    if let Some(path) = state {
-        println!("printers are kept in {}", path.display());
+    match file {
+        Some(path) => println!(
+            "the printers and the address of the API are kept in {}",
+            path.display()
+        ),
+        None => println!("nothing is kept: the printers are gone when the server stops"),
     }
     shutdown_signal().await;
     running.stop().await;

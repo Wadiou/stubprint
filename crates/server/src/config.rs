@@ -7,48 +7,22 @@ use stubprint_core::{Dialect, Profile};
 /// What the server does: where the REST API is, and which virtual printers listen.
 #[derive(Debug, Clone)]
 pub struct Config {
-    /// Where the REST API and the live events are served.
-    pub http: SocketAddr,
+    /// Where the REST API and the live events are served. `None` is the address the config file
+    /// has, or [`DEFAULT_HTTP`] when it has none. An address that is given is written to the file.
+    pub http: Option<SocketAddr>,
     pub printers: Vec<PrinterConfig>,
-    /// How many receipts are kept. The oldest are forgotten first.
-    pub keep: usize,
-    /// The web page served next to the API.
-    pub web: Web,
     /// A file to write the addresses into once everything listens, so a program that started the
     /// server on port 0 can find it. It is removed when the server stops.
     pub ready: Option<PathBuf>,
-    /// A file to keep the printers in between runs, each with its settings and what it reports.
-    pub state: Option<PathBuf>,
-    /// Start the printers of `state` when it exists. It is false when what was kept is to be
-    /// forgotten.
-    pub restore: bool,
-    /// The printers as they were asked for, with `--printer` or in a configuration, with only the
-    /// settings that were written. Empty when the default printer is used. With a state file, what
-    /// is written wins over what was kept, and what is left out is what was kept.
-    pub given: Vec<PrinterSettings>,
-}
-
-/// Where the web page served next to the API comes from.
-#[derive(Debug, Clone, Default)]
-pub enum Web {
-    /// The page that is in the program, when it was built with one.
-    #[default]
-    Embedded,
-    /// A folder with a built page, such as one that is being worked on.
-    Folder(PathBuf),
-    /// No page, only the API.
-    Off,
-}
-
-impl Web {
-    /// Whether a page is served at all.
-    pub fn is_served(&self) -> bool {
-        match self {
-            Web::Embedded => crate::page::is_built(),
-            Web::Folder(_) => true,
-            Web::Off => false,
-        }
-    }
+    /// The config file: the printers with their settings and what they report. It is read when
+    /// the server starts and written after every change. `None` keeps nothing, so the printers are
+    /// gone when the server stops.
+    pub file: Option<PathBuf>,
+    /// Start again from `printers` and write that over the file, instead of reading it.
+    pub reset: bool,
+    /// The printers were written, with `--printer`, and are not the default one. A printer that is
+    /// written is added when the file has none with its name, and is not changed when it has one.
+    pub given: bool,
 }
 
 /// One virtual printer. It listens on its own port, which is what sets its command language, like
@@ -62,27 +36,29 @@ pub struct PrinterConfig {
     pub profile: Profile,
     /// How many bytes it holds while it cannot print, such as with its cover open. 0 means it holds
     /// nothing and prints whatever it receives, whatever it reports.
-    pub hold_offline: usize,
+    pub printer_buffer: usize,
     /// How many bytes the network keeps for what a program sends before the printer reads it. 0
     /// leaves it to the system, which is large. A small one makes a program that sends a lot wait
     /// early, as it does for a real printer.
-    pub receive_buffer: usize,
+    pub network_buffer: usize,
 }
 
 /// The size of the receive buffer of a printer, in bytes, when none is chosen.
 pub const DEFAULT_HOLD: usize = 4096;
 
+/// Where the REST API listens when neither a flag nor the config file says.
+pub const DEFAULT_HTTP: SocketAddr =
+    SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), 8080);
+
 impl Default for Config {
     fn default() -> Self {
         Self {
-            http: ([127, 0, 0, 1], 8080).into(),
+            http: None,
             printers: vec![PrinterConfig::default()],
-            keep: 500,
-            web: Web::default(),
             ready: None,
-            state: None,
-            restore: false,
-            given: Vec::new(),
+            file: None,
+            reset: false,
+            given: false,
         }
     }
 }
@@ -94,15 +70,15 @@ impl Default for PrinterConfig {
             listen: ([127, 0, 0, 1], 9100).into(),
             dialect: Dialect::EscPos,
             profile: Profile::generic(),
-            hold_offline: DEFAULT_HOLD,
-            receive_buffer: 0,
+            printer_buffer: DEFAULT_HOLD,
+            network_buffer: 0,
         }
     }
 }
 
 /// A printer as it is written in a configuration file or in a request, where what is left out is
 /// the default.
-#[derive(Debug, Clone, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PrinterSettings {
     /// What the API calls it: letters, digits, `-` and `_`. `printer` when left out.
@@ -123,84 +99,53 @@ pub struct PrinterSettings {
     /// that sends more has to wait. What it held prints when the printer can print again, even if
     /// the program has gone. The default is 4096. 0 holds nothing: it prints whatever it receives.
     #[schema(example = 4096)]
-    pub hold_offline: Option<usize>,
+    #[serde(default, alias = "hold_offline", deserialize_with = "bytes")]
+    pub printer_buffer: Option<usize>,
     /// How many bytes the network keeps for what a program sends before the printer reads it, as
     /// the network chip of a real printer does. A program that sends more than that, and more than
     /// its own system keeps, has to wait. 0, the default, leaves it to the system, which keeps a
     /// lot, so a program may not wait at all. The system rounds the number, and a connection that
     /// is open keeps the size it had when it opened.
     #[schema(example = 8192)]
-    pub receive_buffer: Option<usize>,
+    #[serde(default, alias = "receive_buffer", deserialize_with = "bytes")]
+    pub network_buffer: Option<usize>,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct FileSettings {
-    http: Option<String>,
-    keep: Option<usize>,
-    web: Option<PathBuf>,
-    ready_file: Option<PathBuf>,
-    state_file: Option<PathBuf>,
-    printers: Option<Vec<PrinterSettings>>,
+/// A number of bytes, written as a number or as the text of one.
+fn bytes<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Option<usize>, D::Error> {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Size {
+        Number(usize),
+        Text(String),
+    }
+    match Option::<Size>::deserialize(deserializer)? {
+        None => Ok(None),
+        Some(Size::Number(bytes)) => Ok(Some(bytes)),
+        Some(Size::Text(text)) => text
+            .parse()
+            .map(Some)
+            .map_err(|_| serde::de::Error::custom(format!("`{text}` is not a number of bytes"))),
+    }
 }
 
 impl PrinterSettings {
+    /// Reads `key=value` pairs through the same declaration as a request, so a setting that is
+    /// added to it can be written on the command line and in a request alike.
     fn from_pairs(text: &str) -> Result<Self, String> {
-        let mut settings = PrinterSettings {
-            name: None,
-            listen: None,
-            dialect: None,
-            profile: None,
-            hold_offline: None,
-            receive_buffer: None,
-        };
+        let mut pairs = serde_json::Map::new();
         for pair in text.split(',').filter(|pair| !pair.is_empty()) {
             let (key, value) = pair
                 .split_once('=')
                 .ok_or_else(|| format!("`{pair}` should be key=value"))?;
-            if key == "hold_offline" || key == "receive_buffer" {
-                let bytes = Some(
-                    value
-                        .parse()
-                        .map_err(|_| format!("`{value}` is not a number of bytes"))?,
-                );
-                if key == "hold_offline" {
-                    settings.hold_offline = bytes;
-                } else {
-                    settings.receive_buffer = bytes;
-                }
-                continue;
-            }
-            let slot = match key {
-                "name" => &mut settings.name,
-                "listen" => &mut settings.listen,
-                "dialect" => &mut settings.dialect,
-                "profile" => &mut settings.profile,
-                _ => return Err(format!("unknown printer setting `{key}`")),
-            };
-            *slot = Some(value.to_string());
+            pairs.insert(key.into(), serde_json::Value::String(value.into()));
         }
-        Ok(settings)
-    }
-
-    /// A printer written as `key=value` pairs, with only what is written.
-    pub fn parse(text: &str) -> Result<Self, String> {
-        Self::from_pairs(text)
-    }
-
-    /// What the printer is called: what is written, or the default.
-    pub fn name(&self) -> String {
-        self.name
-            .clone()
-            .unwrap_or_else(|| PrinterConfig::default().name)
+        serde_json::from_value(serde_json::Value::Object(pairs))
+            .map_err(|error| format!("unknown or wrong printer setting: {error}"))
     }
 
     pub(crate) fn build(self) -> Result<PrinterConfig, String> {
-        self.apply(PrinterConfig::default())
-    }
-
-    /// The printer with what is written here put over what it was.
-    pub fn apply(self, mut printer: PrinterConfig) -> Result<PrinterConfig, String> {
+        let mut printer = PrinterConfig::default();
         if let Some(name) = self.name {
             printer.name = name;
         }
@@ -216,11 +161,11 @@ impl PrinterSettings {
             printer.profile = Profile::named(&profile)
                 .ok_or_else(|| format!("`{profile}` is not a printer profile"))?;
         }
-        if let Some(bytes) = self.hold_offline {
-            printer.hold_offline = bytes;
+        if let Some(bytes) = self.printer_buffer {
+            printer.printer_buffer = bytes;
         }
-        if let Some(bytes) = self.receive_buffer {
-            printer.receive_buffer = bytes;
+        if let Some(bytes) = self.network_buffer {
+            printer.network_buffer = bytes;
         }
         Ok(printer)
     }
@@ -246,16 +191,16 @@ impl PrinterConfig {
         Ok(())
     }
 
-    /// A printer written as `name=front,listen=127.0.0.1:9100,dialect=escpos,profile=TM-T88IV,hold_offline=4096,receive_buffer=8192`.
+    /// A printer written as `name=front,listen=127.0.0.1:9100,dialect=escpos,profile=TM-T88IV,printer_buffer=4096,network_buffer=8192`.
     /// What is left out is the default of [`PrinterConfig::default`].
     pub fn parse(text: &str) -> Result<Self, String> {
         PrinterSettings::from_pairs(text)?.build()
     }
 }
 
-/// Where the printers are kept between runs unless told otherwise: the state folder of the system,
-/// or nothing when it cannot be found.
-pub fn default_state_file() -> Option<PathBuf> {
+/// Where the config file is unless told otherwise: the state folder of the system, or nothing when
+/// it cannot be found.
+pub fn default_config_file() -> Option<PathBuf> {
     let var = |name: &str| {
         std::env::var_os(name)
             .filter(|value| !value.is_empty())
@@ -272,74 +217,33 @@ pub fn default_state_file() -> Option<PathBuf> {
 }
 
 impl Config {
-    /// A configuration written as JSON, with `http`, `keep`, `web`, `ready_file`, `state_file` and `printers` that each have `name`,
-    /// `listen`, `dialect`, `profile`, `hold_offline` and `receive_buffer`. What is left out is the default.
-    pub fn from_json(text: &str) -> Result<Self, String> {
-        let file: FileSettings =
-            serde_json::from_str(text).map_err(|error| format!("bad configuration: {error}"))?;
-        let mut config = Config::default();
-        if let Some(http) = file.http {
-            config.http = address(&http)?;
-        }
-        if let Some(keep) = file.keep {
-            config.keep = keep;
-        }
-        if let Some(folder) = file.web {
-            config.web = Web::Folder(folder);
-        }
-        config.ready = file.ready_file;
-        config.state = file.state_file;
-        config.restore = true;
-        if let Some(printers) = file.printers {
-            config.given = printers.clone();
-            config.printers = printers
-                .into_iter()
-                .map(PrinterSettings::build)
-                .collect::<Result<_, _>>()?;
-        }
-        config.check()?;
-        Ok(config)
-    }
-
     /// Builds the configuration of a command line: the printers given, or the default one.
     pub fn from_options(
         http: Option<SocketAddr>,
-        keep: Option<usize>,
-        web: Option<PathBuf>,
         ready: Option<PathBuf>,
         printers: &[String],
     ) -> Result<Self, String> {
-        let mut config = Config::default();
-        if let Some(http) = http {
-            config.http = http;
-        }
-        if let Some(keep) = keep {
-            config.keep = keep;
-        }
-        if let Some(folder) = web {
-            config.web = Web::Folder(folder);
-        }
-        config.ready = ready;
-        config.restore = true;
-        config.given = printers
-            .iter()
-            .map(|text| PrinterSettings::parse(text))
-            .collect::<Result<_, _>>()?;
-        if !printers.is_empty() {
-            config.printers = printers
-                .iter()
-                .map(|text| PrinterConfig::parse(text))
-                .collect::<Result<_, _>>()?;
-        }
+        let given = !printers.is_empty();
+        let config = Config {
+            http,
+            ready,
+            given,
+            printers: if given {
+                printers
+                    .iter()
+                    .map(|text| PrinterConfig::parse(text))
+                    .collect::<Result<_, _>>()?
+            } else {
+                Config::default().printers
+            },
+            ..Config::default()
+        };
         config.check()?;
         Ok(config)
     }
 
     /// Says what is wrong with the configuration, if something is.
     pub fn check(&self) -> Result<(), String> {
-        if self.keep == 0 {
-            return Err("keep must be at least 1".into());
-        }
         if self.printers.is_empty() {
             return Err("there must be at least one printer".into());
         }
@@ -374,6 +278,16 @@ mod tests {
     }
 
     #[test]
+    fn the_buffers_of_a_printer_are_written_by_their_names_and_by_the_names_they_had() {
+        let printer = PrinterConfig::parse("printer_buffer=1,network_buffer=2").unwrap();
+        assert_eq!((printer.printer_buffer, printer.network_buffer), (1, 2));
+        let printer = PrinterConfig::parse("hold_offline=3,receive_buffer=4").unwrap();
+        assert_eq!((printer.printer_buffer, printer.network_buffer), (3, 4));
+        let error = PrinterConfig::parse("printer_buffer=big").unwrap_err();
+        assert!(error.contains("number of bytes"), "{error}");
+    }
+
+    #[test]
     fn a_printer_profile_is_found_by_its_name() {
         let printer = PrinterConfig::parse("profile=TM-T88IV").unwrap();
         assert_eq!(printer.profile.name, "TM-T88IV");
@@ -394,26 +308,20 @@ mod tests {
     }
 
     #[test]
-    fn a_configuration_file_has_the_same_settings() {
-        let config = Config::from_json(
-            r#"{"http":"0.0.0.0:80","keep":3,"printers":[
-                {"name":"a","listen":"127.0.0.1:1","dialect":"escpos"},
-                {"name":"b","listen":"127.0.0.1:2","dialect":"starline"}]}"#,
-        )
-        .unwrap();
-        assert_eq!(config.keep, 3);
-        assert_eq!(config.printers[1].dialect, Dialect::StarLine);
-        assert!(Config::from_json(r#"{"colour":1}"#).is_err());
+    fn printers_that_are_written_are_given_and_the_default_one_is_not() {
+        let written = Config::from_options(None, None, &["name=a".to_string()]).unwrap();
+        assert!(written.given);
+        let default = Config::from_options(None, None, &[]).unwrap();
+        assert!(!default.given);
+        assert_eq!(default.printers.len(), 1);
     }
 
     #[test]
     fn printers_must_differ_and_names_must_be_safe_in_a_path() {
-        let two =
-            |a: &str, b: &str| Config::from_options(None, None, None, None, &[a.into(), b.into()]);
+        let two = |a: &str, b: &str| Config::from_options(None, None, &[a.into(), b.into()]);
         assert!(two("name=a,listen=127.0.0.1:1", "name=a,listen=127.0.0.1:2").is_err());
         assert!(two("name=a,listen=127.0.0.1:1", "name=b,listen=127.0.0.1:1").is_err());
         assert!(two("name=a,listen=127.0.0.1:0", "name=b,listen=127.0.0.1:0").is_ok());
         assert!(two("name=a/b", "name=c,listen=127.0.0.1:2").is_err());
-        assert!(Config::from_options(None, Some(0), None, None, &[]).is_err());
     }
 }
