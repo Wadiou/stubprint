@@ -54,7 +54,7 @@ export function ReceiptRail({
         <span className="font-semibold">Receipts</span>
         <span className="text-muted-foreground">{receipts.length}</span>
         <div className="flex-1" />
-        <span className="text-[13px] text-muted-foreground">Follow newest</span>
+        <span className="text-sm text-muted-foreground">Follow newest</span>
         <Switch size="sm" aria-label="Follow the newest receipt" checked={following} onCheckedChange={onFollow} />
       </div>
       <div className="p-4 pb-3">

@@ -24,7 +24,7 @@ export function ModelStrip({ profile }: { profile: string }) {
       <Printer className="size-4 shrink-0 text-muted-foreground" />
       <div className="min-w-0 flex-1">
         <div className="font-medium">{model.name}</div>
-        <div className="text-[13px] text-muted-foreground">{about.join(", ")}</div>
+        <div className="text-sm text-muted-foreground">{about.join(", ")}</div>
       </div>
       <Popover>
         <PopoverTrigger render={<Button variant="outline" size="sm" />}>

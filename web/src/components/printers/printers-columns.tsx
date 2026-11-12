@@ -18,7 +18,7 @@ export const printersColumns: ColumnDef<PrinterRow>[] = [
   {
     id: "address",
     header: "Address",
-    cell: ({ row }) => <span className="font-mono text-[13px] text-muted-foreground">{row.original.listen}</span>,
+    cell: ({ row }) => <span className="font-mono text-sm text-muted-foreground">{row.original.listen}</span>,
   },
   {
     id: "status",

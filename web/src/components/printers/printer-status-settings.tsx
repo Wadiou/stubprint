@@ -45,7 +45,7 @@ export function PrinterStatusSettings({ printer }: { printer: PrinterInfo }) {
   return (
     <section className="flex flex-col">
       <h3 className="font-semibold">Status</h3>
-      <p className="mt-1 mb-3 text-[13px] text-muted-foreground">What the printer reports. It applies at once to open connections and status commands.</p>
+      <p className="mt-1 mb-3 text-sm text-muted-foreground">What the printer reports. It applies at once to open connections and status commands.</p>
       {toggles.map(({ label, on, change }) => (
         <Setting key={label} label={label}>
           <Switch aria-label={label} checked={on} onCheckedChange={change} />

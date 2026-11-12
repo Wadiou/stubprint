@@ -40,7 +40,7 @@ export function createSamplesColumns({ paperMm, printers, printing, onPrint }: S
     {
       id: "libraries",
       header: "Written by",
-      cell: ({ row }) => <span className="text-[13px] text-muted-foreground">{libraries(row.original)}</span>,
+      cell: ({ row }) => <span className="text-sm text-muted-foreground">{libraries(row.original)}</span>,
     },
     {
       id: "print",

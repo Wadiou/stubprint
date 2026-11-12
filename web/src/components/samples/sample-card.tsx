@@ -121,7 +121,7 @@ export function SampleCard({
             </SelectContent>
           </Select>
           {printer && !fits && (
-            <p className="text-[13px] text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {printer.name} reads {DIALECTS[printer.dialect]}, and this variant is {DIALECTS[variant.dialect]}. Print it to a printer set to{" "}
               {DIALECTS[variant.dialect]}.
             </p>

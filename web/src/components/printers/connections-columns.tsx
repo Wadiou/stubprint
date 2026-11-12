@@ -12,7 +12,7 @@ export const connectionsColumns: ColumnDef<Connection>[] = [
   {
     accessorKey: "peer",
     header: "From",
-    cell: ({ row }) => <span className="font-mono text-[13px] text-muted-foreground">{row.original.peer}</span>,
+    cell: ({ row }) => <span className="font-mono text-sm text-muted-foreground">{row.original.peer}</span>,
   },
   {
     id: "opened",

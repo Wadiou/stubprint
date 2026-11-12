@@ -18,7 +18,7 @@ export function PrinterConnect({ printer }: { printer: PrinterInfo }) {
       <div className="flex flex-col gap-1">
         {connectTo(printer.listen, network.addresses).map((address) => (
           <div key={address} className="flex items-center gap-2 text-sm">
-            <span className="flex-1 font-mono text-[13px]">{address}</span>
+            <span className="flex-1 font-mono text-sm">{address}</span>
             <Button variant="ghost" size="icon-sm" aria-label={`Copy ${address}`} onClick={() => copy(address)}>
               <Copy />
             </Button>

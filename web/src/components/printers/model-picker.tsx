@@ -34,7 +34,7 @@ function ModelRow({ model, selected, fits, onPick }: { model: ProfileInfo; selec
         <span className="font-medium">{model.name}</span>
         <Badge variant="outline">{maker(model)}</Badge>
       </span>
-      {facts(model).length > 0 && <span className="text-[13px] text-muted-foreground">{facts(model).join(" · ")}</span>}
+      {facts(model).length > 0 && <span className="text-sm text-muted-foreground">{facts(model).join(" · ")}</span>}
     </button>
   );
 }
@@ -61,7 +61,7 @@ export function ModelPicker({ models, value, dialect, onChange }: { models: Prof
       <Button type="button" variant="outline" aria-label="Model" className="h-auto w-full justify-between px-3 py-2 text-left" onClick={() => setOpen(true)}>
         <span className="flex min-w-0 flex-col">
           <span className="font-medium">{chosen ? chosen.name : "Choose a model"}</span>
-          {chosen && <span className="truncate text-[13px] font-normal text-muted-foreground">{[maker(chosen), ...facts(chosen)].join(" · ")}</span>}
+          {chosen && <span className="truncate text-sm font-normal text-muted-foreground">{[maker(chosen), ...facts(chosen)].join(" · ")}</span>}
         </span>
         <ChevronRight className="text-muted-foreground" />
       </Button>
