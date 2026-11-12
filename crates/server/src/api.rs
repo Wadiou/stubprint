@@ -356,6 +356,9 @@ async fn set_printer(
         .printer(&name)
         .ok_or_else(|| ApiError::not_found(format!("no printer called {name}")))?;
     let status = change.apply(printer.status());
+    // What programs that have gone left in the printer is older than what open connections hold,
+    // so it prints first.
+    hub.release_held(&printer, status);
     printer.set_status(status);
     hub.notify(Notice::Status {
         printer: printer.name.clone(),
@@ -371,9 +374,13 @@ struct PrinterChange {
     /// The printer model, as `GET /api/profiles` lists them. Receipts printed from now on are read
     /// and drawn as this model. The ones already kept stay as they were printed.
     profile: Option<String>,
+    /// How many bytes it holds while it cannot print, as a real printer keeps them in its receive
+    /// buffer. 0 holds nothing and prints whatever it receives. Connections that are open keep the
+    /// number they had when they opened.
+    hold_offline: Option<usize>,
 }
 
-/// Sets the printer to another model, as if another printer stood on its port.
+/// Sets the printer to another model, as if another printer stood on its port, or changes how much it holds while it cannot print.
 #[utoipa::path(patch, path = "/api/printers/{name}", operation_id = "update_printer", tag = "printers", params(("name" = String, Path, description = "The name of the printer")),
     request_body = PrinterChange, responses(
         (status = 200, description = "The printer", body = PrinterInfo),
@@ -395,8 +402,13 @@ async fn update_printer(
             )
         })?;
         printer.set_profile(profile);
-        hub.notify(Notice::PrinterChanged(PrinterInfo::of(&printer)));
     }
+    if let Some(bytes) = change.hold_offline {
+        printer.set_hold_offline(bytes);
+        // A printer that holds nothing prints what it has, if it can.
+        hub.release_held(&printer, printer.status());
+    }
+    hub.notify(Notice::PrinterChanged(PrinterInfo::of(&printer)));
     Ok(Json(PrinterInfo::of(&printer)))
 }
 
@@ -707,14 +719,14 @@ struct Printed {
 
 /// Sends bytes to a printer as if a program had connected and sent them.
 #[utoipa::path(post, path = "/api/print", operation_id = "print_bytes", tag = "printing", params(PrintQuery), request_body(content = Vec<u8>, content_type = "application/octet-stream"),
-    responses((status = 200, description = "What the bytes made", body = Printed), (status = 404, description = "There is no such printer, receipt or connection, as `error` says", body = ErrorBody)))]
+    responses((status = 200, description = "What the bytes made", body = Printed), (status = 404, description = "There is no such printer, receipt or connection, as `error` says", body = ErrorBody), (status = 503, description = "The printer cannot print and has no room to hold the bytes, as `error` says", body = ErrorBody)))]
 async fn print(
     State(hub): State<Arc<Hub>>,
     Query(query): Query<PrintQuery>,
     body: axum::body::Bytes,
 ) -> Reply<Json<Printed>> {
     let printer = find_printer(&hub, query.printer.as_deref())?;
-    Ok(Json(send(&hub, printer, &body)))
+    Ok(Json(send(&hub, printer, &body)?))
 }
 
 /// The named printer, or the first one.
@@ -733,17 +745,30 @@ fn find_printer(hub: &Hub, name: Option<&str>) -> Reply<Arc<VirtualPrinter>> {
 }
 
 /// Sends bytes to a printer as a connection that sends them and closes.
-fn send(hub: &Arc<Hub>, printer: Arc<VirtualPrinter>, bytes: &[u8]) -> Printed {
+/// A printer that cannot print and holds what it receives takes only so many bytes, which a request
+/// cannot wait for like a connection does, so it is refused.
+fn send(hub: &Arc<Hub>, printer: Arc<VirtualPrinter>, bytes: &[u8]) -> Reply<Printed> {
     let name = printer.name.clone();
+    if let Some(room) = printer.room() {
+        if bytes.len() > room {
+            return Err(ApiError(
+                StatusCode::SERVICE_UNAVAILABLE,
+                format!(
+                    "{name} cannot print now and its buffer has room for {room} more bytes, and this is {}",
+                    bytes.len()
+                ),
+            ));
+        }
+    }
     let mut session = Session::open(hub.clone(), printer, "http".into());
     let mut replies = session.feed(bytes);
     replies.extend(session.finish());
-    Printed {
+    Ok(Printed {
         connection: session.id(),
         printer: name,
         receipts: session.stored().to_vec(),
         replies: hex(&replies),
-    }
+    })
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
@@ -900,7 +925,8 @@ async fn sample_text(Path(id): Path<String>, Query(query): Query<VariantQuery>) 
     params(("id" = String, Path, description = "The id of the sample"), PrintQuery, VariantQuery),
     responses(
         (status = 200, description = "What the bytes made", body = Printed),
-        (status = 404, description = "There is no such sample, variant or printer, as `error` says", body = ErrorBody)))]
+        (status = 404, description = "There is no such sample, variant or printer, as `error` says", body = ErrorBody),
+        (status = 503, description = "The printer cannot print and has no room to hold the bytes, as `error` says", body = ErrorBody)))]
 async fn print_sample(
     State(hub): State<Arc<Hub>>,
     Path(id): Path<String>,
@@ -913,7 +939,7 @@ async fn print_sample(
     let variant = found
         .variant(query.library.as_deref(), Some(dialect))
         .ok_or_else(|| no_variant(found))?;
-    Ok(Json(send(&hub, printer, &variant.bytes)))
+    Ok(Json(send(&hub, printer, &variant.bytes)?))
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]

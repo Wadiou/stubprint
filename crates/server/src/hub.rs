@@ -6,7 +6,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use axum::body::Bytes;
 use serde::Serialize;
-use stubprint_core::{Event, PrinterStatus, Profile, Receipt, Snapshot};
+use stubprint_core::{Event, Printer, PrinterStatus, Profile, Receipt, Snapshot};
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tokio::time::Instant;
@@ -263,6 +263,7 @@ impl Hub {
             settings.dialect,
             settings.profile,
             socket.local_addr()?,
+            settings.hold_offline,
         ));
         {
             let mut printers = self
@@ -460,6 +461,24 @@ impl Hub {
 
     pub fn connection(&self, id: u64) -> Option<Connection> {
         self.log().connections.iter().find(|c| c.id == id).cloned()
+    }
+
+    /// Prints what programs that have gone left in a printer, if a printer in `status` can print.
+    /// They print in the order they came, as the printer reads its buffer, and each receipt belongs
+    /// to the connection that sent it.
+    pub fn release_held(&self, printer: &Arc<VirtualPrinter>, status: PrinterStatus) {
+        if status.halts_printing(printer.dialect) {
+            return;
+        }
+        for held in printer.take_held() {
+            let mut reader = Printer::with_dialect(printer.dialect, (*held.profile).clone());
+            reader.set_status(status);
+            let mut receipts = reader.push_traced(&held.bytes).receipts;
+            receipts.extend(reader.finish_traced().receipts);
+            for receipt in receipts {
+                self.store(printer, held.profile.clone(), held.connection, receipt);
+            }
+        }
     }
 
     /// Keeps a receipt and tells the watchers. Returns its id. `connection` is the one that

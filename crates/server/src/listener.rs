@@ -62,6 +62,11 @@ async fn serve(
     let mut buffer = vec![0u8; 16 * 1024];
     let mut total = 0usize;
     loop {
+        // A printer that holds what it receives and has no room left does not read, so the program
+        // that sends has to wait, as it would for a real printer.
+        let room = session
+            .room()
+            .map_or(buffer.len(), |room| room.min(buffer.len()));
         let replies = tokio::select! {
             _ = stopped(stop.clone()) => break,
             changed = status.changed() => {
@@ -71,7 +76,7 @@ async fn serve(
                 let now = *status.borrow_and_update();
                 session.set_status(now)
             }
-            read = stream.read(&mut buffer) => match read {
+            read = stream.read(&mut buffer[..room]), if room > 0 => match read {
                 Ok(0) | Err(_) => break,
                 Ok(count) => {
                     total += count;

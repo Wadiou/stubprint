@@ -51,6 +51,9 @@ pub struct PrinterConfig {
     pub listen: SocketAddr,
     pub dialect: Dialect,
     pub profile: Profile,
+    /// How many bytes it holds while it cannot print, such as with its cover open. 0 means it holds
+    /// nothing and prints whatever it receives, whatever it reports.
+    pub hold_offline: usize,
 }
 
 impl Default for Config {
@@ -72,6 +75,7 @@ impl Default for PrinterConfig {
             listen: ([127, 0, 0, 1], 9100).into(),
             dialect: Dialect::EscPos,
             profile: Profile::generic(),
+            hold_offline: 0,
         }
     }
 }
@@ -94,6 +98,12 @@ pub struct PrinterSettings {
     /// columns and the answers.
     #[schema(example = "TM-T88IV")]
     pub profile: Option<String>,
+    /// How many bytes it holds while it cannot print, as a real printer keeps them in its receive
+    /// buffer: it is off line, its cover is open, its paper has run out or it has a fault. A program
+    /// that sends more has to wait. What it held prints when the printer can print again, even if
+    /// the program has gone. 0, the default, holds nothing: it prints whatever it receives.
+    #[schema(example = 4096)]
+    pub hold_offline: Option<usize>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -113,11 +123,20 @@ impl PrinterSettings {
             listen: None,
             dialect: None,
             profile: None,
+            hold_offline: None,
         };
         for pair in text.split(',').filter(|pair| !pair.is_empty()) {
             let (key, value) = pair
                 .split_once('=')
                 .ok_or_else(|| format!("`{pair}` should be key=value"))?;
+            if key == "hold_offline" {
+                settings.hold_offline = Some(
+                    value
+                        .parse()
+                        .map_err(|_| format!("`{value}` is not a number of bytes"))?,
+                );
+                continue;
+            }
             let slot = match key {
                 "name" => &mut settings.name,
                 "listen" => &mut settings.listen,
@@ -147,6 +166,9 @@ impl PrinterSettings {
             printer.profile = Profile::named(&profile)
                 .ok_or_else(|| format!("`{profile}` is not a printer profile"))?;
         }
+        if let Some(bytes) = self.hold_offline {
+            printer.hold_offline = bytes;
+        }
         Ok(printer)
     }
 }
@@ -171,7 +193,7 @@ impl PrinterConfig {
         Ok(())
     }
 
-    /// A printer written as `name=front,listen=127.0.0.1:9100,dialect=escpos,profile=TM-T88IV`.
+    /// A printer written as `name=front,listen=127.0.0.1:9100,dialect=escpos,profile=TM-T88IV,hold_offline=4096`.
     /// What is left out is the default of [`PrinterConfig::default`].
     pub fn parse(text: &str) -> Result<Self, String> {
         PrinterSettings::from_pairs(text)?.build()
@@ -180,7 +202,7 @@ impl PrinterConfig {
 
 impl Config {
     /// A configuration written as JSON, with `http`, `keep`, `web`, `ready_file` and `printers` that each have `name`,
-    /// `listen`, `dialect` and `profile`. What is left out is the default.
+    /// `listen`, `dialect`, `profile` and `hold_offline`. What is left out is the default.
     pub fn from_json(text: &str) -> Result<Self, String> {
         let file: FileSettings =
             serde_json::from_str(text).map_err(|error| format!("bad configuration: {error}"))?;

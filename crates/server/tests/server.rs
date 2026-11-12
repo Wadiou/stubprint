@@ -1910,3 +1910,203 @@ async fn the_description_says_the_bytes_and_the_picture_are_files_and_the_text_i
         "string"
     );
 }
+
+impl Harness {
+    /// Changes what the printer reports, such as `{"cover_open": true}`.
+    async fn report(&self, name: &str, change: Value) {
+        let answer = self
+            .post_json(&format!("/api/printers/{name}"), change)
+            .await;
+        assert_eq!(answer.status(), 200);
+    }
+
+    /// The connections, the oldest first as the API gives them.
+    async fn connections(&self) -> Vec<Value> {
+        self.json("/api/connections")
+            .await
+            .as_array()
+            .unwrap()
+            .clone()
+    }
+
+    /// Waits until a condition holds, or fails.
+    async fn until<F: FnMut(&Value) -> bool>(&self, path: &str, mut holds: F) -> Value {
+        for _ in 0..100 {
+            let now = self.json(path).await;
+            if holds(&now) {
+                return now;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        panic!("{path} never became what the test waits for");
+    }
+}
+
+const SETTLE: Duration = Duration::from_millis(300);
+
+#[tokio::test]
+async fn a_printer_that_holds_prints_nothing_while_its_cover_is_open_and_all_of_it_when_it_closes()
+{
+    let server = Harness::start(&["name=till,hold_offline=4096"]).await;
+    server.report("till", json!({"cover_open": true})).await;
+
+    let mut stream = TcpStream::connect(server.printer("till")).await.unwrap();
+    stream.write_all(&receipt_bytes("Held")).await.unwrap();
+    tokio::time::sleep(SETTLE).await;
+    assert!(
+        server.ids().await.is_empty(),
+        "nothing prints with the cover open"
+    );
+    let open = server.connections().await;
+    assert_eq!(open[0]["bytes_in"], 9);
+    assert_eq!(open[0]["receipts"], json!([]));
+
+    server.report("till", json!({"cover_open": false})).await;
+    let receipt = server.after(0).await;
+    assert_eq!(receipt["texts"], json!(["Held"]));
+    assert_eq!(server.connections().await[0]["receipts"], json!([1]));
+}
+
+#[tokio::test]
+async fn a_printer_that_is_not_set_to_hold_prints_with_its_cover_open() {
+    let server = Harness::start(&["name=till"]).await;
+    server.report("till", json!({"cover_open": true})).await;
+    server.print("till", &receipt_bytes("Anyway"), 100).await;
+    assert_eq!(server.after(0).await["texts"], json!(["Anyway"]));
+}
+
+#[tokio::test]
+async fn what_a_program_left_in_a_printer_that_cannot_print_prints_when_it_can_and_belongs_to_that_program(
+) {
+    let server = Harness::start(&["name=till,hold_offline=4096"]).await;
+    server.report("till", json!({"online": false})).await;
+    server.print("till", &receipt_bytes("First"), 100).await;
+    server.print("till", &receipt_bytes("Second"), 100).await;
+    tokio::time::sleep(SETTLE).await;
+    assert!(server.ids().await.is_empty());
+
+    server.report("till", json!({"online": true})).await;
+    let both = server
+        .until("/api/receipts", |list| list.as_array().unwrap().len() == 2)
+        .await;
+    // They print in the order they were sent.
+    assert_eq!(both[0]["preview"], json!(["First"]));
+    assert_eq!(both[1]["preview"], json!(["Second"]));
+    // Each receipt is listed on the connection that sent it.
+    let connections = server.connections().await;
+    assert_eq!(connections[0]["receipts"], json!([1]));
+    assert_eq!(connections[1]["receipts"], json!([2]));
+}
+
+#[tokio::test]
+async fn a_status_request_is_answered_at_once_by_a_printer_that_holds_and_is_not_asked_again_later()
+{
+    let server = Harness::start(&["name=till,hold_offline=4096"]).await;
+    server.report("till", json!({"cover_open": true})).await;
+    let mut stream = TcpStream::connect(server.printer("till")).await.unwrap();
+    // DLE EOT 2 says why the printer is off line: the bit of the cover.
+    stream.write_all(&[0x10, 0x04, 0x02]).await.unwrap();
+    let mut answer = [0u8; 1];
+    timeout(Duration::from_secs(5), stream.read_exact(&mut answer))
+        .await
+        .expect("the printer answers while it holds")
+        .unwrap();
+    assert_eq!(answer, [0x16]);
+
+    // The request is not kept: when the cover closes nothing else is answered.
+    server.report("till", json!({"cover_open": false})).await;
+    stream.shutdown().await.unwrap();
+    let mut rest = Vec::new();
+    timeout(Duration::from_secs(5), stream.read_to_end(&mut rest))
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(rest.is_empty(), "{rest:?}");
+}
+
+#[tokio::test]
+async fn a_program_that_sends_more_than_the_printer_holds_is_not_read_until_the_printer_can_print()
+{
+    let server = Harness::start(&["name=till,hold_offline=64"]).await;
+    server.report("till", json!({"paper": "end"})).await;
+    let mut job = Vec::new();
+    for line in 0..20 {
+        job.extend_from_slice(format!("line {line:02}\n").as_bytes());
+    }
+    job.extend_from_slice(&CUT);
+    assert!(job.len() > 100);
+
+    let mut stream = TcpStream::connect(server.printer("till")).await.unwrap();
+    stream.write_all(&job).await.unwrap();
+    tokio::time::sleep(SETTLE).await;
+    // Only what the buffer holds was read.
+    assert_eq!(server.connections().await[0]["bytes_in"], 64);
+    assert!(server.ids().await.is_empty());
+
+    // Paper is put in: the rest is read and the whole job prints.
+    server.report("till", json!({"paper": "adequate"})).await;
+    let receipt = server.after(0).await;
+    assert_eq!(receipt["texts"].as_array().unwrap().len(), 20);
+    server
+        .until("/api/connections", |list| list[0]["bytes_in"] == job.len())
+        .await;
+}
+
+#[tokio::test]
+async fn a_request_that_does_not_fit_in_a_printer_that_cannot_print_is_refused_and_one_that_fits_waits(
+) {
+    let server = Harness::start(&["name=till,hold_offline=32"]).await;
+    server.report("till", json!({"cover_open": true})).await;
+
+    let big = server
+        .client
+        .post(format!("{}/api/print", server.base))
+        .body(vec![b'x'; 100])
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(big.status(), 503);
+    let said: Value = big.json().await.unwrap();
+    assert!(said["error"].as_str().unwrap().contains("32"), "{said}");
+    assert!(server.connections().await.is_empty(), "nothing connected");
+
+    let small = server
+        .client
+        .post(format!("{}/api/print", server.base))
+        .body(receipt_bytes("Fits"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(small.status(), 200);
+    let printed: Value = small.json().await.unwrap();
+    assert_eq!(printed["receipts"], json!([]));
+
+    server.report("till", json!({"cover_open": false})).await;
+    assert_eq!(server.after(0).await["texts"], json!(["Fits"]));
+}
+
+#[tokio::test]
+async fn how_much_a_printer_holds_is_set_and_told_by_the_api() {
+    let server = Harness::start(&["name=till"]).await;
+    let info = server.json("/api/printers").await;
+    assert_eq!(info[0]["hold_offline"], 0);
+
+    let changed = server
+        .client
+        .patch(format!("{}/api/printers/till", server.base))
+        .json(&json!({"hold_offline": 2048}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(changed.status(), 200);
+    let info: Value = changed.json().await.unwrap();
+    assert_eq!(info["hold_offline"], 2048);
+    assert_eq!(server.json("/api/printers").await[0]["hold_offline"], 2048);
+
+    // A program that connects after the change holds, with the number it has now.
+    server.report("till", json!({"cover_open": true})).await;
+    server.print("till", &receipt_bytes("Later"), 100).await;
+    assert!(server.ids().await.is_empty());
+    server.report("till", json!({"cover_open": false})).await;
+    assert_eq!(server.after(0).await["texts"], json!(["Later"]));
+}

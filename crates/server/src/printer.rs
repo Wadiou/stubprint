@@ -6,6 +6,17 @@ use stubprint_core::{Dialect, PrinterStatus, Profile};
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
 
+/// Bytes a printer received while it could not print, from a program that has gone. They stay in
+/// the printer and print when it can.
+#[derive(Debug)]
+pub struct Held {
+    /// The connection that sent them.
+    pub connection: u64,
+    /// The model it read as then.
+    pub profile: Arc<Profile>,
+    pub bytes: Vec<u8>,
+}
+
 /// A virtual printer: what it is, where it listens, and what it pretends to be going through.
 #[derive(Debug)]
 pub struct VirtualPrinter {
@@ -16,6 +27,10 @@ pub struct VirtualPrinter {
     /// The address it really listens on, which differs from the configured one for port 0.
     pub listen: SocketAddr,
     status: watch::Sender<PrinterStatus>,
+    /// How many bytes it holds while it cannot print. 0 is none.
+    hold_offline: AtomicUsize,
+    /// What programs that have gone left in it.
+    held: Mutex<Vec<Held>>,
     connections: AtomicUsize,
     /// Tells its port and its connections to close.
     stop: watch::Sender<bool>,
@@ -29,6 +44,7 @@ impl VirtualPrinter {
         dialect: Dialect,
         profile: Profile,
         listen: SocketAddr,
+        hold_offline: usize,
     ) -> Self {
         Self {
             name,
@@ -36,6 +52,8 @@ impl VirtualPrinter {
             profile: Mutex::new(Arc::new(profile)),
             listen,
             status: watch::channel(PrinterStatus::default()).0,
+            hold_offline: AtomicUsize::new(hold_offline),
+            held: Mutex::new(Vec::new()),
             connections: AtomicUsize::new(0),
             stop: watch::channel(false).0,
             task: Mutex::new(None),
@@ -66,6 +84,57 @@ impl VirtualPrinter {
     /// Sets what the printer says about itself. Connections that are open hear of it.
     pub fn set_status(&self, status: PrinterStatus) {
         self.status.send_replace(status);
+    }
+
+    /// How many bytes it holds while it cannot print. 0 means it holds nothing and prints whatever
+    /// it receives. A connection that is open keeps the number it had when it opened.
+    pub fn hold_offline(&self) -> usize {
+        self.hold_offline.load(Ordering::Relaxed)
+    }
+
+    pub fn set_hold_offline(&self, bytes: usize) {
+        self.hold_offline.store(bytes, Ordering::Relaxed);
+    }
+
+    /// How many bytes the printer takes now while it holds what it receives, or `None` when it
+    /// holds nothing, because it can print or because it is not set to hold. What programs that
+    /// have gone left in it takes room too.
+    pub fn room(&self) -> Option<usize> {
+        let hold = self.hold_offline();
+        (hold > 0 && self.halted()).then(|| hold.saturating_sub(self.held_len()))
+    }
+
+    /// How many bytes programs that have gone left in the printer.
+    pub(crate) fn held_len(&self) -> usize {
+        self.held
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .iter()
+            .map(|held| held.bytes.len())
+            .sum()
+    }
+
+    /// Whether the printer is in a state where it cannot print.
+    pub fn halted(&self) -> bool {
+        self.status().halts_printing(self.dialect)
+    }
+
+    /// Keeps what a program left in the printer when it went.
+    pub(crate) fn keep_held(&self, held: Held) {
+        self.held
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .push(held);
+    }
+
+    /// Takes what programs that have gone left in the printer, the oldest first.
+    pub(crate) fn take_held(&self) -> Vec<Held> {
+        std::mem::take(
+            &mut *self
+                .held
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()),
+        )
     }
 
     /// Closes when the printer is removed or the server stops.
