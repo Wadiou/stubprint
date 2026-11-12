@@ -30,6 +30,7 @@ pub(crate) struct SavedPrinter {
     status: PrinterStatus,
     paper_roll: usize,
     paper_left: f64,
+    print_speed: usize,
     usage: Usage,
 }
 
@@ -45,6 +46,7 @@ impl SavedPrinter {
             status: printer.status(),
             paper_roll: printer.paper_roll(),
             paper_left: printer.paper_left(),
+            print_speed: printer.print_speed(),
             usage: printer.usage(),
         }
     }
@@ -82,6 +84,7 @@ impl SavedPrinter {
             printer_buffer: self.printer_buffer,
             network_buffer: self.network_buffer,
             paper_roll: self.paper_roll,
+            print_speed: self.print_speed,
         })
     }
 }
@@ -254,7 +257,7 @@ fn load(db: &Db) -> rusqlite::Result<Loaded> {
     let mut printers = Vec::new();
     let mut statement = db.prepare(
         "SELECT name, listen, dialect, profile, printer_buffer, network_buffer, status,
-                paper_roll, paper_left, receipts, cuts, line_feeds, paper_used
+                paper_roll, paper_left, receipts, cuts, line_feeds, paper_used, print_speed
          FROM printers ORDER BY position",
     )?;
     let rows = statement.query_map([], |row| {
@@ -269,6 +272,7 @@ fn load(db: &Db) -> rusqlite::Result<Loaded> {
             status: serde_json::from_str(&status).unwrap_or_default(),
             paper_roll: size(row.get(7)?),
             paper_left: row.get(8)?,
+            print_speed: size(row.get(13)?),
             usage: Usage {
                 receipts: unsigned(row.get(9)?),
                 cuts: unsigned(row.get(10)?),
@@ -347,8 +351,8 @@ fn write(db: &Db, command: Command) -> rusqlite::Result<()> {
                 transaction.execute(
                     "INSERT INTO printers
                      (position, name, listen, dialect, profile, printer_buffer, network_buffer, status,
-                      paper_roll, paper_left, receipts, cuts, line_feeds, paper_used)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                      paper_roll, paper_left, receipts, cuts, line_feeds, paper_used, print_speed)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
                     params![
                         int(count(position)),
                         printer.name,
@@ -365,6 +369,7 @@ fn write(db: &Db, command: Command) -> rusqlite::Result<()> {
                         int(printer.usage.cuts),
                         int(printer.usage.line_feeds),
                         printer.usage.paper_used,
+                        int(count(printer.print_speed)),
                     ],
                 )?;
             }

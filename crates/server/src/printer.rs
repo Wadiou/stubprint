@@ -1,12 +1,15 @@
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use stubprint_core::{Counters, Dialect, Paper, PrinterStatus, Profile};
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
 use utoipa::ToSchema;
+
+use crate::config::PrinterConfig;
 
 /// The roll reports near end when this share of it is left, or less.
 const NEAR_END_SHARE: f64 = 0.1;
@@ -85,6 +88,10 @@ pub struct VirtualPrinter {
     /// The `held` total the watchers were last told, so an event is sent only when it changes.
     told_held: AtomicUsize,
     roll: Mutex<Roll>,
+    /// How fast it prints, in millimetres of paper a second. 0 takes no time.
+    print_speed: AtomicUsize,
+    /// When it is done printing what it has printed so far.
+    busy_until: Mutex<Instant>,
     connections: AtomicUsize,
     /// Tells its port and its connections to close.
     stop: watch::Sender<bool>,
@@ -93,15 +100,19 @@ pub struct VirtualPrinter {
 }
 
 impl VirtualPrinter {
-    pub(crate) fn new(
-        name: String,
-        dialect: Dialect,
-        profile: Profile,
-        listen: SocketAddr,
-        printer_buffer: usize,
-        network_buffer: usize,
-        paper_roll: usize,
-    ) -> Self {
+    /// A printer with these settings, listening on `listen`, which is the address the port really
+    /// has and not the one in the settings.
+    pub(crate) fn new(settings: PrinterConfig, listen: SocketAddr) -> Self {
+        let PrinterConfig {
+            name,
+            dialect,
+            profile,
+            printer_buffer,
+            network_buffer,
+            paper_roll,
+            print_speed,
+            ..
+        } = settings;
         Self {
             name,
             dialect,
@@ -118,6 +129,8 @@ impl VirtualPrinter {
                 left: millimetres(paper_roll),
                 usage: Usage::default(),
             }),
+            print_speed: AtomicUsize::new(print_speed),
+            busy_until: Mutex::new(Instant::now()),
             connections: AtomicUsize::new(0),
             stop: watch::channel(false).0,
             task: Mutex::new(None),
@@ -231,6 +244,7 @@ impl VirtualPrinter {
     /// Counts a receipt it printed and takes the paper it used off the roll. Returns what the
     /// sensors report now, when that is not what the printer says already.
     pub(crate) fn printed(&self, used: Usage) -> Option<Paper> {
+        self.keep_busy(used.paper_used);
         let level = {
             let mut roll = self
                 .roll
@@ -247,6 +261,43 @@ impl VirtualPrinter {
             roll.level()
         };
         (level != self.status().paper).then_some(level)
+    }
+
+    /// How fast it prints, in millimetres of paper a second. 0 takes no time.
+    pub fn print_speed(&self) -> usize {
+        self.print_speed.load(Ordering::Relaxed)
+    }
+
+    /// Changes how fast it prints. It applies to what is printed from now on, and 0 ends the time
+    /// it was still busy.
+    pub fn set_print_speed(&self, speed: usize) {
+        self.print_speed.store(speed, Ordering::Relaxed);
+    }
+
+    /// Makes it busy for as long as `paper` millimetres take to come out, after what it is
+    /// printing already.
+    fn keep_busy(&self, paper: f64) {
+        let speed = self.print_speed();
+        if speed == 0 {
+            return;
+        }
+        let taken = Duration::try_from_secs_f64(paper / millimetres(speed)).unwrap_or_default();
+        let mut until = self
+            .busy_until
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        *until = (*until).max(Instant::now()) + taken;
+    }
+
+    /// How much longer it is busy printing, during which it reads nothing more.
+    pub(crate) fn busy_for(&self) -> Duration {
+        if self.print_speed() == 0 {
+            return Duration::ZERO;
+        }
+        self.busy_until
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .saturating_duration_since(Instant::now())
     }
 
     /// How many bytes it holds while it cannot print. 0 means it holds nothing and prints whatever

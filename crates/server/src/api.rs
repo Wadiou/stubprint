@@ -389,6 +389,9 @@ struct PrinterChange {
     /// out, and then the paper is set by hand. A printer that stopped at the end of its paper
     /// prints what it held.
     paper_roll: Option<usize>,
+    /// How fast it prints, in millimetres of paper a second. 0 prints without taking any time. A
+    /// receipt that is printing now keeps the printer busy as long as it was set to.
+    print_speed: Option<usize>,
 }
 
 /// Sets the printer to another model, as if another printer stood on its port, or changes how much it holds while it cannot print and how much the network keeps for a program.
@@ -432,6 +435,9 @@ async fn update_printer(
                 status,
             });
         }
+    }
+    if let Some(speed) = change.print_speed {
+        printer.set_print_speed(speed);
     }
     hub.notify(Notice::PrinterChanged(PrinterInfo::of(&printer)));
     Ok(Json(PrinterInfo::of(&printer)))

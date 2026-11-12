@@ -43,6 +43,7 @@ a real printer, since the same bytes mean different things in ESC/POS and in Sta
 | `printer_buffer` | how many bytes it holds while it cannot print. 0 holds nothing. See [While it cannot print](#while-it-cannot-print) | `4096` | yes, `PATCH` |
 | `network_buffer` | how many bytes the network keeps for a program before the printer reads them. 0 leaves it to the system. See [How much a program can send before it waits](#how-much-a-program-can-send-before-it-waits) | `0` | yes, `PATCH`, for connections that open after |
 | `paper_roll` | how long its paper roll is when full, in millimetres. It runs down as receipts print. 0 never runs out. See [Paper and counters](#paper-and-counters) | `0` | yes, `PATCH`, which puts in a new roll |
+| `print_speed` | how fast it prints, in millimetres of paper a second. A receipt keeps it busy while its paper comes out. 0 takes no time. See [Print speed](#print-speed) | `0` | yes, `PATCH` |
 | status | what it reports: `online`, `cover_open`, `paper`, `drawer_open`, `feed_button`, `fault` | online, nothing wrong | yes, `POST /api/printers/{name}` |
 
 ## What is kept
@@ -151,6 +152,25 @@ A printer here does the same, with a buffer of `printer_buffer` bytes.
 - With `printer_buffer` at 0 the printer prints whatever it receives, whatever the status. That is
   what a test that does not care about the status wants.
 
+## Print speed
+
+A real printer takes time to print: a long receipt comes out over several seconds, and a program
+that sends the next one meanwhile has to wait. `print_speed` gives a printer that, in millimetres of
+paper a second (a receipt printer does 100 to 300). It is 0 by default, which takes no time.
+
+- Each receipt keeps the printer busy for as long as its paper takes to come out: the length from
+  [Paper and counters](#paper-and-counters) divided by the speed. A receipt that is 120 mm long at
+  150 mm/s takes 0.8 seconds.
+- While it is busy the printer reads nothing more from its connections. What a program sends
+  waits in the network's buffer, and the program waits when that is full, so a small
+  `network_buffer` shows the wait sooner. It is what a program that sends receipt after receipt
+  sees when the printer is slow.
+- The receipt itself is kept as soon as it is read, not when its paper is out. A real printer
+  shows nothing of it to a program until then either, but the page shows it at once.
+- What is sent without a connection (`POST /api/print`, a sample) does not wait, and still keeps
+  the printer busy for the connections.
+- Changing the speed applies to what prints from then on, and setting it to 0 ends the wait.
+
 ## Paper and counters
 
 **The paper roll.** A printer has no limit on its paper until it is given a roll with `paper_roll`,
@@ -228,10 +248,10 @@ the code and is served at `/api/openapi.json`, with every route, parameter and f
 | `POST /api/samples/{id}/print` | prints a sample to a printer (`?printer=`, the first by default) like `POST /api/print`, with a variant in the printer's own command language unless `?dialect=` or `?library=` say otherwise |
 | `GET /api/network` | the addresses of this computer on its networks. They are what a program on another device connects to, and what a printer can listen on |
 | `GET /api/printers`, `GET /api/printers/{name}` | the printers, their status and how many programs are connected |
-| `POST /api/printers` | adds a printer while the server runs, from the same settings as `--printer` (`name`, `listen`, `dialect`, `profile`, `printer_buffer`, `network_buffer`, `paper_roll`), and opens its port at once. Without `listen` the system picks a free port, and a name that is taken gets `_2`, `_3` and so on after it, which the answer says. 409 when the address is taken |
+| `POST /api/printers` | adds a printer while the server runs, from the same settings as `--printer` (`name`, `listen`, `dialect`, `profile`, `printer_buffer`, `network_buffer`, `paper_roll`, `print_speed`), and opens its port at once. Without `listen` the system picks a free port, and a name that is taken gets `_2`, `_3` and so on after it, which the answer says. 409 when the address is taken |
 | `DELETE /api/printers/{name}` | removes a printer: its port and its connections close, and the receipts it printed stay |
 | `POST /api/printers/{name}` | changes what the printer pretends: `online`, `cover_open`, `paper` (`adequate`, `near_end`, `end`), `drawer_open`, `feed_button`, `fault` (`cutter`, `unrecoverable`, `recoverable` or `null`) |
-| `PATCH /api/printers/{name}` | sets the printer to another model, `{"profile": "TM-T20III"}`, as if another printer stood on its port. Receipts printed from then on are read and drawn as that model, and each receipt keeps the one it was printed on (`profile` in the receipt). It also sets how much the printer holds while it cannot print, `{"printer_buffer": 4096}`, how much the network keeps for a program, `{"network_buffer": 8192}`, and puts in a new full roll of paper, `{"paper_roll": 80000}` |
+| `PATCH /api/printers/{name}` | sets the printer to another model, `{"profile": "TM-T20III"}`, as if another printer stood on its port. Receipts printed from then on are read and drawn as that model, and each receipt keeps the one it was printed on (`profile` in the receipt). It also sets how much the printer holds while it cannot print, `{"printer_buffer": 4096}`, how much the network keeps for a program, `{"network_buffer": 8192}`, puts in a new full roll of paper, `{"paper_roll": 80000}`, and sets how fast it prints, `{"print_speed": 150}` |
 | `GET /api/events` | live events: `receipt`, `receipt_removed`, `cleared`, `status`, `connection` (each time one opens, receives or answers bytes, prints a receipt or closes, with its state then: its bytes, how many pieces, its receipts, and in `chunk` the piece that just came in), `printer_added`, `printer_changed`, `printer_removed`, `held` (how many bytes a printer holds changed), and `lagged` when a watcher was too slow. With `?detail=actions` also `action`, one for each command as it is read, with where its bytes are and what the printer believed after it. Commands are only made while someone watches them |
 | `GET /api/connections`, `GET /api/connections/{id}` | the programs that connected: when, in what pieces and at what times the bytes came, how many bytes the printer answered, and which receipts they printed |
 | `POST /api/decode` | reads the body as a printer would, in `?dialect=` and `?profile=`, and says every command, the answers and how many receipts. Nothing is kept. It shows what the same bytes mean to another language or model |

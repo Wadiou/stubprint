@@ -57,6 +57,11 @@ impl Session {
         self.take(pushed)
     }
 
+    /// How much longer the printer is busy printing, during which it reads nothing.
+    pub fn busy_for(&self) -> std::time::Duration {
+        self.virtual_printer.busy_for()
+    }
+
     /// How many more bytes the printer takes now, when it is holding what it receives because it
     /// cannot print. A program that sends more has to wait. `None` when it has no limit.
     pub fn room(&mut self) -> Option<usize> {

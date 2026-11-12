@@ -19,6 +19,8 @@ const MAX_CONNECTIONS: usize = 64;
 /// How many bytes one connection can send before it is closed, so a program that never stops
 /// cannot fill the memory.
 const MAX_CONNECTION_BYTES: usize = 256 * 1024 * 1024;
+/// How often a connection that waits for the printer to finish looks at whether it did.
+const BUSY_RECHECK: Duration = Duration::from_millis(100);
 /// How long an answer can wait for a program that does not read.
 const WRITE_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -101,8 +103,14 @@ async fn serve(
         let room = session
             .room()
             .map_or(buffer.len(), |room| room.min(buffer.len()));
+        // A printer that is printing reads nothing more until it is done, so what a program sends
+        // waits in the network's buffer, and the program waits when that is full.
+        // It looks again after a moment at most, because the speed may be changed meanwhile.
+        let busy = session.busy_for();
+        let pause = busy.min(BUSY_RECHECK);
         let replies = tokio::select! {
             _ = stopped(stop.clone()) => break,
+            () = tokio::time::sleep(pause), if !busy.is_zero() => Vec::new(),
             changed = status.changed() => {
                 if changed.is_err() {
                     break;
@@ -110,7 +118,7 @@ async fn serve(
                 let now = *status.borrow_and_update();
                 session.set_status(now)
             }
-            read = stream.read(&mut buffer[..room]), if room > 0 => match read {
+            read = stream.read(&mut buffer[..room]), if room > 0 && busy.is_zero() => match read {
                 Ok(0) | Err(_) => break,
                 Ok(count) => {
                     total += count;

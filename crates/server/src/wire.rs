@@ -98,6 +98,8 @@ pub struct PrinterInfo {
     pub paper_roll: usize,
     /// How much paper is left on the roll, in millimetres.
     pub paper_left: f64,
+    /// How fast it prints, in millimetres of paper a second. 0 prints without taking any time.
+    pub print_speed: usize,
     /// What it has done since it was made.
     pub usage: Usage,
 }
@@ -116,6 +118,7 @@ impl PrinterInfo {
             connections: printer.connections(),
             paper_roll: printer.paper_roll(),
             paper_left: printer.paper_left(),
+            print_speed: printer.print_speed(),
             usage: printer.usage(),
         }
     }

@@ -47,6 +47,9 @@ pub struct PrinterConfig {
     /// How long its paper roll is when it is full, in millimetres. It runs down as receipts print,
     /// and 0 is a roll that never runs out.
     pub paper_roll: usize,
+    /// How fast it prints, in millimetres of paper a second. A receipt keeps it busy for as long as
+    /// its paper takes to come out, and 0 prints without taking any time.
+    pub print_speed: usize,
 }
 
 /// The `printer_buffer` of a printer when none is set, in bytes.
@@ -79,6 +82,7 @@ impl Default for PrinterConfig {
             printer_buffer: DEFAULT_PRINTER_BUFFER,
             network_buffer: 0,
             paper_roll: 0,
+            print_speed: 0,
         }
     }
 }
@@ -122,6 +126,13 @@ pub struct PrinterSettings {
     #[schema(example = 80000)]
     #[serde(default, deserialize_with = "number")]
     pub paper_roll: Option<usize>,
+    /// How fast it prints, in millimetres of paper a second: a real receipt printer does 100 to 300.
+    /// A receipt keeps the printer busy for as long as its paper takes to come out, and a program
+    /// that sends more has to wait until it is done. The default is 0, which prints without taking
+    /// any time.
+    #[schema(example = 150)]
+    #[serde(default, deserialize_with = "number")]
+    pub print_speed: Option<usize>,
 }
 
 /// Reads a whole number, written either as a number or as text such as `"4096"`.
@@ -182,6 +193,9 @@ impl PrinterSettings {
         }
         if let Some(length) = self.paper_roll {
             printer.paper_roll = length;
+        }
+        if let Some(speed) = self.print_speed {
+            printer.print_speed = speed;
         }
         Ok(printer)
     }

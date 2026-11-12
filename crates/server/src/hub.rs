@@ -293,13 +293,14 @@ impl Hub {
                 .or_else(|| gone.get(&saved.printer).cloned())
                 .unwrap_or_else(|| {
                     let printer = Arc::new(VirtualPrinter::new(
-                        saved.printer.clone(),
-                        dialect,
-                        (*profile).clone(),
+                        PrinterConfig {
+                            name: saved.printer.clone(),
+                            dialect,
+                            profile: (*profile).clone(),
+                            printer_buffer: 0,
+                            ..PrinterConfig::default()
+                        },
                         ([127, 0, 0, 1], 0).into(),
-                        0,
-                        0,
-                        0,
                     ));
                     gone.insert(saved.printer.clone(), printer.clone());
                     printer
@@ -366,15 +367,7 @@ impl Hub {
                 ),
             )
         })?;
-        let printer = Arc::new(VirtualPrinter::new(
-            settings.name,
-            settings.dialect,
-            settings.profile,
-            socket.local_addr()?,
-            settings.printer_buffer,
-            settings.network_buffer,
-            settings.paper_roll,
-        ));
+        let printer = Arc::new(VirtualPrinter::new(settings, socket.local_addr()?));
         {
             let mut printers = self
                 .printers

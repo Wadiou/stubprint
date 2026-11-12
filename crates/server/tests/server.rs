@@ -2872,3 +2872,85 @@ async fn how_much_a_printer_holds_is_told_by_the_api_and_by_a_live_event_as_it_c
         .await;
     assert_eq!(server.ids().await.len(), 2);
 }
+
+/// How long a connection that sent a receipt waits for the next one it sends to be printed, when the
+/// printer prints at `speed` millimetres a second.
+async fn wait_for_the_second_receipt(server: &Harness, name: &str) -> Duration {
+    let mut stream = TcpStream::connect(server.printer(name)).await.unwrap();
+    stream.write_all(&receipt_bytes("first")).await.unwrap();
+    let first = server.after(0).await["id"].as_u64().unwrap();
+    let sent = std::time::Instant::now();
+    stream.write_all(&receipt_bytes("second")).await.unwrap();
+    server.after(first).await;
+    sent.elapsed()
+}
+
+#[tokio::test]
+async fn a_printer_that_prints_at_a_speed_reads_the_next_receipt_when_it_is_done_with_this_one() {
+    let one = paper_of_one_receipt().await;
+    // A speed at which one receipt takes 0.6 seconds.
+    let speed = (one / 0.6).ceil();
+    let slow = Harness::start(&[&format!("name=slow,print_speed={speed}")]).await;
+    let waited = wait_for_the_second_receipt(&slow, "slow").await;
+    assert!(
+        waited >= Duration::from_millis(400),
+        "the second receipt came after {waited:?}"
+    );
+    assert!(waited < Duration::from_secs(3), "{waited:?}");
+
+    // A printer with no speed takes no time.
+    let quick = Harness::start(&["name=quick"]).await;
+    let waited = wait_for_the_second_receipt(&quick, "quick").await;
+    assert!(waited < Duration::from_millis(300), "{waited:?}");
+}
+
+#[tokio::test]
+async fn the_speed_of_a_printer_can_be_changed_while_it_prints_and_zero_ends_the_wait() {
+    let one = paper_of_one_receipt().await;
+    // One receipt takes a minute at this speed.
+    let speed = (one / 60.0).ceil().max(1.0) as u64;
+    let server = Harness::start(&["name=till"]).await;
+    assert_eq!(server.json("/api/printers/till").await["print_speed"], 0);
+    let changed = server
+        .client
+        .patch(format!("{}/api/printers/till", server.base))
+        .json(&json!({"print_speed": speed}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(changed.status(), 200);
+    assert_eq!(changed.json::<Value>().await.unwrap()["print_speed"], speed);
+
+    let mut stream = TcpStream::connect(server.printer("till")).await.unwrap();
+    stream.write_all(&receipt_bytes("first")).await.unwrap();
+    let first = server.after(0).await["id"].as_u64().unwrap();
+    stream.write_all(&receipt_bytes("second")).await.unwrap();
+    // It is busy, and does not read the second.
+    let early = server
+        .get(&format!("/api/receipts/next?after={first}&timeout=1"))
+        .await;
+    assert_eq!(early.status(), 204);
+
+    // A printer that is set to take no time reads at once.
+    server
+        .client
+        .patch(format!("{}/api/printers/till", server.base))
+        .json(&json!({"print_speed": 0}))
+        .send()
+        .await
+        .unwrap();
+    server.after(first).await;
+}
+
+#[tokio::test]
+async fn the_speed_of_a_printer_is_there_again_after_a_restart() {
+    let file = state_file("speed");
+    let first = Harness::start_keeping_state(&["name=till,print_speed=150"], &file, false).await;
+    assert_eq!(first.json("/api/printers/till").await["print_speed"], 150);
+    first.running.stop().await;
+
+    let second = Harness::start_keeping_state(&[], &file, false).await;
+    assert_eq!(second.json("/api/printers/till").await["print_speed"], 150);
+    second.running.stop().await;
+    remove_database(&file);
+}

@@ -62,7 +62,7 @@ mod tests {
         apply(&db).unwrap();
         assert_eq!(version(&db), i64::from(MIGRATIONS.last().unwrap().0));
         // The columns the last change added are there.
-        db.prepare("SELECT paper_roll, paper_used FROM printers")
+        db.prepare("SELECT paper_roll, paper_used, print_speed FROM printers")
             .unwrap();
     }
 
@@ -76,7 +76,7 @@ mod tests {
         ))
         .unwrap();
         apply(&db).unwrap();
-        assert_eq!(version(&db), 2);
+        assert_eq!(version(&db), i64::try_from(MIGRATIONS.len()).unwrap());
         let (name, roll): (String, i64) = db
             .query_row("SELECT name, paper_roll FROM printers", [], |row| {
                 Ok((row.get(0)?, row.get(1)?))
@@ -90,7 +90,7 @@ mod tests {
         let db = Connection::open_in_memory().unwrap();
         apply(&db).unwrap();
         apply(&db).unwrap();
-        assert_eq!(version(&db), 2);
+        assert_eq!(version(&db), i64::try_from(MIGRATIONS.len()).unwrap());
     }
 
     #[test]
