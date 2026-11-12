@@ -46,6 +46,9 @@ function putConnection(queryClient: QueryClient, change: ConnectionChange) {
   }
 }
 
+/** How long to wait before opening the stream again, after the browser gave up on it, in milliseconds. */
+const RETRY_AFTER = 2000;
+
 /** The first line of a receipt that has something written on it. */
 const firstLine = (receipt: ReceiptSummary) => receipt.preview.find((line) => line.trim().length > 0)?.trim();
 
@@ -56,59 +59,73 @@ export function useLiveEvents() {
   const [live, setLive] = useState(false);
 
   useEffect(() => {
-    const source = new EventSource("/api/events");
     let dropped = false;
-    source.onopen = () => {
-      setLive(true);
-      // What happened while it was not connected was not seen.
-      if (dropped) refreshAll(queryClient);
-      dropped = false;
-    };
-    source.onerror = () => {
-      dropped = true;
-      setLive(false);
-    };
-    for (const [name, queryKeys] of Object.entries(STALE)) {
-      source.addEventListener(name, () => {
-        for (const queryKey of queryKeys) queryClient.invalidateQueries({ queryKey });
-      });
-    }
-    source.addEventListener("receipt", (event) => {
-      const notice = readNotice(event.data);
-      if (notice?.type !== "receipt") return;
-      const receipt = notice.value;
-      toast.success(`Receipt #${receipt.id} on ${receipt.printer}`, {
-        id: `receipt-${receipt.id}`,
-        description: firstLine(receipt),
-        action: { label: "See it", onClick: () => navigate({ to: "/", search: { receipt: receipt.id } }) },
-      });
-    });
-    // A printer that cannot print holds what it is sent. This stays until it prints it.
-    source.addEventListener("held", (event) => {
-      const notice = readNotice(event.data);
-      if (notice?.type !== "held") return;
-      const { printer: name, held } = notice.value;
-      const id = `held-${name}`;
-      if (held === 0) {
-        toast.dismiss(id);
-        return;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    // The stream that is open now, which is a new one each time the browser gave up on the last.
+    let current: EventSource | undefined;
+
+    const connect = () => {
+      const source = new EventSource("/api/events");
+      current = source;
+      source.onopen = () => {
+        setLive(true);
+        // What happened while it was not connected was not seen.
+        if (dropped) refreshAll(queryClient);
+        dropped = false;
+      };
+      source.onerror = () => {
+        dropped = true;
+        setLive(false);
+        // A server that answers with an error, as the proxy does while the server is down, ends the
+        // stream for good and the browser does not try again, so it is opened again after a moment.
+        if (source.readyState === EventSource.CLOSED) retry = setTimeout(connect, RETRY_AFTER);
+      };
+      for (const [name, queryKeys] of Object.entries(STALE)) {
+        source.addEventListener(name, () => {
+          for (const queryKey of queryKeys) queryClient.invalidateQueries({ queryKey });
+        });
       }
-      const printer = queryClient.getQueryData(listPrintersOptions().queryKey)?.find((item) => item.name === name);
-      toast.warning(`${name} cannot print`, {
-        id,
-        duration: Number.POSITIVE_INFINITY,
-        description: printer ? stuckText(printer.status, held) : `${held.toLocaleString("en-US")} bytes waiting`,
+      source.addEventListener("receipt", (event) => {
+        const notice = readNotice(event.data);
+        if (notice?.type !== "receipt") return;
+        const receipt = notice.value;
+        toast.success(`Receipt #${receipt.id} on ${receipt.printer}`, {
+          id: `receipt-${receipt.id}`,
+          description: firstLine(receipt),
+          action: { label: "See it", onClick: () => navigate({ to: "/", search: { receipt: receipt.id } }) },
+        });
       });
-    });
-    source.addEventListener("connection", (event) => {
-      const notice = readNotice(event.data);
-      // An event that is not understood leaves the lists wrong, so they are asked for again.
-      if (notice?.type === "connection") putConnection(queryClient, notice.value);
-      else queryClient.invalidateQueries({ queryKey: listConnectionsQueryKey() });
-    });
-    // The server says this one was too slow and missed some events.
-    source.addEventListener("lagged", () => refreshAll(queryClient));
-    return () => source.close();
+      // A printer that cannot print holds what it is sent. This stays until it prints it.
+      source.addEventListener("held", (event) => {
+        const notice = readNotice(event.data);
+        if (notice?.type !== "held") return;
+        const { printer: name, held } = notice.value;
+        const id = `held-${name}`;
+        if (held === 0) {
+          toast.dismiss(id);
+          return;
+        }
+        const printer = queryClient.getQueryData(listPrintersOptions().queryKey)?.find((item) => item.name === name);
+        toast.warning(`${name} cannot print`, {
+          id,
+          duration: Number.POSITIVE_INFINITY,
+          description: printer ? stuckText(printer.status, held) : `${held.toLocaleString("en-US")} bytes waiting`,
+        });
+      });
+      source.addEventListener("connection", (event) => {
+        const notice = readNotice(event.data);
+        // An event that is not understood leaves the lists wrong, so they are asked for again.
+        if (notice?.type === "connection") putConnection(queryClient, notice.value);
+        else queryClient.invalidateQueries({ queryKey: listConnectionsQueryKey() });
+      });
+      // The server says this one was too slow and missed some events.
+      source.addEventListener("lagged", () => refreshAll(queryClient));
+    };
+    connect();
+    return () => {
+      clearTimeout(retry);
+      current?.close();
+    };
   }, [queryClient, navigate]);
 
   return live;
