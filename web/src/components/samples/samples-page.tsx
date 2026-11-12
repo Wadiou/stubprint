@@ -11,24 +11,19 @@ import type { PrinterInfo, SampleSummary, VariantInfo } from "@/api/generated/ty
 import { PageLayout } from "@/components/layout/page";
 import { SplitLayout } from "@/components/layout/split-layout";
 import { DataTable } from "@/components/ui/data-table";
+import { refused } from "@/components/printers/printer-fields";
 import { SampleCard } from "./sample-card";
 import { createSamplesColumns } from "./samples-columns";
 
 /** The ready made receipts that real printing libraries wrote. The one that is chosen has its card at the side. */
-export function SamplesPage({ onOpen }: { onOpen: (receipt: number) => void }) {
+export function SamplesPage() {
   const samples = useQuery(listSamplesOptions()).data ?? [];
   const printers = useQuery(listPrintersOptions()).data ?? [];
   const models = useQuery({ ...listProfilesOptions(), staleTime: Number.POSITIVE_INFINITY }).data ?? [];
   const print = useMutation({
     ...printSampleMutation(),
-    onSuccess: (printed) => {
-      const [receipt] = printed.receipts;
-      toast.success(`Printed to ${printed.printer}`, {
-        description: printed.receipts.length === 1 ? `Receipt #${receipt}.` : `${printed.receipts.length} receipts.`,
-        action: receipt === undefined ? undefined : { label: "See it on the live paper", onClick: () => onOpen(receipt) },
-      });
-    },
-    onError: (error) => toast.error("It was not printed", { description: (error as { error?: string }).error ?? "The server refused it." }),
+    // The receipt that was printed is told by the live events, like any other.
+    onError: (error) => toast.error("It was not printed", { description: refused(error) }),
   });
   const [chosen, setChosen] = useState<string>();
 

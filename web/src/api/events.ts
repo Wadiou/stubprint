@@ -1,5 +1,7 @@
 import { type QueryClient, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { applyChange } from "@/lib/connection";
 import { readNotice } from "./notice";
 import {
@@ -8,7 +10,7 @@ import {
   listPrintersQueryKey,
   listReceiptsQueryKey,
 } from "./generated/@tanstack/react-query.gen";
-import type { ConnectionChange } from "./generated/types.gen";
+import type { ConnectionChange, ReceiptSummary } from "./generated/types.gen";
 
 // Each live event says which cached answers are out of date. A connection is not here: it comes
 // with what it is now, which is put in the lists as it is.
@@ -41,9 +43,13 @@ function putConnection(queryClient: QueryClient, change: ConnectionChange) {
   }
 }
 
+/** The first line of a receipt that has something written on it. */
+const firstLine = (receipt: ReceiptSummary) => receipt.preview.find((line) => line.trim().length > 0)?.trim();
+
 /** Follows the server's live events and keeps what they change up to date. True while connected. */
 export function useLiveEvents() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [live, setLive] = useState(false);
 
   useEffect(() => {
@@ -64,6 +70,16 @@ export function useLiveEvents() {
         for (const queryKey of queryKeys) queryClient.invalidateQueries({ queryKey });
       });
     }
+    source.addEventListener("receipt", (event) => {
+      const notice = readNotice(event.data);
+      if (notice?.type !== "receipt") return;
+      const receipt = notice.value;
+      toast.success(`Receipt #${receipt.id} on ${receipt.printer}`, {
+        id: `receipt-${receipt.id}`,
+        description: firstLine(receipt),
+        action: { label: "See it", onClick: () => navigate({ to: "/", search: { receipt: receipt.id } }) },
+      });
+    });
     source.addEventListener("connection", (event) => {
       const notice = readNotice(event.data);
       // An event that is not understood leaves the lists wrong, so they are asked for again.
@@ -73,7 +89,7 @@ export function useLiveEvents() {
     // The server says this one was too slow and missed some events.
     source.addEventListener("lagged", () => refreshAll(queryClient));
     return () => source.close();
-  }, [queryClient]);
+  }, [queryClient, navigate]);
 
   return live;
 }

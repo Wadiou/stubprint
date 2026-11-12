@@ -30,8 +30,7 @@ const samplesRoute = createRoute({
 });
 
 function SamplesRoute() {
-  const navigate = samplesRoute.useNavigate();
-  return <SamplesPage onOpen={(receipt) => navigate({ to: "/", search: { receipt } })} />;
+  return <SamplesPage />;
 }
 
 const printersRoute = createRoute({

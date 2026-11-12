@@ -31,3 +31,10 @@ test("an event that lacks a field or has a wrong one is not accepted", () => {
 test("text that is not JSON is not accepted either", () => {
   expect(readNotice("not json")).toBeUndefined();
 });
+
+test("a receipt event is read with its number, its printer and its first lines", () => {
+  const receipt = { id: 4, printer: "till", at: 5_000, bytes: 120, events: 9, dialect: "escpos", profile: "default", preview: ["", "THANK YOU"] };
+  const notice = readNotice(JSON.stringify({ type: "receipt", value: receipt }));
+  expect(notice?.type).toBe("receipt");
+  if (notice?.type === "receipt") expect(notice.value.preview).toEqual(["", "THANK YOU"]);
+});
