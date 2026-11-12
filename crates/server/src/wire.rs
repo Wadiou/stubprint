@@ -5,7 +5,7 @@ use stubprint_core::{Dialect, Event, PrinterStatus, Profile, Receipt, Snapshot, 
 use utoipa::ToSchema;
 
 use crate::hub::Stored;
-use crate::printer::VirtualPrinter;
+use crate::printer::{Usage, VirtualPrinter};
 use crate::samples::{Sample, Variant};
 
 /// How many printed lines the short form of a receipt shows.
@@ -93,6 +93,13 @@ pub struct PrinterInfo {
     pub held: usize,
     /// How many programs are connected to it now.
     pub connections: usize,
+    /// How long its paper roll was when it was full, in millimetres. 0 is a roll that never runs
+    /// out, and then the paper is set by hand.
+    pub paper_roll: usize,
+    /// How much paper is left on the roll, in millimetres.
+    pub paper_left: f64,
+    /// What it has done since it was made.
+    pub usage: Usage,
 }
 
 impl PrinterInfo {
@@ -107,6 +114,9 @@ impl PrinterInfo {
             network_buffer: printer.network_buffer(),
             held: printer.held(),
             connections: printer.connections(),
+            paper_roll: printer.paper_roll(),
+            paper_left: printer.paper_left(),
+            usage: printer.usage(),
         }
     }
 }

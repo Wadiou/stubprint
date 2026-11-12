@@ -2581,6 +2581,258 @@ async fn the_folder_of_the_database_is_made_when_it_is_missing() {
     let _ = std::fs::remove_dir_all(&folder);
 }
 
+/// The bytes of a receipt that kicks the cash drawer: `ESC p 0 25 250`.
+fn kicking_receipt(text: &str) -> Vec<u8> {
+    [&[0x1b, b'p', 0, 25, 250][..], &receipt_bytes(text)].concat()
+}
+
+#[tokio::test]
+async fn a_cash_drawer_that_is_kicked_opens_and_stays_open_until_it_is_shut_by_hand() {
+    let server = Harness::start(&["name=till"]).await;
+    assert_eq!(
+        server.json("/api/printers/till").await["status"]["drawer_open"],
+        false
+    );
+    server.print("till", &kicking_receipt("Open"), 100).await;
+    assert_eq!(
+        server.json("/api/printers/till").await["status"]["drawer_open"],
+        true
+    );
+    // The printer says so when it is asked: `GS r 2` is the cash drawer.
+    let answer = server.print("till", &[0x1d, b'r', 2], 100).await;
+    assert_eq!(answer, [1]);
+    // It is shut by hand, which is what the status says.
+    server.report("till", json!({"drawer_open": false})).await;
+    assert_eq!(
+        server.json("/api/printers/till").await["status"]["drawer_open"],
+        false
+    );
+    let answer = server.print("till", &[0x1d, b'r', 2], 100).await;
+    assert_eq!(answer, [0]);
+}
+
+#[tokio::test]
+async fn a_printer_that_cannot_print_does_not_kick_the_drawer_until_it_prints() {
+    let server = Harness::start(&["name=till"]).await;
+    server.report("till", json!({"cover_open": true})).await;
+    server.print("till", &kicking_receipt("Later"), 100).await;
+    assert_eq!(
+        server.json("/api/printers/till").await["status"]["drawer_open"],
+        false
+    );
+    server.report("till", json!({"cover_open": false})).await;
+    assert_eq!(
+        server.json("/api/printers/till").await["status"]["drawer_open"],
+        true
+    );
+}
+
+#[tokio::test]
+async fn what_a_printer_printed_is_counted_and_a_program_can_ask_for_the_counters() {
+    let server = Harness::start(&["name=till"]).await;
+    let nothing = server.json("/api/printers/till").await;
+    assert_eq!(nothing["usage"]["receipts"], 0);
+    assert_eq!(nothing["usage"]["paper_used"], 0.0);
+    for text in ["a", "b", "c"] {
+        server.print("till", &receipt_bytes(text), 100).await;
+    }
+    let printer = server.json("/api/printers/till").await;
+    assert_eq!(printer["usage"]["receipts"], 3);
+    assert_eq!(printer["usage"]["cuts"], 3);
+    assert_eq!(printer["usage"]["line_feeds"], 3);
+    assert!(printer["usage"]["paper_used"].as_f64().unwrap() > 0.0);
+
+    // `GS g 2 0 20 0` asks for the line feeds, and `GS g 2 0 50 0` for the cuts. The answer is a
+    // header, the digits and a NUL.
+    let feeds = server
+        .print("till", &[0x1d, b'g', b'2', 0, 20, 0], 100)
+        .await;
+    assert_eq!(feeds, [0x5f, b'3', 0]);
+    let cuts = server
+        .print("till", &[0x1d, b'g', b'2', 0, 50, 0], 100)
+        .await;
+    assert_eq!(cuts, [0x5f, b'3', 0]);
+    // A counter the printer does not have is not answered.
+    let none = server
+        .print("till", &[0x1d, b'g', b'2', 0, 99, 0], 100)
+        .await;
+    assert!(none.is_empty());
+}
+
+#[tokio::test]
+async fn the_counters_follow_a_receipt_that_feeds_lines() {
+    let server = Harness::start(&["name=till"]).await;
+    // `ESC d 5` feeds five lines, and a line feed ends the text before it.
+    server
+        .print("till", &[&b"x\n"[..], &[0x1b, b'd', 5], &CUT].concat(), 100)
+        .await;
+    let usage = server.json("/api/printers/till").await["usage"].clone();
+    assert_eq!(usage["line_feeds"], 6);
+    let counted = server
+        .print("till", &[0x1d, b'g', b'2', 0, 20, 0], 100)
+        .await;
+    assert_eq!(counted, [0x5f, b'6', 0]);
+}
+
+/// How much paper one small receipt takes, in millimetres, as the API counts it.
+async fn paper_of_one_receipt() -> f64 {
+    let server = Harness::start(&["name=probe"]).await;
+    server.print("probe", &receipt_bytes("x"), 100).await;
+    server.json("/api/printers/probe").await["usage"]["paper_used"]
+        .as_f64()
+        .unwrap()
+}
+
+#[tokio::test]
+async fn a_paper_roll_runs_down_with_each_receipt_and_the_printer_stops_when_it_is_used_up() {
+    let one = paper_of_one_receipt().await;
+    assert!(one > 1.0, "a receipt takes some paper: {one}");
+    // A roll that holds ten receipts and a half: it is near its end after the tenth.
+    let length: u32 = format!("{:.0}", one * 10.5).parse().unwrap();
+    let full = f64::from(length);
+    let server = Harness::start(&["name=till"]).await;
+    let added = server
+        .post_json(
+            "/api/printers",
+            json!({"name": "roll", "listen": "127.0.0.1:0", "paper_roll": length}),
+        )
+        .await;
+    assert_eq!(added.status(), 201);
+    let (level, left) = paper_state(&server, "roll").await;
+    assert_eq!(level, "adequate");
+    assert_eq!(left, full);
+
+    for _ in 0..9 {
+        server.print("roll", &receipt_bytes("x"), 100).await;
+    }
+    assert_eq!(paper_state(&server, "roll").await.0, "adequate");
+    server.print("roll", &receipt_bytes("x"), 100).await;
+    let (level, left) = paper_state(&server, "roll").await;
+    assert_eq!(level, "near_end", "10 receipts leave {left} of {length}");
+    // Near its end it still prints.
+    server.print("roll", &receipt_bytes("x"), 100).await;
+    assert_eq!(paper_state(&server, "roll").await, ("end".to_string(), 0.0));
+    assert_eq!(server.ids().await.len(), 11);
+
+    // With no paper it holds what it is sent, and does not print it.
+    server.print("roll", &receipt_bytes("held"), 100).await;
+    assert_eq!(server.ids().await.len(), 11);
+    assert!(
+        server.json("/api/printers/roll").await["held"]
+            .as_u64()
+            .unwrap()
+            > 0
+    );
+
+    // A new roll is full, and the printer prints what it held.
+    let loaded = server
+        .client
+        .patch(format!("{}/api/printers/roll", server.base))
+        .json(&json!({"paper_roll": length}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(loaded.status(), 200);
+    assert_eq!(server.ids().await.len(), 12);
+    let (level, left) = paper_state(&server, "roll").await;
+    assert_eq!(level, "adequate");
+    assert!(left < full && left > full - 2.0 * one);
+    assert_eq!(server.json("/api/printers/roll").await["held"], 0);
+}
+
+/// What the sensors of a printer report, and how much paper is left on its roll.
+async fn paper_state(server: &Harness, name: &str) -> (String, f64) {
+    let printer = server.json(&format!("/api/printers/{name}")).await;
+    (
+        printer["status"]["paper"].as_str().unwrap().to_string(),
+        printer["paper_left"].as_f64().unwrap(),
+    )
+}
+
+#[tokio::test]
+async fn the_paper_set_by_hand_is_what_a_roll_has_left() {
+    let server = Harness::start(&["name=till,paper_roll=1000"]).await;
+    assert_eq!(paper_state(&server, "till").await.1, 1000.0);
+    server.report("till", json!({"paper": "near_end"})).await;
+    assert_eq!(paper_state(&server, "till").await.1, 100.0);
+    server.report("till", json!({"paper": "end"})).await;
+    assert_eq!(paper_state(&server, "till").await.1, 0.0);
+    assert_eq!(
+        server.json("/api/printers/till").await["status"]["paper"],
+        "end"
+    );
+    // Setting it right again is putting in a new roll.
+    server.report("till", json!({"paper": "adequate"})).await;
+    assert_eq!(paper_state(&server, "till").await.1, 1000.0);
+}
+
+#[tokio::test]
+async fn a_printer_without_a_roll_never_runs_out_and_leaves_the_paper_to_be_set_by_hand() {
+    let server = Harness::start(&["name=till"]).await;
+    for _ in 0..3 {
+        server.print("till", &receipt_bytes("x"), 100).await;
+    }
+    let printer = server.json("/api/printers/till").await;
+    assert_eq!(printer["paper_roll"], 0);
+    assert_eq!(printer["status"]["paper"], "adequate");
+    server.report("till", json!({"paper": "near_end"})).await;
+    server.print("till", &receipt_bytes("x"), 100).await;
+    assert_eq!(
+        server.json("/api/printers/till").await["status"]["paper"],
+        "near_end"
+    );
+}
+
+#[tokio::test]
+async fn the_paper_and_the_counters_are_there_again_after_a_restart() {
+    let file = state_file("roll");
+    let first = Harness::start_keeping_state(&["name=till,paper_roll=100000"], &file, false).await;
+    for text in ["a", "b"] {
+        first.print("till", &receipt_bytes(text), 100).await;
+    }
+    let before = first.json("/api/printers/till").await;
+    first.running.stop().await;
+
+    let second = Harness::start_keeping_state(&[], &file, false).await;
+    let after = second.json("/api/printers/till").await;
+    assert_eq!(after["paper_roll"], 100000);
+    assert_eq!(after["paper_left"], before["paper_left"]);
+    assert_eq!(after["usage"], before["usage"]);
+    assert_eq!(after["usage"]["receipts"], 2);
+    // A program that asks the printer gets what it counted before.
+    let cuts = second
+        .print("till", &[0x1d, b'g', b'2', 0, 50, 0], 100)
+        .await;
+    assert_eq!(cuts, [0x5f, b'2', 0]);
+    second.running.stop().await;
+    remove_database(&file);
+}
+
+#[tokio::test]
+async fn a_database_from_before_the_paper_roll_is_brought_up_to_date_and_keeps_its_printers() {
+    let file = state_file("version-one");
+    {
+        let db = rusqlite::Connection::open(&file).unwrap();
+        db.execute_batch(&format!(
+            "BEGIN; {} PRAGMA user_version = 1; COMMIT;
+             INSERT INTO printers VALUES (0, 'till', '127.0.0.1:0', 'escpos', 'default', 4096, 0, '{{}}');",
+            include_str!("../migrations/001_printers_receipts_connections.sql")
+        ))
+        .unwrap();
+    }
+    let server = Harness::start_keeping_state(&[], &file, false).await;
+    let printer = server.json("/api/printers/till").await;
+    assert_eq!(printer["paper_roll"], 0);
+    assert_eq!(printer["usage"]["receipts"], 0);
+    server.print("till", &receipt_bytes("x"), 100).await;
+    server.running.stop().await;
+    let version: i64 = asked(&file, "PRAGMA user_version");
+    assert!(version >= 2);
+    let receipts: i64 = asked(&file, "SELECT receipts FROM printers WHERE name = 'till'");
+    assert_eq!(receipts, 1);
+    remove_database(&file);
+}
+
 #[tokio::test]
 async fn how_much_a_printer_holds_is_told_by_the_api_and_by_a_live_event_as_it_changes() {
     let server = Harness::start(&["name=till,printer_buffer=4096"]).await;

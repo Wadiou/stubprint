@@ -15,43 +15,10 @@ use stubprint_core::{Dialect, PrinterStatus, Profile};
 
 use crate::config::PrinterConfig;
 use crate::hub::Connection;
-use crate::printer::VirtualPrinter;
+use crate::migrations;
+use crate::printer::{Usage, VirtualPrinter};
 
-/// The version of the tables below. A database with a higher one was made by a newer Stubprint.
-const SCHEMA_VERSION: i64 = 1;
-
-const SCHEMA: &str = "
-    CREATE TABLE settings (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL
-    );
-    CREATE TABLE printers (
-        position INTEGER PRIMARY KEY,
-        name TEXT NOT NULL UNIQUE,
-        listen TEXT NOT NULL,
-        dialect TEXT NOT NULL,
-        profile TEXT NOT NULL,
-        printer_buffer INTEGER NOT NULL,
-        network_buffer INTEGER NOT NULL,
-        status TEXT NOT NULL
-    );
-    CREATE TABLE receipts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        printer TEXT NOT NULL,
-        dialect TEXT NOT NULL,
-        profile TEXT NOT NULL,
-        at INTEGER NOT NULL,
-        raw BLOB NOT NULL
-    );
-    CREATE INDEX receipts_by_printer ON receipts (printer);
-    CREATE TABLE connections (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        printer TEXT NOT NULL,
-        data TEXT NOT NULL
-    );
-";
-
-/// One printer as it is saved: its settings and what it reports.
+/// One printer as it is saved: its settings, what it reports, and its paper.
 #[derive(Debug)]
 pub(crate) struct SavedPrinter {
     name: String,
@@ -61,6 +28,9 @@ pub(crate) struct SavedPrinter {
     printer_buffer: usize,
     network_buffer: usize,
     status: PrinterStatus,
+    paper_roll: usize,
+    paper_left: f64,
+    usage: Usage,
 }
 
 impl SavedPrinter {
@@ -73,7 +43,20 @@ impl SavedPrinter {
             printer_buffer: printer.printer_buffer(),
             network_buffer: printer.network_buffer(),
             status: printer.status(),
+            paper_roll: printer.paper_roll(),
+            paper_left: printer.paper_left(),
+            usage: printer.usage(),
         }
+    }
+
+    /// How much paper was left on its roll.
+    pub(crate) fn paper_left(&self) -> f64 {
+        self.paper_left
+    }
+
+    /// What it had done.
+    pub(crate) fn usage(&self) -> Usage {
+        self.usage
     }
 
     pub(crate) fn name(&self) -> &str {
@@ -98,6 +81,7 @@ impl SavedPrinter {
             profile: Profile::named(&self.profile).unwrap_or_else(Profile::generic),
             printer_buffer: self.printer_buffer,
             network_buffer: self.network_buffer,
+            paper_roll: self.paper_roll,
         })
     }
 }
@@ -234,28 +218,13 @@ impl Drop for Store {
     }
 }
 
-/// Makes the tables when the database is new, and refuses one that is not ours.
+/// Opens the database for use: applies the changes it has not had, and refuses one that is not
+/// ours.
 fn prepare(db: &Db) -> rusqlite::Result<()> {
     db.busy_timeout(std::time::Duration::from_secs(5))?;
     db.pragma_update_and_check(None, "journal_mode", "WAL", |row| row.get::<_, String>(0))?;
     db.pragma_update(None, "synchronous", "NORMAL")?;
-    let version: i64 = db.pragma_query_value(None, "user_version", |row| row.get(0))?;
-    let tables: i64 = db.query_row("SELECT count(*) FROM sqlite_master", [], |row| row.get(0))?;
-    match version {
-        0 if tables == 0 => {
-            db.execute_batch(&format!(
-                "BEGIN; {SCHEMA} PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
-            ))?;
-            Ok(())
-        }
-        0 => Err(rusqlite::Error::InvalidParameterName(
-            "it is a database of something else".into(),
-        )),
-        SCHEMA_VERSION => Ok(()),
-        _ => Err(rusqlite::Error::InvalidParameterName(
-            "it was made by a newer Stubprint".into(),
-        )),
-    }
+    migrations::apply(db)
 }
 
 fn int(number: u64) -> i64 {
@@ -284,7 +253,8 @@ fn load(db: &Db) -> rusqlite::Result<Loaded> {
 
     let mut printers = Vec::new();
     let mut statement = db.prepare(
-        "SELECT name, listen, dialect, profile, printer_buffer, network_buffer, status
+        "SELECT name, listen, dialect, profile, printer_buffer, network_buffer, status,
+                paper_roll, paper_left, receipts, cuts, line_feeds, paper_used
          FROM printers ORDER BY position",
     )?;
     let rows = statement.query_map([], |row| {
@@ -297,6 +267,14 @@ fn load(db: &Db) -> rusqlite::Result<Loaded> {
             printer_buffer: size(row.get(4)?),
             network_buffer: size(row.get(5)?),
             status: serde_json::from_str(&status).unwrap_or_default(),
+            paper_roll: size(row.get(7)?),
+            paper_left: row.get(8)?,
+            usage: Usage {
+                receipts: unsigned(row.get(9)?),
+                cuts: unsigned(row.get(10)?),
+                line_feeds: unsigned(row.get(11)?),
+                paper_used: row.get(12)?,
+            },
         })
     })?;
     for printer in rows {
@@ -368,8 +346,9 @@ fn write(db: &Db, command: Command) -> rusqlite::Result<()> {
             for (position, printer) in printers.iter().enumerate() {
                 transaction.execute(
                     "INSERT INTO printers
-                     (position, name, listen, dialect, profile, printer_buffer, network_buffer, status)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                     (position, name, listen, dialect, profile, printer_buffer, network_buffer, status,
+                      paper_roll, paper_left, receipts, cuts, line_feeds, paper_used)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
                     params![
                         int(count(position)),
                         printer.name,
@@ -380,6 +359,12 @@ fn write(db: &Db, command: Command) -> rusqlite::Result<()> {
                         int(count(printer.network_buffer)),
                         serde_json::to_string(&printer.status)
                             .unwrap_or_else(|_| "{}".to_string()),
+                        int(count(printer.paper_roll)),
+                        printer.paper_left,
+                        int(printer.usage.receipts),
+                        int(printer.usage.cuts),
+                        int(printer.usage.line_feeds),
+                        printer.usage.paper_used,
                     ],
                 )?;
             }

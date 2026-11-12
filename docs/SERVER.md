@@ -10,7 +10,7 @@ cargo run -p stubprint-server -- --printer name=till,listen=127.0.0.1:9100,diale
 ```
 
 Contents: [Running it](#running-it) · [Printers](#printers) · [What is kept](#what-is-kept) ·
-[What a printer does](#what-a-printer-does) · [While it cannot print](#while-it-cannot-print) ·
+[What a printer does](#what-a-printer-does) · [While it cannot print](#while-it-cannot-print) · [Paper and counters](#paper-and-counters) ·
 [How much a program can send before it waits](#how-much-a-program-can-send-before-it-waits) · [The API](#the-api)
 
 ## Running it
@@ -42,6 +42,7 @@ a real printer, since the same bytes mean different things in ESC/POS and in Sta
 | `profile` | the model, which sets the code pages, the columns and the answers to questions | `default` | yes, `PATCH /api/printers/{name}` |
 | `printer_buffer` | how many bytes it holds while it cannot print. 0 holds nothing. See [While it cannot print](#while-it-cannot-print) | `4096` | yes, `PATCH` |
 | `network_buffer` | how many bytes the network keeps for a program before the printer reads them. 0 leaves it to the system. See [How much a program can send before it waits](#how-much-a-program-can-send-before-it-waits) | `0` | yes, `PATCH`, for connections that open after |
+| `paper_roll` | how long its paper roll is when full, in millimetres. It runs down as receipts print. 0 never runs out. See [Paper and counters](#paper-and-counters) | `0` | yes, `PATCH`, which puts in a new roll |
 | status | what it reports: `online`, `cover_open`, `paper`, `drawer_open`, `feed_button`, `fault` | online, nothing wrong | yes, `POST /api/printers/{name}` |
 
 ## What is kept
@@ -55,9 +56,14 @@ happens, without making a printer wait. Stopping the server waits until all of i
 | In the database | What it is |
 |---|---|
 | the address of the API | what `--http` last gave |
-| the printers | their name, port, command language, model, two sizes and status, in the order they were added |
+| the printers | their name, port, command language, model, sizes, status, paper roll and counters, in the order they were added |
 | the receipts | the bytes each was made from, which printer read them, as which model, and when. Its lines and its picture are made again from the bytes when the server starts |
 | the connections | each one when it closed: when, the pieces its bytes came in, and the receipts it printed |
+
+The database changes over time as numbered SQL files in `crates/server/migrations/`, such as
+`002_paper_roll_and_usage.sql`. The build finds them by looking in the folder, so a new file is used
+without being listed anywhere, and the build fails when the numbers have a gap. A database from an
+older Stubprint is brought up to date when the server starts, and keeps what it had.
 
 The bytes a printer holds while it cannot print are not kept. A number is never used again, even for
 a receipt that was removed, so a program that remembers a receipt by its number is never given
@@ -145,6 +151,39 @@ A printer here does the same, with a buffer of `printer_buffer` bytes.
 - With `printer_buffer` at 0 the printer prints whatever it receives, whatever the status. That is
   what a test that does not care about the status wants.
 
+## Paper and counters
+
+**The paper roll.** A printer has no limit on its paper until it is given a roll with `paper_roll`,
+in millimetres, such as `80000` for 80 m. Each receipt that prints takes as much paper as its
+picture is long, at the dots per inch of the model (203 when the model does not say). The roll
+runs down, and the sensors say so by themselves:
+
+| Left on the roll | The printer reports |
+|---|---|
+| more than a tenth | `adequate` |
+| a tenth or less | `near_end`, and it keeps printing |
+| nothing | `end`, and it stops printing: what it is sent is held, as in [While it cannot print](#while-it-cannot-print) |
+
+- The receipt that uses up the last of the paper is printed whole. A real printer stops in the
+  middle of it and finishes it when paper is put in.
+- A new roll puts the paper back and prints what was held: `PATCH /api/printers/{name}` with
+  `{"paper_roll": 80000}`, or setting `paper` back to `adequate`.
+- With a roll, setting `paper` by hand moves the roll to match: `near_end` leaves a tenth, `end`
+  leaves nothing. Without a roll, the paper is only what is set by hand.
+- `paper_left` in the printer says how much is on the roll, and the page shows it as a bar.
+
+**The counters.** Every printer counts what it did since it was made: `usage` in the printer has
+`receipts`, `cuts`, `line_feeds` (lines fed by line feeds and by feeding lines) and `paper_used`
+(millimetres). They are kept with the printer, so they are there after a restart, and the page shows
+them. A program can ask an Epson printer for two of them with `GS g 2 0 n 0`: `n` of 20 is the line
+feeds and 50 is the cuts. The answer is `0x5F`, the number in digits, and a NUL. A number the
+printer has no counter for is not answered. `printer_changed` is sent after each receipt, so a
+watcher sees the counters change.
+
+**The cash drawer.** A kick (`ESC p`, `DLE DC4`, and the Star drive commands) opens the drawer, and
+it stays open until it is shut by hand: `drawer_open` is true, `GS r 2` answers 1, and setting
+`drawer_open` back to false shuts it. A printer that cannot print kicks it when it prints.
+
 ## How much a program can send before it waits
 
 A program that sends to a printer waits when nobody reads what it sent. Its bytes wait in three
@@ -189,10 +228,10 @@ the code and is served at `/api/openapi.json`, with every route, parameter and f
 | `POST /api/samples/{id}/print` | prints a sample to a printer (`?printer=`, the first by default) like `POST /api/print`, with a variant in the printer's own command language unless `?dialect=` or `?library=` say otherwise |
 | `GET /api/network` | the addresses of this computer on its networks. They are what a program on another device connects to, and what a printer can listen on |
 | `GET /api/printers`, `GET /api/printers/{name}` | the printers, their status and how many programs are connected |
-| `POST /api/printers` | adds a printer while the server runs, from the same settings as `--printer` (`name`, `listen`, `dialect`, `profile`, `printer_buffer`, `network_buffer`), and opens its port at once. Without `listen` the system picks a free port, and a name that is taken gets `_2`, `_3` and so on after it, which the answer says. 409 when the address is taken |
+| `POST /api/printers` | adds a printer while the server runs, from the same settings as `--printer` (`name`, `listen`, `dialect`, `profile`, `printer_buffer`, `network_buffer`, `paper_roll`), and opens its port at once. Without `listen` the system picks a free port, and a name that is taken gets `_2`, `_3` and so on after it, which the answer says. 409 when the address is taken |
 | `DELETE /api/printers/{name}` | removes a printer: its port and its connections close, and the receipts it printed stay |
 | `POST /api/printers/{name}` | changes what the printer pretends: `online`, `cover_open`, `paper` (`adequate`, `near_end`, `end`), `drawer_open`, `feed_button`, `fault` (`cutter`, `unrecoverable`, `recoverable` or `null`) |
-| `PATCH /api/printers/{name}` | sets the printer to another model, `{"profile": "TM-T20III"}`, as if another printer stood on its port. Receipts printed from then on are read and drawn as that model, and each receipt keeps the one it was printed on (`profile` in the receipt). It also sets how much the printer holds while it cannot print, `{"printer_buffer": 4096}`, and how much the network keeps for a program, `{"network_buffer": 8192}` |
+| `PATCH /api/printers/{name}` | sets the printer to another model, `{"profile": "TM-T20III"}`, as if another printer stood on its port. Receipts printed from then on are read and drawn as that model, and each receipt keeps the one it was printed on (`profile` in the receipt). It also sets how much the printer holds while it cannot print, `{"printer_buffer": 4096}`, how much the network keeps for a program, `{"network_buffer": 8192}`, and puts in a new full roll of paper, `{"paper_roll": 80000}` |
 | `GET /api/events` | live events: `receipt`, `receipt_removed`, `cleared`, `status`, `connection` (each time one opens, receives or answers bytes, prints a receipt or closes, with its state then: its bytes, how many pieces, its receipts, and in `chunk` the piece that just came in), `printer_added`, `printer_changed`, `printer_removed`, `held` (how many bytes a printer holds changed), and `lagged` when a watcher was too slow. With `?detail=actions` also `action`, one for each command as it is read, with where its bytes are and what the printer believed after it. Commands are only made while someone watches them |
 | `GET /api/connections`, `GET /api/connections/{id}` | the programs that connected: when, in what pieces and at what times the bytes came, how many bytes the printer answered, and which receipts they printed |
 | `POST /api/decode` | reads the body as a printer would, in `?dialect=` and `?profile=`, and says every command, the answers and how many receipts. Nothing is kept. It shows what the same bytes mean to another language or model |

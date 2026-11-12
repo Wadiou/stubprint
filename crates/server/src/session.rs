@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use stubprint_core::{Printer, PrinterStatus, Profile, Pushed};
+use stubprint_core::{Event, Printer, PrinterStatus, Profile, Pushed};
 
 use crate::hub::{Hub, Notice};
 use crate::printer::{Held, VirtualPrinter};
@@ -28,6 +28,7 @@ impl Session {
         let mut printer = Printer::with_dialect(virtual_printer.dialect, (*profile).clone());
         printer.hold_while_offline(virtual_printer.capacity());
         printer.set_status(virtual_printer.status());
+        printer.set_counters(virtual_printer.counters());
         virtual_printer.connected();
         let id = hub.open_connection(&virtual_printer.name, &peer);
         Self {
@@ -49,6 +50,8 @@ impl Session {
     /// Reads received bytes. Returns what the printer answers.
     pub fn feed(&mut self, bytes: &[u8]) -> Vec<u8> {
         self.follow_hold();
+        // What the printer has counted, which other connections may have changed.
+        self.printer.set_counters(self.virtual_printer.counters());
         self.hub.received(self.id, bytes.len());
         let pushed = self.printer.push_traced(bytes);
         self.take(pushed)
@@ -93,6 +96,10 @@ impl Session {
     fn take(&mut self, pushed: Pushed) -> Vec<u8> {
         let watched = self.hub.actions_wanted();
         for item in pushed.traced {
+            // A drawer that is kicked opens.
+            if matches!(item.event, Event::Pulse(_)) {
+                self.hub.drawer_kicked(&self.virtual_printer);
+            }
             if watched {
                 self.hub.notify(Notice::Action {
                     connection: self.id,

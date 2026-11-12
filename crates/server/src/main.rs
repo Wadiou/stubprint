@@ -53,6 +53,8 @@ struct Options {
     ///                   open. 0 holds nothing and prints whatever it receives [default: 4096]
     ///   network_buffer  how many bytes the network keeps for a program before the printer reads
     ///                   them. 0 leaves it to the system, which keeps a lot [default: 0]
+    ///   paper_roll      how long its paper roll is, in millimetres. It runs down as receipts
+    ///                   print, and at the end the printer stops. 0 never runs out [default: 0]
     ///
     /// For example: name=front,listen=0.0.0.0:9100,dialect=escpos,profile=TM-T88IV
     #[arg(long, verbatim_doc_comment, value_name = "SETTINGS")]

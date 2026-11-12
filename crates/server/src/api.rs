@@ -352,11 +352,15 @@ async fn set_printer(
     let printer = hub
         .printer(&name)
         .ok_or_else(|| ApiError::not_found(format!("no printer called {name}")))?;
+    let paper = change.paper;
     let status = change.apply(printer.status());
+    // A roll that runs out is made to match the paper that was set by hand.
+    if let Some(paper) = paper {
+        printer.match_roll(paper);
+    }
     // What programs that have gone left in the printer is older than what open connections hold,
     // so it prints first.
-    hub.release_held(&printer, status);
-    printer.set_status(status);
+    let status = hub.apply_status(&printer, status);
     hub.notify(Notice::Status {
         printer: printer.name.clone(),
         status,
@@ -381,6 +385,10 @@ struct PrinterChange {
     /// applies to connections that open from now on.
     #[serde(alias = "receive_buffer")]
     network_buffer: Option<usize>,
+    /// Puts in a new roll, which is full: its length in millimetres. 0 is a roll that never runs
+    /// out, and then the paper is set by hand. A printer that stopped at the end of its paper
+    /// prints what it held.
+    paper_roll: Option<usize>,
 }
 
 /// Sets the printer to another model, as if another printer stood on its port, or changes how much it holds while it cannot print and how much the network keeps for a program.
@@ -413,6 +421,17 @@ async fn update_printer(
     }
     if let Some(bytes) = change.network_buffer {
         printer.set_network_buffer(bytes);
+    }
+    if let Some(length) = change.paper_roll {
+        if let Some(paper) = printer.load_roll(length) {
+            let mut status = printer.status();
+            status.paper = paper;
+            let status = hub.apply_status(&printer, status);
+            hub.notify(Notice::Status {
+                printer: printer.name.clone(),
+                status,
+            });
+        }
     }
     hub.notify(Notice::PrinterChanged(PrinterInfo::of(&printer)));
     Ok(Json(PrinterInfo::of(&printer)))

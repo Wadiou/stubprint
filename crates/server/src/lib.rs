@@ -9,6 +9,7 @@ pub mod api;
 mod config;
 mod hub;
 mod listener;
+mod migrations;
 mod network;
 mod page;
 mod pictures;
@@ -211,6 +212,7 @@ async fn restore(
             }
             other => other?,
         };
+        started.restore_roll(printer.paper_left(), printer.usage());
         started.set_status(printer.status());
     }
     for settings in written {

@@ -44,6 +44,9 @@ pub struct PrinterConfig {
     /// it to the operating system, which keeps a lot, so a program rarely has to wait. A small
     /// number makes a program that sends a lot wait, as it does for a real printer.
     pub network_buffer: usize,
+    /// How long its paper roll is when it is full, in millimetres. It runs down as receipts print,
+    /// and 0 is a roll that never runs out.
+    pub paper_roll: usize,
 }
 
 /// The `printer_buffer` of a printer when none is set, in bytes.
@@ -75,6 +78,7 @@ impl Default for PrinterConfig {
             profile: Profile::generic(),
             printer_buffer: DEFAULT_PRINTER_BUFFER,
             network_buffer: 0,
+            paper_roll: 0,
         }
     }
 }
@@ -101,7 +105,7 @@ pub struct PrinterSettings {
     /// that sends more has to wait. What it held prints when the printer can print again, even if
     /// the program has gone. The default is 4096. 0 holds nothing: it prints whatever it receives.
     #[schema(example = 4096)]
-    #[serde(default, alias = "hold_offline", deserialize_with = "bytes")]
+    #[serde(default, alias = "hold_offline", deserialize_with = "number")]
     pub printer_buffer: Option<usize>,
     /// How many bytes the network keeps for what a program sends before the printer reads it, as
     /// the network chip of a real printer does. A program that sends more than that, and more than
@@ -109,12 +113,19 @@ pub struct PrinterSettings {
     /// lot, so a program may not wait at all. The system rounds the number, and a connection that
     /// is open keeps the size it had when it opened.
     #[schema(example = 8192)]
-    #[serde(default, alias = "receive_buffer", deserialize_with = "bytes")]
+    #[serde(default, alias = "receive_buffer", deserialize_with = "number")]
     pub network_buffer: Option<usize>,
+    /// How long its paper roll is when it is full, in millimetres, such as 80000 for 80 m. It runs
+    /// down as receipts print: it reports near end for the last tenth and end when it is used up,
+    /// and a printer with no paper stops printing until paper is put in. The default is 0, a roll
+    /// that never runs out.
+    #[schema(example = 80000)]
+    #[serde(default, deserialize_with = "number")]
+    pub paper_roll: Option<usize>,
 }
 
-/// Reads a number of bytes, written either as a number or as text such as `"4096"`.
-fn bytes<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Option<usize>, D::Error> {
+/// Reads a whole number, written either as a number or as text such as `"4096"`.
+fn number<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Option<usize>, D::Error> {
     #[derive(Deserialize)]
     #[serde(untagged)]
     enum Size {
@@ -127,7 +138,7 @@ fn bytes<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Option<usi
         Some(Size::Text(text)) => text
             .parse()
             .map(Some)
-            .map_err(|_| serde::de::Error::custom(format!("`{text}` is not a number of bytes"))),
+            .map_err(|_| serde::de::Error::custom(format!("`{text}` is not a whole number"))),
     }
 }
 
@@ -168,6 +179,9 @@ impl PrinterSettings {
         }
         if let Some(bytes) = self.network_buffer {
             printer.network_buffer = bytes;
+        }
+        if let Some(length) = self.paper_roll {
+            printer.paper_roll = length;
         }
         Ok(printer)
     }
@@ -286,7 +300,7 @@ mod tests {
         let printer = PrinterConfig::parse("hold_offline=3,receive_buffer=4").unwrap();
         assert_eq!((printer.printer_buffer, printer.network_buffer), (3, 4));
         let error = PrinterConfig::parse("printer_buffer=big").unwrap_err();
-        assert!(error.contains("number of bytes"), "{error}");
+        assert!(error.contains("whole number"), "{error}");
     }
 
     #[test]

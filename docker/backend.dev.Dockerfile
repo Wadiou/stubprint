@@ -6,5 +6,5 @@ RUN name="watchexec-${WATCHEXEC}-$(uname -m)-unknown-linux-musl" \
   && curl -fsSL "https://github.com/watchexec/watchexec/releases/download/v${WATCHEXEC}/${name}.tar.xz" \
   | tar -xJ -C /usr/local/bin --strip-components=1 "${name}/watchexec"
 WORKDIR /work
-CMD ["watchexec", "--restart", "--watch", "crates", "--watch", "Cargo.toml", "--watch", "Cargo.lock", "--exts", "rs,toml", "--", \
+CMD ["watchexec", "--restart", "--watch", "crates", "--watch", "Cargo.toml", "--watch", "Cargo.lock", "--exts", "rs,toml,sql", "--", \
   "cargo", "run", "-p", "stubprint-server", "--", "--http", "0.0.0.0:8080", "--printer", "name=printer,listen=0.0.0.0:9100"]

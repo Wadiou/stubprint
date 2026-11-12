@@ -2,9 +2,55 @@ use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use stubprint_core::{Dialect, PrinterStatus, Profile};
+use serde::{Deserialize, Serialize};
+use stubprint_core::{Counters, Dialect, Paper, PrinterStatus, Profile};
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
+use utoipa::ToSchema;
+
+/// The roll reports near end when this share of it is left, or less.
+const NEAR_END_SHARE: f64 = 0.1;
+
+/// A length in millimetres as a number to count with.
+fn millimetres(length: usize) -> f64 {
+    f64::from(u32::try_from(length).unwrap_or(u32::MAX))
+}
+
+/// What a printer has done since it was made, which a real printer counts for its service.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct Usage {
+    /// How many receipts it printed.
+    pub receipts: u64,
+    /// How many times the cutter cut.
+    pub cuts: u64,
+    /// How many lines the paper was fed by line feeds and by feeding lines.
+    pub line_feeds: u64,
+    /// How much paper it used, in millimetres.
+    pub paper_used: f64,
+}
+
+/// The paper roll, and what was printed on it.
+#[derive(Debug, Clone, Copy, Default)]
+struct Roll {
+    /// How long the roll was when it was full, in millimetres. 0 is a roll that never runs out.
+    length: usize,
+    /// How much paper is left on it, in millimetres.
+    left: f64,
+    usage: Usage,
+}
+
+impl Roll {
+    /// What the sensors of a roll report with this much left on it.
+    fn level(&self) -> Paper {
+        if self.left <= 0.0 {
+            Paper::End
+        } else if self.left <= millimetres(self.length) * NEAR_END_SHARE {
+            Paper::NearEnd
+        } else {
+            Paper::Adequate
+        }
+    }
+}
 
 /// Bytes a printer received while it could not print, from a program that has gone. They stay in
 /// the printer and print when it can.
@@ -38,6 +84,7 @@ pub struct VirtualPrinter {
     session_held: AtomicUsize,
     /// The `held` total the watchers were last told, so an event is sent only when it changes.
     told_held: AtomicUsize,
+    roll: Mutex<Roll>,
     connections: AtomicUsize,
     /// Tells its port and its connections to close.
     stop: watch::Sender<bool>,
@@ -53,6 +100,7 @@ impl VirtualPrinter {
         listen: SocketAddr,
         printer_buffer: usize,
         network_buffer: usize,
+        paper_roll: usize,
     ) -> Self {
         Self {
             name,
@@ -65,6 +113,11 @@ impl VirtualPrinter {
             held: Mutex::new(Vec::new()),
             session_held: AtomicUsize::new(0),
             told_held: AtomicUsize::new(0),
+            roll: Mutex::new(Roll {
+                length: paper_roll,
+                left: millimetres(paper_roll),
+                usage: Usage::default(),
+            }),
             connections: AtomicUsize::new(0),
             stop: watch::channel(false).0,
             task: Mutex::new(None),
@@ -95,6 +148,105 @@ impl VirtualPrinter {
     /// Sets what the printer says about itself. Connections that are open hear of it.
     pub fn set_status(&self, status: PrinterStatus) {
         self.status.send_replace(status);
+    }
+
+    fn roll(&self) -> Roll {
+        *self
+            .roll
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    /// How long its paper roll was when it was full, in millimetres. 0 is a roll that never runs
+    /// out.
+    pub fn paper_roll(&self) -> usize {
+        self.roll().length
+    }
+
+    /// How much paper is left on the roll, in millimetres.
+    pub fn paper_left(&self) -> f64 {
+        self.roll().left
+    }
+
+    /// What it has done since it was made.
+    pub fn usage(&self) -> Usage {
+        self.roll().usage
+    }
+
+    /// What a program can ask it for as its maintenance counters.
+    pub fn counters(&self) -> Counters {
+        let usage = self.roll().usage;
+        Counters {
+            line_feeds: usage.line_feeds,
+            cuts: usage.cuts,
+        }
+    }
+
+    /// What the sensors of the roll report, or `None` for a roll that never runs out and leaves
+    /// the paper to be set by hand.
+    pub fn roll_level(&self) -> Option<Paper> {
+        let roll = self.roll();
+        (roll.length > 0).then(|| roll.level())
+    }
+
+    /// Takes back what it had before the server stopped: the paper left and what it had done.
+    pub(crate) fn restore_roll(&self, left: f64, usage: Usage) {
+        let mut roll = self
+            .roll
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        roll.left = left.clamp(0.0, millimetres(roll.length));
+        roll.usage = usage;
+    }
+
+    /// Puts in a new roll, which is full: `length` millimetres, or 0 for a roll that never runs
+    /// out. Returns what the sensors report now, or `None` when the paper is left to be set by hand.
+    pub fn load_roll(&self, length: usize) -> Option<Paper> {
+        let mut roll = self
+            .roll
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        roll.length = length;
+        roll.left = millimetres(length);
+        (length > 0).then(|| roll.level())
+    }
+
+    /// The paper was set by hand to `paper`: a roll that runs out is made to match.
+    pub fn match_roll(&self, paper: Paper) {
+        let mut roll = self
+            .roll
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if roll.length == 0 {
+            return;
+        }
+        let length = millimetres(roll.length);
+        roll.left = match paper {
+            Paper::Adequate => length,
+            Paper::NearEnd => length * NEAR_END_SHARE,
+            Paper::End => 0.0,
+        };
+    }
+
+    /// Counts a receipt it printed and takes the paper it used off the roll. Returns what the
+    /// sensors report now, when that is not what the printer says already.
+    pub(crate) fn printed(&self, used: Usage) -> Option<Paper> {
+        let level = {
+            let mut roll = self
+                .roll
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            roll.usage.receipts += used.receipts;
+            roll.usage.cuts += used.cuts;
+            roll.usage.line_feeds += used.line_feeds;
+            roll.usage.paper_used += used.paper_used;
+            if roll.length == 0 {
+                return None;
+            }
+            roll.left = (roll.left - used.paper_used).max(0.0);
+            roll.level()
+        };
+        (level != self.status().paper).then_some(level)
     }
 
     /// How many bytes it holds while it cannot print. 0 means it holds nothing and prints whatever

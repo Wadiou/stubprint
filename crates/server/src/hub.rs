@@ -7,7 +7,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use axum::body::Bytes;
 use serde::{Deserialize, Serialize};
-use stubprint_core::{Dialect, Event, Printer, PrinterStatus, Profile, Receipt, Snapshot};
+use stubprint_core::{
+    Dialect, Event, FeedAmount, Printer, PrinterStatus, Profile, Receipt, Snapshot,
+};
 use tokio::sync::broadcast;
 use tokio::time::Instant;
 use utoipa::ToSchema;
@@ -15,7 +17,7 @@ use utoipa::ToSchema;
 use crate::config::PrinterConfig;
 use crate::listener;
 use crate::pictures::{PictureKey, Pictures};
-use crate::printer::VirtualPrinter;
+use crate::printer::{Usage, VirtualPrinter};
 use crate::store::{Command, Loaded, SavedPrinter, SavedReceipt, Store};
 use crate::wire::{PrinterInfo, ReceiptSummary};
 
@@ -297,6 +299,7 @@ impl Hub {
                         ([127, 0, 0, 1], 0).into(),
                         0,
                         0,
+                        0,
                     ));
                     gone.insert(saved.printer.clone(), printer.clone());
                     printer
@@ -370,6 +373,7 @@ impl Hub {
             socket.local_addr()?,
             settings.printer_buffer,
             settings.network_buffer,
+            settings.paper_roll,
         ));
         {
             let mut printers = self
@@ -589,20 +593,53 @@ impl Hub {
     /// Prints what programs that have gone left in a printer, if a printer in `status` can print.
     /// They print in the order they came, as the printer reads its buffer, and each receipt belongs
     /// to the connection that sent it.
-    pub fn release_held(&self, printer: &Arc<VirtualPrinter>, status: PrinterStatus) {
+    /// Returns whether what it printed kicked the cash drawer.
+    pub fn release_held(&self, printer: &Arc<VirtualPrinter>, status: PrinterStatus) -> bool {
         if status.halts_printing(printer.dialect) {
-            return;
+            return false;
         }
+        let mut drawer = false;
         for held in printer.take_held() {
             let mut reader = Printer::with_dialect(printer.dialect, (*held.profile).clone());
             reader.set_status(status);
-            let mut receipts = reader.push_traced(&held.bytes).receipts;
-            receipts.extend(reader.finish_traced().receipts);
+            let pushed = reader.push_traced(&held.bytes);
+            let finished = reader.finish_traced();
+            // A drawer that was kicked in what it held opens now.
+            let kicked = pushed
+                .traced
+                .iter()
+                .chain(&finished.traced)
+                .any(|item| matches!(item.event, Event::Pulse(_)));
+            if kicked {
+                self.drawer_kicked(printer);
+                drawer = true;
+            }
+            let mut receipts = pushed.receipts;
+            receipts.extend(finished.receipts);
             for receipt in receipts {
                 self.store(printer, held.profile.clone(), held.connection, receipt);
             }
         }
         self.announce_held(printer);
+        drawer
+    }
+
+    /// Sets the printer to `status`. What programs that have gone left in it prints first, if it
+    /// can print now, and what that printing did to the printer is kept: the drawer it kicked and
+    /// the paper it used. Returns the status the printer has now.
+    pub fn apply_status(
+        &self,
+        printer: &Arc<VirtualPrinter>,
+        mut status: PrinterStatus,
+    ) -> PrinterStatus {
+        if self.release_held(printer, status) {
+            status.drawer_open = true;
+        }
+        if let Some(level) = printer.roll_level() {
+            status.paper = level;
+        }
+        printer.set_status(status);
+        status
     }
 
     /// Tells the watchers how many bytes a printer holds, when that changed.
@@ -625,6 +662,7 @@ impl Hub {
         receipt: Receipt,
     ) -> u64 {
         let at = now();
+        let used = usage_of(&receipt, &profile);
         let stored = {
             let mut shelf = self.shelf();
             let id = shelf.next_id;
@@ -652,7 +690,33 @@ impl Hub {
             None
         });
         self.notify(Notice::Receipt(ReceiptSummary::of(&stored)));
+        // The paper it used comes off the roll, and the sensors may say it is running out.
+        if let Some(paper) = printer.printed(used) {
+            let mut status = printer.status();
+            status.paper = paper;
+            printer.set_status(status);
+            self.notify(Notice::Status {
+                printer: printer.name.clone(),
+                status,
+            });
+        }
+        self.notify(Notice::PrinterChanged(PrinterInfo::of(printer)));
         stored.id
+    }
+
+    /// The cash drawer opens when the printer kicks it, and stays open until it is shut by hand,
+    /// as a drawer that is connected does.
+    pub fn drawer_kicked(&self, printer: &Arc<VirtualPrinter>) {
+        let mut status = printer.status();
+        if status.drawer_open {
+            return;
+        }
+        status.drawer_open = true;
+        printer.set_status(status);
+        self.notify(Notice::Status {
+            printer: printer.name.clone(),
+            status,
+        });
     }
 
     /// The receipts kept, oldest first, of one printer or of all.
@@ -755,6 +819,33 @@ impl Hub {
             }
         }
     }
+}
+
+/// What printing a receipt used: the lines it fed, the cuts it made, and the paper it took, which
+/// is as long as the picture of the receipt.
+fn usage_of(receipt: &Receipt, profile: &Profile) -> Usage {
+    let mut usage = Usage {
+        receipts: 1,
+        ..Usage::default()
+    };
+    for event in receipt.events() {
+        match event {
+            Event::LineFeed => usage.line_feeds += 1,
+            Event::Feed(feed) => {
+                if let FeedAmount::Lines(lines) = feed.amount {
+                    usage.line_feeds += u64::from(lines);
+                }
+            }
+            Event::Cut(_) => usage.cuts += 1,
+            _ => {}
+        }
+    }
+    let options = stubprint_render::Options::for_profile(profile);
+    let dots = stubprint_render::paper_height(receipt, &options);
+    // Most thermal printers print 203 dots to the inch.
+    let dpi = profile.dpi.filter(|dpi| *dpi > 0).unwrap_or(203);
+    usage.paper_used = f64::from(dots) / f64::from(dpi) * 25.4;
+    usage
 }
 
 /// Milliseconds since 1970.
