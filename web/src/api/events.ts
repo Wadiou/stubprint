@@ -3,10 +3,12 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { applyChange } from "@/lib/connection";
+import { stuckText } from "@/lib/printer";
 import { readNotice } from "./notice";
 import {
   listConnectionsOptions,
   listConnectionsQueryKey,
+  listPrintersOptions,
   listPrintersQueryKey,
   listReceiptsQueryKey,
 } from "./generated/@tanstack/react-query.gen";
@@ -79,6 +81,23 @@ export function useLiveEvents() {
         id: `receipt-${receipt.id}`,
         description: firstLine(receipt),
         action: { label: "See it", onClick: () => navigate({ to: "/", search: { receipt: receipt.id } }) },
+      });
+    });
+    // A printer that cannot print holds what it is sent. This stays until it prints it.
+    source.addEventListener("held", (event) => {
+      const notice = readNotice(event.data);
+      if (notice?.type !== "held") return;
+      const { printer: name, held } = notice.value;
+      const id = `held-${name}`;
+      if (held === 0) {
+        toast.dismiss(id);
+        return;
+      }
+      const printer = queryClient.getQueryData(listPrintersOptions().queryKey)?.find((item) => item.name === name);
+      toast.warning(`${name} cannot print`, {
+        id,
+        duration: Number.POSITIVE_INFINITY,
+        description: printer ? stuckText(printer.status, held) : `${held.toLocaleString("en-US")} bytes waiting`,
       });
     });
     source.addEventListener("connection", (event) => {

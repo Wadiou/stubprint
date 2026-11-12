@@ -29,6 +29,10 @@ export function holdSize(text: string) {
 export const heldText = (held: number, capacity: number) =>
   `Holding ${held.toLocaleString("en-US")} / ${capacity.toLocaleString("en-US")} bytes`;
 
+/** What a toast says about a printer that cannot print and holds what it was sent: why, and how much waits. */
+export const stuckText = (status: PrinterInfo["status"], held: number) =>
+  `${printerState(status).label} · ${held.toLocaleString("en-US")} bytes waiting`;
+
 export type Tone = "ok" | "warn" | "bad";
 
 /** How a printer is doing, in a word and a colour, from what it says about itself. */

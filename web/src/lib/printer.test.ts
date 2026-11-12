@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { connectTo, DEFAULT_LISTEN, freeName, heldText, holdSize, port, printerState, resolveListen } from "./printer";
+import { connectTo, DEFAULT_LISTEN, freeName, heldText, holdSize, port, printerState, resolveListen, stuckText } from "./printer";
 
 const fine = { online: true, cover_open: false, drawer_open: false, feed_button: false, paper: "adequate" } as const;
 

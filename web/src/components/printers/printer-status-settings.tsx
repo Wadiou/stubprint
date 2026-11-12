@@ -5,6 +5,7 @@ import type { Fault, Paper, PrinterInfo } from "@/api/generated/types.gen";
 import { zFault, zPaper } from "@/api/generated/zod.gen";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { heldText } from "@/lib/printer";
 
 const PAPER: { value: Paper; label: string }[] = [
   { value: "adequate", label: "Adequate" },
@@ -46,6 +47,7 @@ export function PrinterStatusSettings({ printer }: { printer: PrinterInfo }) {
     <section className="flex flex-col">
       <h3 className="font-semibold">Status</h3>
       <p className="mt-1 mb-3 text-sm text-muted-foreground">What the printer reports. It applies at once to open connections and status commands.</p>
+      {printer.held > 0 && <p className="mb-3 text-sm font-medium text-destructive">{heldText(printer.held, printer.hold_offline)}</p>}
       {toggles.map(({ label, on, change }) => (
         <Setting key={label} label={label}>
           <Switch aria-label={label} checked={on} onCheckedChange={change} />

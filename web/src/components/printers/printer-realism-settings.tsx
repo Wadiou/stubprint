@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { DEFAULT_HOLD, heldText, holdSize, MAX_HOLD } from "@/lib/printer";
 
-/** The receive buffer of the printer, which holds what it is sent while it cannot print. Off until it is chosen so tests stay fast. */
+/** The receive buffer of the printer, which holds what it is sent while it cannot print. On by default, and 0 turns it off. */
 export function PrinterRealismSettings({ printer }: { printer: PrinterInfo }) {
   const queryClient = useQueryClient();
   const update = useMutation({
