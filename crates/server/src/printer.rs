@@ -27,15 +27,16 @@ pub struct VirtualPrinter {
     /// The address it really listens on, which differs from the configured one for port 0.
     pub listen: SocketAddr,
     status: watch::Sender<PrinterStatus>,
-    /// How many bytes it holds while it cannot print. 0 is none.
+    /// How many bytes it holds while it cannot print. 0 means it holds nothing.
     printer_buffer: AtomicUsize,
-    /// How many bytes the network keeps for what a program sends. 0 leaves it to the system.
+    /// How many bytes the network keeps for a program's data. 0 leaves it to the operating system.
     network_buffer: AtomicUsize,
-    /// What programs that have gone left in it.
+    /// Bytes left behind by programs that disconnected while it could not print. They print when
+    /// it can.
     held: Mutex<Vec<Held>>,
-    /// How many bytes the connections that are open hold.
+    /// Bytes held by the connections that are open now.
     session_held: AtomicUsize,
-    /// How many bytes it held when the watchers were last told.
+    /// The `held` total the watchers were last told, so an event is sent only when it changes.
     told_held: AtomicUsize,
     connections: AtomicUsize,
     /// Tells its port and its connections to close.
@@ -120,23 +121,23 @@ impl VirtualPrinter {
         self.network_buffer.store(bytes, Ordering::Relaxed);
     }
 
-    /// How many bytes a connection may hold: the size it is set to hold, less what programs that
-    /// have gone left in the printer. `None` when it holds nothing.
+    /// How many bytes a connection may hold, whatever the printer's state: `printer_buffer` minus
+    /// what disconnected programs left behind. `None` when `printer_buffer` is 0.
     pub(crate) fn capacity(&self) -> Option<usize> {
         let hold = self.printer_buffer();
         (hold > 0).then(|| hold.saturating_sub(self.held_len()))
     }
 
-    /// How many bytes the printer takes now while it holds what it receives, or `None` when it
-    /// holds nothing, because it can print or because it is not set to hold. What programs that
-    /// have gone left in it takes room too.
+    /// How many more bytes the printer will read right now. `None` means no limit, because it can
+    /// print or because `printer_buffer` is 0. While it cannot print, it is `printer_buffer` minus
+    /// what disconnected programs left behind.
     pub fn room(&self) -> Option<usize> {
         let hold = self.printer_buffer();
         (hold > 0 && self.halted()).then(|| hold.saturating_sub(self.held_len()))
     }
 
-    /// How many bytes the printer holds now: what open connections and programs that have gone
-    /// left in it.
+    /// How many bytes the printer holds now: what open connections hold, plus what disconnected
+    /// programs left behind.
     pub fn held(&self) -> usize {
         self.held_len() + self.session_held.load(Ordering::Relaxed)
     }
@@ -156,7 +157,7 @@ impl VirtualPrinter {
         (self.told_held.swap(now, Ordering::Relaxed) != now).then_some(now)
     }
 
-    /// How many bytes programs that have gone left in the printer.
+    /// How many bytes disconnected programs left behind.
     pub(crate) fn held_len(&self) -> usize {
         self.held
             .lock()

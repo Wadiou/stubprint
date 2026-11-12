@@ -34,8 +34,8 @@ pub use printer::VirtualPrinter;
 
 use wire::PrinterInfo;
 
-/// Whether the program was built with the web page in it, which it then serves at the address of
-/// the API.
+/// Whether this program was built with the web page inside it. If so, the page is served at the
+/// address of the API.
 pub fn has_page() -> bool {
     page::is_built()
 }
@@ -54,7 +54,7 @@ pub struct Running {
 }
 
 impl Running {
-    /// Where the REST API is, which differs from the configured address for port 0.
+    /// The address the API really listens on. It differs from the configured one when the port was 0.
     pub fn http_addr(&self) -> SocketAddr {
         self.http
     }
@@ -68,8 +68,8 @@ impl Running {
         self.hub.printer(name).map(|printer| printer.listen)
     }
 
-    /// Stops listening, closes the connections and waits until they are done. A live event stream
-    /// never ends by itself, so the API gets a moment to finish and is cut after it.
+    /// Stops the printers, closes their connections and waits for them to finish. The live event
+    /// stream never ends by itself, so the API gets 2 seconds to finish and is then cut.
     pub async fn stop(mut self) {
         self.hub.stop_printers().await;
         let _ = self.stop.send(true);
@@ -85,12 +85,13 @@ impl Running {
     }
 }
 
-/// Binds every address and starts serving. Fails before anything runs if an address is taken.
+/// Starts the API and the printers. If an address is taken it fails before anything runs.
 pub async fn serve(config: Config) -> io::Result<Running> {
     config
         .check()
         .map_err(|message| io::Error::new(io::ErrorKind::InvalidInput, message))?;
 
+    // The saved config, unless there is no file (`--ephemeral`) or it is ignored (`--reset`).
     let kept = match (&config.file, config.reset) {
         (Some(path), false) => file::read(path)?,
         _ => None,
@@ -102,7 +103,7 @@ pub async fn serve(config: Config) -> io::Result<Running> {
         ),
         None => (None, None),
     };
-    // What is given wins, then what the file says, then the default.
+    // The API address: the one given, else the one in the file, else the default.
     let wanted = config.http.or(saved_http).unwrap_or(DEFAULT_HTTP);
 
     let web = TcpListener::bind(wanted).await.map_err(|error| {
@@ -160,7 +161,7 @@ pub async fn serve(config: Config) -> io::Result<Running> {
     })
 }
 
-/// Opens the port of each printer of the configuration.
+/// Starts every printer in the list.
 async fn start(hub: &Arc<Hub>, printers: Vec<PrinterConfig>) -> io::Result<()> {
     for settings in printers {
         hub.add_printer(settings).await?;
@@ -168,10 +169,10 @@ async fn start(hub: &Arc<Hub>, printers: Vec<PrinterConfig>) -> io::Result<()> {
     Ok(())
 }
 
-/// Opens the printers of the config file, each with what it reports. A printer that is written on
-/// the command line is added when the file has none with its name, and is left alone when it has
-/// one, since the file says what the printers are. A port that is taken now is not a reason to stay
-/// down: the printer takes a free one and the output says so.
+/// Starts the printers saved in the config file, each with the status it had. Then adds the
+/// printers from `--printer` whose names the file does not have: the file's version of a printer
+/// always wins. If a saved printer's port is taken now, it listens on a free port instead and a
+/// message says so.
 async fn restore(
     hub: &Arc<Hub>,
     saved: Vec<file::Saved>,
@@ -208,8 +209,8 @@ async fn restore(
     Ok(())
 }
 
-/// Writes the process, the address of the API and the printers as they are at the start, apart
-/// from the ones added later. The file appears whole or not at all.
+/// Writes the process id, the address of the API and the printers as they are at the start
+/// (printers added later are not in it). The file is written whole or not at all.
 fn write_ready(path: &Path, http: SocketAddr, hub: &Hub) -> io::Result<()> {
     let printers: Vec<PrinterInfo> = hub
         .printers()

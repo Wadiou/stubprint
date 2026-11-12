@@ -206,7 +206,7 @@ pub struct Hub {
     notices: broadcast::Sender<Notice>,
     /// How many watchers want every action, so they are only made when someone looks.
     action_watchers: AtomicUsize,
-    /// The config file, and the address of the API it says, when there is one.
+    /// The config file to keep up to date and the API address to write in it, if state is kept.
     state: Mutex<Option<(PathBuf, SocketAddr)>>,
 }
 
@@ -236,8 +236,8 @@ impl Hub {
         }
     }
 
-    /// Starts keeping the address of the API and the printers in the config file, which is written
-    /// now and after each change to a printer or to what it reports.
+    /// Starts saving to the config file: the API address and the printers. It writes the file now
+    /// and again after every change to a printer or its status.
     pub fn keep_state_in(&self, path: PathBuf, http: SocketAddr) {
         *self
             .state

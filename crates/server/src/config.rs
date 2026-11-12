@@ -4,29 +4,31 @@ use std::path::PathBuf;
 use serde::Deserialize;
 use stubprint_core::{Dialect, Profile};
 
-/// What the server does: where the REST API is, and which virtual printers listen.
+/// How the server starts: where the API listens, which printers it starts, and where it keeps
+/// its state.
 #[derive(Debug, Clone)]
 pub struct Config {
-    /// Where the REST API and the live events are served. `None` is the address the config file
-    /// has, or [`DEFAULT_HTTP`] when it has none. An address that is given is written to the file.
+    /// Where the API and the web page listen. `None` means the address saved in the config file,
+    /// or [`DEFAULT_HTTP`] if the file has none. An address set here is saved to the file.
     pub http: Option<SocketAddr>,
+    /// The printers from `--printer`, or just the default printer when there were none.
     pub printers: Vec<PrinterConfig>,
-    /// A file to write the addresses into once everything listens, so a program that started the
-    /// server on port 0 can find it. It is removed when the server stops.
+    /// A file to write the real addresses into once everything is listening, for a program that
+    /// started the server on port 0. It is deleted when the server stops.
     pub ready: Option<PathBuf>,
-    /// The config file: the printers with their settings and what they report. It is read when
-    /// the server starts and written after every change. `None` keeps nothing, so the printers are
-    /// gone when the server stops.
+    /// The config file. It is read when the server starts and rewritten after every change.
+    /// `None` keeps nothing: no file is read or written.
     pub file: Option<PathBuf>,
-    /// Start again from `printers` and write that over the file, instead of reading it.
+    /// Ignore the config file when starting: start from `printers` and overwrite the file with them.
     pub reset: bool,
-    /// The printers were written, with `--printer`, and are not the default one. A printer that is
-    /// written is added when the file has none with its name, and is not changed when it has one.
+    /// True if `printers` came from `--printer`, false if it is only the default printer.
+    /// A printer from `--printer` is added to the file's printers only when none of them has the
+    /// same name. The file's version of a printer is never changed.
     pub given: bool,
 }
 
-/// One virtual printer. It listens on its own port, which is what sets its command language, like
-/// the emulation setting of a real printer.
+/// One virtual printer. Its port decides the command language it reads, like the emulation
+/// setting of a real printer.
 #[derive(Debug, Clone)]
 pub struct PrinterConfig {
     /// What the API calls it. Letters, digits, `-` and `_`.
@@ -34,19 +36,19 @@ pub struct PrinterConfig {
     pub listen: SocketAddr,
     pub dialect: Dialect,
     pub profile: Profile,
-    /// How many bytes it holds while it cannot print, such as with its cover open. 0 means it holds
-    /// nothing and prints whatever it receives, whatever it reports.
+    /// How many bytes it holds while it cannot print (offline, cover open, out of paper, or a
+    /// fault). 0 means it holds nothing and prints whatever it receives.
     pub printer_buffer: usize,
-    /// How many bytes the network keeps for what a program sends before the printer reads it. 0
-    /// leaves it to the system, which is large. A small one makes a program that sends a lot wait
-    /// early, as it does for a real printer.
+    /// How many bytes the network keeps for a program's data before the printer reads it. 0 leaves
+    /// it to the operating system, which keeps a lot, so a program rarely has to wait. A small
+    /// number makes a program that sends a lot wait, as it does for a real printer.
     pub network_buffer: usize,
 }
 
-/// The size of the receive buffer of a printer, in bytes, when none is chosen.
-pub const DEFAULT_HOLD: usize = 4096;
+/// The `printer_buffer` of a printer when none is set, in bytes.
+pub const DEFAULT_PRINTER_BUFFER: usize = 4096;
 
-/// Where the REST API listens when neither a flag nor the config file says.
+/// Where the API listens when neither `--http` nor the config file says.
 pub const DEFAULT_HTTP: SocketAddr =
     SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), 8080);
 
@@ -70,14 +72,13 @@ impl Default for PrinterConfig {
             listen: ([127, 0, 0, 1], 9100).into(),
             dialect: Dialect::EscPos,
             profile: Profile::generic(),
-            printer_buffer: DEFAULT_HOLD,
+            printer_buffer: DEFAULT_PRINTER_BUFFER,
             network_buffer: 0,
         }
     }
 }
 
-/// A printer as it is written in a configuration file or in a request, where what is left out is
-/// the default.
+/// A printer as written in `--printer` or in an API request. Anything left out gets its default.
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PrinterSettings {
@@ -111,7 +112,7 @@ pub struct PrinterSettings {
     pub network_buffer: Option<usize>,
 }
 
-/// A number of bytes, written as a number or as the text of one.
+/// Reads a number of bytes, written either as a number or as text such as `"4096"`.
 fn bytes<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Option<usize>, D::Error> {
     #[derive(Deserialize)]
     #[serde(untagged)]

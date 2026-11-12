@@ -1,7 +1,7 @@
-//! The config file: where the API listens and the printers, each with its settings and what it
-//! reports. The server reads it when it starts and writes it after every change, so it is the one
-//! place that says what they are. It can be written by hand too: whatever is left out is the
-//! default. The receipts and the connections are not kept.
+//! The config file: where the API listens, and the printers with their settings and status.
+//! The server reads it when it starts and rewrites it after every change, so it always matches what
+//! is running. It can also be written by hand: anything left out gets its default. Receipts and
+//! connections are not saved.
 
 use std::io;
 use std::net::SocketAddr;
@@ -14,6 +14,7 @@ use stubprint_core::{Dialect, Fault, Paper, PrinterStatus, Profile};
 use crate::config::PrinterConfig;
 use crate::printer::VirtualPrinter;
 
+/// The whole file, as JSON.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct File {
@@ -22,13 +23,13 @@ struct File {
     printers: Vec<Saved>,
 }
 
-/// What the config file says: where the API listens, if it says, and the printers.
+/// What a config file contained: the saved API address, if there is one, and the saved printers.
 pub(crate) struct Kept {
     pub(crate) http: Option<SocketAddr>,
     pub(crate) printers: Vec<Saved>,
 }
 
-/// One printer as it is written in the file.
+/// One printer as saved in the file. Anything left out gets its default when it is read.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Saved {
@@ -37,18 +38,17 @@ pub(crate) struct Saved {
     listen: Option<String>,
     dialect: Option<String>,
     profile: Option<String>,
-    /// Called `hold` and then `hold_offline` in files written before it was named after the buffer
-    /// of a printer.
+    /// Older files call this `hold` or `hold_offline`.
     #[serde(alias = "hold", alias = "hold_offline")]
     printer_buffer: Option<usize>,
-    /// Called `receive_buffer` in files written before it was named after the network.
+    /// Older files call this `receive_buffer`.
     #[serde(alias = "receive_buffer")]
     network_buffer: Option<usize>,
     status: Option<Reported>,
 }
 
-/// What a printer reports, as the file has it. A file written by hand may leave out any of it, and
-/// what it leaves out is what a printer that is fine reports.
+/// A printer's status as saved. Anything missing, in a file written by hand, is what a healthy
+/// printer reports.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Reported {
@@ -106,15 +106,15 @@ impl Saved {
         &self.name
     }
 
-    /// What it reports. Online, with nothing wrong, when the file does not say.
+    /// The status it had. A healthy printer (online, nothing wrong) when the file has none.
     pub(crate) fn status(&self) -> PrinterStatus {
         self.status
             .as_ref()
             .map_or_else(PrinterStatus::default, Reported::status)
     }
 
-    /// The settings to start the printer with, where what the file leaves out is the default. A
-    /// model that the database no longer has is the generic one.
+    /// The settings to start the printer with. Anything the file leaves out gets its default, and a
+    /// profile name that no longer exists becomes the generic profile.
     pub(crate) fn config(&self) -> Result<PrinterConfig, String> {
         let mut printer = PrinterConfig {
             name: self.name.clone(),
@@ -142,7 +142,7 @@ impl Saved {
     }
 }
 
-/// What the file says, or nothing when there is no file yet.
+/// Reads the config file. `None` means it does not exist yet.
 pub(crate) fn read(path: &Path) -> io::Result<Option<Kept>> {
     let text = match std::fs::read_to_string(path) {
         Ok(text) => text,
@@ -166,7 +166,8 @@ pub(crate) fn read(path: &Path) -> io::Result<Option<Kept>> {
     }))
 }
 
-/// Writes where the API listens and the printers. The file appears whole or not at all.
+/// Writes the config file. It is written to a temporary file and then renamed, so it is never half
+/// written.
 pub(crate) fn write(
     path: &Path,
     http: SocketAddr,
