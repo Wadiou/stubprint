@@ -29,7 +29,22 @@ the receipts of a printer on this machine. During development the page uses a pr
 `127.0.0.1:8080`), and `--keep` how many receipts are kept (default 500). `--config file.json` reads
 the same settings from a file: `{"http": "...", "keep": 100, "printers": [{"name": "...", ...}]}`.
 
-Nothing has a password, so the ports and the API listen on this machine only until told otherwise.
+### Keeping the printers between runs
+
+The printers are kept between runs. The server writes them to a file in the state folder of the
+system (`~/.local/state/stubprint/state.json` on Linux) when it starts and after every change: a
+printer added or removed, its model, its `hold_offline` size and what it reports. A run that is
+given no printers starts the ones in the file, each as it was, so what was set in the page is still
+there. The receipts, the connections and what a printer holds are not kept.
+
+- Printers that are given (`--printer`, or `printers` in a configuration) win over the file, and are
+  what is kept from then on.
+- `--clear-state` forgets what was kept: it starts with the printers given, or the default one.
+- `--no-state` keeps nothing and leaves the file as it is, for CI and read-only folders.
+- `--state file.json` (`state_file` in a configuration) keeps them in another file. A configuration
+  file keeps nothing unless it names `state_file`.
+- If the port of a printer is taken when it starts again, it listens on a free one and the output
+  says which. A file that is not a state file stops the server and is not changed.
 
 ## What a printer does
 
