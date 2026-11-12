@@ -143,6 +143,13 @@ pub enum Notice {
     PrinterRemoved {
         name: String,
     },
+    /// How many bytes a printer holds changed, because it cannot print.
+    Held {
+        /// The name of the printer.
+        printer: String,
+        /// How many bytes it holds now.
+        held: usize,
+    },
     /// A command was read, while the job is still being sent. Only sent to those who ask for the
     /// actions, since a long job makes thousands.
     Action {
@@ -171,6 +178,7 @@ impl Notice {
             Notice::PrinterAdded(_) => "printer_added",
             Notice::PrinterChanged(_) => "printer_changed",
             Notice::PrinterRemoved { .. } => "printer_removed",
+            Notice::Held { .. } => "held",
         }
     }
 }
@@ -515,6 +523,17 @@ impl Hub {
             for receipt in receipts {
                 self.store(printer, held.profile.clone(), held.connection, receipt);
             }
+        }
+        self.announce_held(printer);
+    }
+
+    /// Tells the watchers how many bytes a printer holds, when that changed.
+    pub fn announce_held(&self, printer: &VirtualPrinter) {
+        if let Some(held) = printer.held_changed() {
+            self.notify(Notice::Held {
+                printer: printer.name.clone(),
+                held,
+            });
         }
     }
 

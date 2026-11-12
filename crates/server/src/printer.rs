@@ -31,6 +31,10 @@ pub struct VirtualPrinter {
     hold_offline: AtomicUsize,
     /// What programs that have gone left in it.
     held: Mutex<Vec<Held>>,
+    /// How many bytes the connections that are open hold.
+    session_held: AtomicUsize,
+    /// How many bytes it held when the watchers were last told.
+    told_held: AtomicUsize,
     connections: AtomicUsize,
     /// Tells its port and its connections to close.
     stop: watch::Sender<bool>,
@@ -54,6 +58,8 @@ impl VirtualPrinter {
             status: watch::channel(PrinterStatus::default()).0,
             hold_offline: AtomicUsize::new(hold_offline),
             held: Mutex::new(Vec::new()),
+            session_held: AtomicUsize::new(0),
+            told_held: AtomicUsize::new(0),
             connections: AtomicUsize::new(0),
             stop: watch::channel(false).0,
             task: Mutex::new(None),
@@ -102,6 +108,27 @@ impl VirtualPrinter {
     pub fn room(&self) -> Option<usize> {
         let hold = self.hold_offline();
         (hold > 0 && self.halted()).then(|| hold.saturating_sub(self.held_len()))
+    }
+
+    /// How many bytes the printer holds now: what open connections and programs that have gone
+    /// left in it.
+    pub fn held(&self) -> usize {
+        self.held_len() + self.session_held.load(Ordering::Relaxed)
+    }
+
+    /// An open connection held `before` bytes and holds `now`.
+    pub(crate) fn session_holds(&self, before: usize, now: usize) {
+        if now >= before {
+            self.session_held.fetch_add(now - before, Ordering::Relaxed);
+        } else {
+            self.session_held.fetch_sub(before - now, Ordering::Relaxed);
+        }
+    }
+
+    /// How many bytes the printer holds, when that is not what the watchers were told last.
+    pub(crate) fn held_changed(&self) -> Option<usize> {
+        let now = self.held();
+        (self.told_held.swap(now, Ordering::Relaxed) != now).then_some(now)
     }
 
     /// How many bytes programs that have gone left in the printer.

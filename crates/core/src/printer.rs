@@ -161,6 +161,11 @@ impl Printer {
         Some(capacity.saturating_sub(self.held.len()))
     }
 
+    /// How many bytes the printer holds now.
+    pub fn held_len(&self) -> usize {
+        self.held.len()
+    }
+
     /// Takes what the printer holds, as when the program that sent it has gone and the bytes stay
     /// in the printer.
     pub fn take_held(&mut self) -> Vec<u8> {

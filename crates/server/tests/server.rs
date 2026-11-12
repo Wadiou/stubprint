@@ -2283,3 +2283,43 @@ async fn the_folder_of_the_state_file_is_made_when_it_is_missing() {
     server.running.stop().await;
     let _ = std::fs::remove_dir_all(&folder);
 }
+
+#[tokio::test]
+async fn how_much_a_printer_holds_is_told_by_the_api_and_by_a_live_event_as_it_changes() {
+    let server = Harness::start(&["name=till,hold_offline=4096"]).await;
+    let mut events = Live {
+        response: server.get("/api/events").await,
+        seen: String::new(),
+    };
+    assert_eq!(server.json("/api/printers").await[0]["held"], 0);
+
+    server.report("till", json!({"cover_open": true})).await;
+    // A program that is still connected holds 9 bytes.
+    let mut stream = TcpStream::connect(server.printer("till")).await.unwrap();
+    stream.write_all(&receipt_bytes("Held")).await.unwrap();
+    events.until("event: held").await;
+    events.until("\"held\":9").await;
+    let now = server
+        .until("/api/printers", |list| list[0]["held"] == 9)
+        .await;
+    assert_eq!(now[0]["hold_offline"], 4096);
+
+    // The program goes: its bytes stay in the printer and are still counted.
+    drop(stream);
+    tokio::time::sleep(SETTLE).await;
+    assert_eq!(server.json("/api/printers").await[0]["held"], 9);
+
+    // Another program adds to it.
+    server.print("till", &receipt_bytes("More"), 100).await;
+    server
+        .until("/api/printers", |list| list[0]["held"] == 18)
+        .await;
+
+    // The cover closes: everything prints and nothing is held.
+    server.report("till", json!({"cover_open": false})).await;
+    events.until("\"held\":0").await;
+    server
+        .until("/api/printers", |list| list[0]["held"] == 0)
+        .await;
+    assert_eq!(server.ids().await.len(), 2);
+}

@@ -18,6 +18,8 @@ pub struct Session {
     /// Where the last command ended, which is where the next starts.
     last_end: usize,
     stored: Vec<u64>,
+    /// How many bytes it holds, as the printer was last told.
+    held: usize,
 }
 
 impl Session {
@@ -40,6 +42,7 @@ impl Session {
             id,
             last_end: 0,
             stored: Vec::new(),
+            held: 0,
         }
     }
 
@@ -97,9 +100,20 @@ impl Session {
             self.last_end = item.end;
         }
         self.keep(pushed.receipts);
+        self.sync_held();
         let replies = self.printer.take_replies();
         self.hub.answered(self.id, replies.len());
         replies
+    }
+
+    /// Tells the printer, and those who watch, how many bytes this connection holds now.
+    fn sync_held(&mut self) {
+        let now = self.printer.held_len();
+        if now != self.held {
+            self.virtual_printer.session_holds(self.held, now);
+            self.held = now;
+        }
+        self.hub.announce_held(&self.virtual_printer);
     }
 
     fn keep(&mut self, receipts: Vec<stubprint_core::Receipt>) {
@@ -120,7 +134,12 @@ impl Drop for Session {
         self.finish();
         // What the printer still holds stays in it, and prints when it can.
         let bytes = self.printer.take_held();
-        if !bytes.is_empty() {
+        // They are the printer's now, and no longer this connection's.
+        self.virtual_printer.session_holds(self.held, 0);
+        self.held = 0;
+        if bytes.is_empty() {
+            self.hub.announce_held(&self.virtual_printer);
+        } else {
             self.virtual_printer.keep_held(Held {
                 connection: self.id,
                 profile: self.profile.clone(),

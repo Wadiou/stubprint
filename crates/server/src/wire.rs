@@ -86,6 +86,8 @@ pub struct PrinterInfo {
     /// How many bytes it holds while it cannot print, such as with its cover open. 0 means it holds
     /// nothing and prints whatever it receives.
     pub hold_offline: usize,
+    /// How many bytes it holds now because it cannot print.
+    pub held: usize,
     /// How many programs are connected to it now.
     pub connections: usize,
 }
@@ -99,6 +101,7 @@ impl PrinterInfo {
             listen: printer.listen.to_string(),
             status: printer.status(),
             hold_offline: printer.hold_offline(),
+            held: printer.held(),
             connections: printer.connections(),
         }
     }
