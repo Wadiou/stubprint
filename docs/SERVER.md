@@ -79,7 +79,7 @@ Epson printer a held `feed_button` too.
   of that connection. The buffer of the printer is one, so those bytes take room from the next
   program.
 - `held` in the printer, and the `held` event, say how many bytes it holds now, with what programs that have gone left in it.
-- A connection keeps the size it had when it opened. A request (`POST /api/print`, a sample) cannot
+- A connection that is open follows the size as it changes. Turning it off prints what was held. A request (`POST /api/print`, a sample) cannot
   wait, so one that does not fit is refused with 503.
 
 ## The API

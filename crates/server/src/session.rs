@@ -26,11 +26,7 @@ impl Session {
     pub fn open(hub: Arc<Hub>, virtual_printer: Arc<VirtualPrinter>, peer: String) -> Self {
         let profile = virtual_printer.profile();
         let mut printer = Printer::with_dialect(virtual_printer.dialect, (*profile).clone());
-        // What programs that have gone left in the printer takes room in the same buffer.
-        let hold = virtual_printer.hold_offline();
-        printer.hold_while_offline(
-            (hold > 0).then(|| hold.saturating_sub(virtual_printer.held_len())),
-        );
+        printer.hold_while_offline(virtual_printer.capacity());
         printer.set_status(virtual_printer.status());
         virtual_printer.connected();
         let id = hub.open_connection(&virtual_printer.name, &peer);
@@ -52,6 +48,7 @@ impl Session {
 
     /// Reads received bytes. Returns what the printer answers.
     pub fn feed(&mut self, bytes: &[u8]) -> Vec<u8> {
+        self.follow_hold();
         self.hub.received(self.id, bytes.len());
         let pushed = self.printer.push_traced(bytes);
         self.take(pushed)
@@ -59,13 +56,22 @@ impl Session {
 
     /// How many more bytes the printer takes now, when it is holding what it receives because it
     /// cannot print. A program that sends more has to wait. `None` when it has no limit.
-    pub fn room(&self) -> Option<usize> {
+    pub fn room(&mut self) -> Option<usize> {
+        self.follow_hold();
         self.printer.room()
+    }
+
+    /// Takes the size the printer is set to hold now, which may have changed since this
+    /// connection opened.
+    fn follow_hold(&mut self) {
+        self.printer
+            .hold_while_offline(self.virtual_printer.capacity());
     }
 
     /// The printer was told it is now in another state. Returns what it says by itself about it,
     /// and what it held is printed if it can print now.
     pub fn set_status(&mut self, status: PrinterStatus) -> Vec<u8> {
+        self.follow_hold();
         let pushed = self.printer.set_status(status);
         self.take(pushed)
     }

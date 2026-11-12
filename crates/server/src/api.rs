@@ -375,8 +375,8 @@ struct PrinterChange {
     /// and drawn as this model. The ones already kept stay as they were printed.
     profile: Option<String>,
     /// How many bytes it holds while it cannot print, as a real printer keeps them in its receive
-    /// buffer. 0 holds nothing and prints whatever it receives. Connections that are open keep the
-    /// number they had when they opened.
+    /// buffer. 0 holds nothing and prints whatever it receives. Connections that are open follow
+    /// the change.
     hold_offline: Option<usize>,
 }
 

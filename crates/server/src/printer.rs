@@ -93,13 +93,23 @@ impl VirtualPrinter {
     }
 
     /// How many bytes it holds while it cannot print. 0 means it holds nothing and prints whatever
-    /// it receives. A connection that is open keeps the number it had when it opened.
+    /// it receives. Connections that are open follow it as it changes.
     pub fn hold_offline(&self) -> usize {
         self.hold_offline.load(Ordering::Relaxed)
     }
 
+    /// Changes how many bytes it holds. Connections that are open hear of it, so what they held
+    /// is printed when it is turned off.
     pub fn set_hold_offline(&self, bytes: usize) {
         self.hold_offline.store(bytes, Ordering::Relaxed);
+        self.status.send_modify(|_| {});
+    }
+
+    /// How many bytes a connection may hold: the size it is set to hold, less what programs that
+    /// have gone left in the printer. `None` when it holds nothing.
+    pub(crate) fn capacity(&self) -> Option<usize> {
+        let hold = self.hold_offline();
+        (hold > 0).then(|| hold.saturating_sub(self.held_len()))
     }
 
     /// How many bytes the printer takes now while it holds what it receives, or `None` when it

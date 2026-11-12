@@ -2115,6 +2115,34 @@ async fn how_much_a_printer_holds_is_set_and_told_by_the_api() {
     assert_eq!(server.after(0).await["texts"], json!(["Later"]));
 }
 
+#[tokio::test]
+async fn a_connection_that_is_open_follows_how_much_the_printer_holds_as_it_changes() {
+    let server = Harness::start(&["name=till"]).await;
+    let mut stream = TcpStream::connect(server.printer("till")).await.unwrap();
+    tokio::time::sleep(SETTLE).await;
+
+    let patch = |bytes: u32| {
+        server
+            .client
+            .patch(format!("{}/api/printers/till", server.base))
+            .json(&json!({ "hold_offline": bytes }))
+            .send()
+    };
+    // It was open before the printer was set to hold, and it holds now.
+    assert_eq!(patch(4096).await.unwrap().status(), 200);
+    server.report("till", json!({"cover_open": true})).await;
+    stream.write_all(&receipt_bytes("Held")).await.unwrap();
+    tokio::time::sleep(SETTLE).await;
+    assert!(
+        server.ids().await.is_empty(),
+        "nothing prints with the cover open"
+    );
+
+    // Turning the holding off prints what it held, though the cover is still open.
+    assert_eq!(patch(0).await.unwrap().status(), 200);
+    assert_eq!(server.after(0).await["texts"], json!(["Held"]));
+}
+
 /// A file in the temporary folder that no other test uses, and that does not exist yet.
 fn state_file(name: &str) -> std::path::PathBuf {
     let unique = std::time::SystemTime::now()
