@@ -14,7 +14,6 @@ pub struct Session {
     /// The model it read as when it opened.
     profile: Arc<Profile>,
     printer: Printer,
-    peer: String,
     id: u64,
     /// Where the last command ended, which is where the next starts.
     last_end: usize,
@@ -28,18 +27,11 @@ impl Session {
         printer.set_status(virtual_printer.status());
         virtual_printer.connected();
         let id = hub.open_connection(&virtual_printer.name, &peer);
-        hub.notify(Notice::Connection {
-            id,
-            printer: virtual_printer.name.clone(),
-            peer: peer.clone(),
-            open: true,
-        });
         Self {
             hub,
             virtual_printer,
             profile,
             printer,
-            peer,
             id,
             last_end: 0,
             stored: Vec::new(),
@@ -118,11 +110,5 @@ impl Drop for Session {
         self.finish();
         self.virtual_printer.disconnected();
         self.hub.close_connection(self.id);
-        self.hub.notify(Notice::Connection {
-            id: self.id,
-            printer: self.virtual_printer.name.clone(),
-            peer: std::mem::take(&mut self.peer),
-            open: false,
-        });
     }
 }

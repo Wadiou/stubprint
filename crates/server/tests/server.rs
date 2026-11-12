@@ -567,6 +567,31 @@ async fn the_live_events_tell_about_connections_receipts_and_status() {
 }
 
 #[tokio::test]
+async fn an_open_connection_is_told_as_its_bytes_arrive_and_its_receipt_is_printed() {
+    let server = Harness::start(&["name=till"]).await;
+    let response = server.get("/api/events").await;
+    let mut events = Live {
+        response,
+        seen: String::new(),
+    };
+
+    // The connection stays open the whole time, so every change is told while it is open.
+    let mut stream = TcpStream::connect(server.printer("till")).await.unwrap();
+    events.until("\"open\":true").await;
+    stream.write_all(b"ab\n").await.unwrap();
+    events.until("\"bytes_in\":3").await;
+    events.until("\"pieces\":1").await;
+    events.until("\"chunk\":{\"at\":").await;
+    stream.write_all(&CUT).await.unwrap();
+    events.until("\"bytes_in\":7").await;
+    events.until("\"pieces\":2").await;
+    events.until("\"receipts\":[1]").await;
+    // And it is still open until the program closes it.
+    stream.shutdown().await.unwrap();
+    events.until("\"open\":false").await;
+}
+
+#[tokio::test]
 async fn the_connections_of_a_printer_are_counted() {
     let server = Harness::start(&["name=till"]).await;
     let first = TcpStream::connect(server.printer("till")).await.unwrap();

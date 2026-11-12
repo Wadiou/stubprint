@@ -67,6 +67,53 @@ pub struct Connection {
     pub receipts: Vec<u64>,
 }
 
+/// What a connection is at the moment it changes: it opened, bytes came in or went out, it printed
+/// a receipt, or it closed. The pieces are not repeated, which would make a long job quadratic:
+/// only how many there are, and the one that just came in.
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct ConnectionChange {
+    /// The number of the connection, which is never used again.
+    pub id: u64,
+    /// The name of the printer it connected to.
+    pub printer: String,
+    /// The address of the program, or `http` for a request to print.
+    pub peer: String,
+    /// False once it closed.
+    pub open: bool,
+    /// Milliseconds since 1970.
+    pub opened_at: u64,
+    /// Milliseconds since 1970, or nothing while it is open.
+    pub closed_at: Option<u64>,
+    /// How many bytes the program has sent so far.
+    pub bytes_in: usize,
+    /// How many bytes the printer has answered so far.
+    pub bytes_out: usize,
+    /// How many pieces the bytes have come in so far.
+    pub pieces: usize,
+    /// The receipts it printed so far.
+    pub receipts: Vec<u64>,
+    /// The piece that just came in, when this change is one.
+    pub chunk: Option<Chunk>,
+}
+
+impl ConnectionChange {
+    fn of(connection: &Connection, chunk: Option<Chunk>) -> Self {
+        Self {
+            id: connection.id,
+            printer: connection.printer.clone(),
+            peer: connection.peer.clone(),
+            open: connection.closed_at.is_none(),
+            opened_at: connection.opened_at,
+            closed_at: connection.closed_at,
+            bytes_in: connection.bytes_in,
+            bytes_out: connection.bytes_out,
+            pieces: connection.chunks.len(),
+            receipts: connection.receipts.clone(),
+            chunk,
+        }
+    }
+}
+
 /// What happened, for the ones who watch the live events.
 #[derive(Debug, Clone, Serialize, ToSchema)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
@@ -84,12 +131,8 @@ pub enum Notice {
         printer: String,
         status: PrinterStatus,
     },
-    Connection {
-        id: u64,
-        printer: String,
-        peer: String,
-        open: bool,
-    },
+    /// A connection opened, got or gave bytes, printed a receipt or closed.
+    Connection(ConnectionChange),
     /// A printer was added while the server runs, or at its start.
     PrinterAdded(PrinterInfo),
     /// A printer was set to another model.
@@ -121,7 +164,7 @@ impl Notice {
             Notice::Cleared { .. } => "cleared",
             Notice::ReceiptRemoved { .. } => "receipt_removed",
             Notice::Status { .. } => "status",
-            Notice::Connection { .. } => "connection",
+            Notice::Connection(_) => "connection",
             Notice::Action { .. } => "action",
             Notice::PrinterAdded(_) => "printer_added",
             Notice::PrinterChanged(_) => "printer_changed",
@@ -330,7 +373,7 @@ impl Hub {
         let mut log = self.log();
         let id = log.next_id;
         log.next_id += 1;
-        log.connections.push_back(Connection {
+        let connection = Connection {
             id,
             printer: printer.to_string(),
             peer: peer.to_string(),
@@ -340,41 +383,69 @@ impl Hub {
             bytes_out: 0,
             chunks: Vec::new(),
             receipts: Vec::new(),
-        });
+        };
+        let opened = ConnectionChange::of(&connection, None);
+        log.connections.push_back(connection);
         while log.connections.len() > MAX_CONNECTIONS {
             log.connections.pop_front();
         }
+        drop(log);
+        self.notify(Notice::Connection(opened));
         id
     }
 
-    fn with_connection(&self, id: u64, change: impl FnOnce(&mut Connection)) {
-        if let Some(connection) = self.log().connections.iter_mut().rev().find(|c| c.id == id) {
-            change(connection);
+    /// Changes a connection and tells the watchers what it is now. `change` returns the piece of
+    /// bytes it added, if it added one.
+    fn update(&self, id: u64, change: impl FnOnce(&mut Connection) -> Option<Chunk>) {
+        let changed = self
+            .log()
+            .connections
+            .iter_mut()
+            .rev()
+            .find(|c| c.id == id)
+            .map(|connection| {
+                let chunk = change(connection);
+                ConnectionChange::of(connection, chunk)
+            });
+        if let Some(changed) = changed {
+            self.notify(Notice::Connection(changed));
         }
     }
 
     /// Notes bytes that arrived on a connection.
     pub fn received(&self, id: u64, bytes: usize) {
-        self.with_connection(id, |connection| {
+        self.update(id, |connection| {
             let at = now().saturating_sub(connection.opened_at);
             connection.bytes_in += bytes;
             if connection.chunks.len() >= MAX_CHUNKS {
                 if let Some(last) = connection.chunks.last_mut() {
                     last.bytes += bytes;
                 }
+                None
             } else {
-                connection.chunks.push(Chunk { at, bytes });
+                let chunk = Chunk { at, bytes };
+                connection.chunks.push(chunk.clone());
+                Some(chunk)
             }
         });
     }
 
     /// Notes bytes the printer answered with.
     pub fn answered(&self, id: u64, bytes: usize) {
-        self.with_connection(id, |connection| connection.bytes_out += bytes);
+        if bytes == 0 {
+            return;
+        }
+        self.update(id, |connection| {
+            connection.bytes_out += bytes;
+            None
+        });
     }
 
     pub fn close_connection(&self, id: u64) {
-        self.with_connection(id, |connection| connection.closed_at = Some(now()));
+        self.update(id, |connection| {
+            connection.closed_at = Some(now());
+            None
+        });
     }
 
     /// The connections remembered, oldest first, of one printer or of all.
@@ -420,7 +491,10 @@ impl Hub {
             }
             stored
         };
-        self.with_connection(connection, |c| c.receipts.push(stored.id));
+        self.update(connection, |c| {
+            c.receipts.push(stored.id);
+            None
+        });
         self.notify(Notice::Receipt(ReceiptSummary::of(&stored)));
         stored.id
     }
