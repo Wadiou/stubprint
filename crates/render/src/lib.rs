@@ -90,6 +90,12 @@ pub fn picture(receipt: &Receipt, options: &Options) -> Canvas {
     paint::paint(&blocks::document(receipt, options), options)
 }
 
+/// How tall the paper is, in dots, which is how tall its picture is. It is much quicker than
+/// drawing the picture, so it is the way to tell how much paper a receipt used.
+pub fn paper_height(receipt: &Receipt, options: &Options) -> u32 {
+    paint::height(&blocks::document(receipt, options), options)
+}
+
 /// The paper as a PNG file.
 pub fn png(receipt: &Receipt, options: &Options) -> Result<Vec<u8>, String> {
     picture(receipt, options)

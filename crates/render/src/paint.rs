@@ -113,11 +113,9 @@ fn draw_user_glyph(
     }
 }
 
-/// One line as a strip as wide as the paper.
-fn line_strip(line: &Line, document: &Document, options: &Options) -> Canvas {
-    let (placed, reach, moved) = place(line, options);
-    let height = line
-        .parts
+/// How tall a line is, in dots: as its tallest piece of text.
+fn line_height(line: &Line, options: &Options) -> u32 {
+    line.parts
         .iter()
         .filter_map(|part| match part {
             Part::Text { style, .. } => {
@@ -126,7 +124,13 @@ fn line_strip(line: &Line, document: &Document, options: &Options) -> Canvas {
             _ => None,
         })
         .max()
-        .unwrap_or_else(|| options.cell_height(0));
+        .unwrap_or_else(|| options.cell_height(0))
+}
+
+/// One line as a strip as wide as the paper.
+fn line_strip(line: &Line, document: &Document, options: &Options) -> Canvas {
+    let (placed, reach, moved) = place(line, options);
+    let height = line_height(line, options);
     let mut strip = Canvas::new(options.width, height);
     let origin = i64::from(line.left)
         + if moved {
@@ -351,6 +355,36 @@ fn align_of(block: &Block) -> Align {
     }
 }
 
+/// How tall the paper is, in dots, which is as tall as [`paint`] makes the picture at scale 1. It
+/// works out the places and not the dots, so it is much quicker than drawing.
+pub fn height(document: &Document, options: &Options) -> u32 {
+    let mut y = EDGE;
+    for block in &document.blocks {
+        if y > MAX_HEIGHT {
+            break;
+        }
+        match block {
+            Block::Line(line) => {
+                let height = line_height(line, options);
+                y += if line.ended {
+                    line.pitch.max(height)
+                } else {
+                    height
+                };
+            }
+            Block::Feed(dots) => y += dots,
+            Block::Cut => {}
+            Block::Image(bitmap, _) => y += bitmap.height(),
+            other => {
+                if let Some(strip) = code_strip(other, options) {
+                    y += strip.height;
+                }
+            }
+        }
+    }
+    y.min(MAX_HEIGHT + EDGE) + EDGE
+}
+
 /// The picture of what the paper got, as wide as the paper.
 pub fn paint(document: &Document, options: &Options) -> Canvas {
     let mut canvas = Canvas::new(options.width, 0);
@@ -426,6 +460,29 @@ mod tests {
         let mut bytes = vec![0x1d, b'v', b'0', 0, 1, 0, rows, 0];
         bytes.extend(std::iter::repeat_n(0xff, usize::from(rows)));
         bytes
+    }
+
+    #[test]
+    fn the_height_is_the_height_of_the_picture() {
+        let options = Options::default();
+        for bytes in [
+            b"one\ntwo\n".as_slice(),
+            &[
+                0x1b, b'!', 0x30, b'B', b'i', b'g', b'\n', 0x1b, b'd', 5, b'x',
+            ],
+            &[0x1d, b'k', 4, b'1', b'2', b'3', 0, 0x1b, b'J', 40],
+            &[],
+        ] {
+            let mut printer = Printer::new();
+            let mut all = printer.push(&[bytes, b"\nend", &CUT].concat());
+            all.extend(printer.finish());
+            let document = crate::blocks::document(&all[0], &options);
+            assert_eq!(
+                height(&document, &options),
+                paint(&document, &options).height,
+                "{bytes:?}"
+            );
+        }
     }
 
     #[test]
