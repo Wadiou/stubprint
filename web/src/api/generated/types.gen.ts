@@ -671,6 +671,12 @@ export type PrinterChange = {
      * and drawn as this model. The ones already kept stay as they were printed.
      */
     profile?: string | null;
+    /**
+     * How many bytes the network keeps for what a program sends before the printer reads it, as
+     * the network chip of a real printer does. 0 leaves it to the system, which keeps a lot. It
+     * applies to connections that open from now on.
+     */
+    receive_buffer?: number | null;
 };
 
 /**
@@ -703,6 +709,11 @@ export type PrinterInfo = {
      * The printer model, which decides the code pages, the columns and the answers.
      */
     profile: string;
+    /**
+     * How many bytes the network keeps for what a program sends before the printer reads it. 0
+     * leaves it to the system, which keeps a lot.
+     */
+    receive_buffer: number;
     status: PrinterStatus;
 };
 
@@ -735,6 +746,14 @@ export type PrinterSettings = {
      * columns and the answers.
      */
     profile?: string | null;
+    /**
+     * How many bytes the network keeps for what a program sends before the printer reads it, as
+     * the network chip of a real printer does. A program that sends more than that, and more than
+     * its own system keeps, has to wait. 0, the default, leaves it to the system, which keeps a
+     * lot, so a program may not wait at all. The system rounds the number, and a connection that
+     * is open keeps the size it had when it opened.
+     */
+    receive_buffer?: number | null;
 };
 
 /**

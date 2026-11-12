@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { connectTo, DEFAULT_LISTEN, freeName, heldText, holdSize, port, printerState, resolveListen, stuckText } from "./printer";
+import { connectTo, DEFAULT_LISTEN, freeName, byteSize, heldText, port, printerState, resolveListen, stuckText } from "./printer";
 
 const fine = { online: true, cover_open: false, drawer_open: false, feed_button: false, paper: "adequate" } as const;
 
@@ -40,10 +40,10 @@ test("a printer listens on this computer with a free port until the form says ot
 });
 
 test("the size a printer holds is a whole number of bytes from 1 to the most", () => {
-  expect(holdSize("4096")).toBe(4096);
-  expect(holdSize("1")).toBe(1);
-  expect(holdSize("1048576")).toBe(1_048_576);
-  for (const bad of ["", "0", "-5", "12.5", "1e3", "abc", "1048577", " 10"]) expect(holdSize(bad)).toBeUndefined();
+  expect(byteSize("4096")).toBe(4096);
+  expect(byteSize("1")).toBe(1);
+  expect(byteSize("1048576")).toBe(1_048_576);
+  for (const bad of ["", "0", "-5", "12.5", "1e3", "abc", "1048577", " 10"]) expect(byteSize(bad)).toBeUndefined();
 });
 
 test("how full the buffer is says the bytes held and the size, with thousands separated", () => {

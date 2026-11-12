@@ -4,49 +4,68 @@ import { listPrintersQueryKey, updatePrinterMutation } from "@/api/generated/@ta
 import type { PrinterInfo } from "@/api/generated/types.gen";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { DEFAULT_HOLD, heldText, holdSize, MAX_HOLD } from "@/lib/printer";
+import { byteSize, DEFAULT_HOLD, DEFAULT_RECEIVE, MAX_BYTES } from "@/lib/printer";
 
-/** The receive buffer of the printer, which holds what it is sent while it cannot print. On by default, and 0 turns it off. */
+/** A setting that is a number of bytes and is off at 0: the size, and a switch. A size typed while it is on applies when the field is left. */
+function ByteSetting({ label, description, bytes, fallback, apply }: { label: string; description: string; bytes: number; fallback: number; apply: (bytes: number) => void }) {
+  const [text, setText] = useState(String(bytes || fallback));
+  const size = byteSize(text);
+  const on = bytes > 0;
+
+  return (
+    <div className="flex flex-col gap-2 border-t pt-3 first:border-t-0 first:pt-0">
+      <div className="flex items-center gap-3">
+        <div className="flex flex-1 flex-col">
+          <span className="font-medium">{label}</span>
+          <span className="text-sm text-muted-foreground">{description}</span>
+        </div>
+        <Input
+          aria-label={`Bytes: ${label}`}
+          aria-invalid={size === undefined}
+          inputMode="numeric"
+          className="h-8 w-24 text-right"
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          onBlur={() => {
+            if (on && size !== undefined && size !== bytes) apply(size);
+          }}
+        />
+        <span className="w-10 text-sm text-muted-foreground">bytes</span>
+        <Switch aria-label={label} checked={on} disabled={!on && size === undefined} onCheckedChange={(next) => apply(next ? (size ?? fallback) : 0)} />
+      </div>
+      {size === undefined && <p className="text-sm text-destructive">Use a whole number of bytes from 1 to {MAX_BYTES.toLocaleString("en-US")}.</p>}
+    </div>
+  );
+}
+
+/** The buffers of the printer: what it holds while it cannot print, and what the network keeps for a program. */
 export function PrinterRealismSettings({ printer }: { printer: PrinterInfo }) {
   const queryClient = useQueryClient();
   const update = useMutation({
     ...updatePrinterMutation(),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: listPrintersQueryKey() }),
   });
-  const [text, setText] = useState(String(printer.hold_offline || DEFAULT_HOLD));
-  const size = holdSize(text);
-  const on = printer.hold_offline > 0;
-  const hold = (bytes: number) => update.mutate({ path: { name: printer.name }, body: { hold_offline: bytes } });
+  const change = (body: { hold_offline?: number; receive_buffer?: number }) => update.mutate({ path: { name: printer.name }, body });
 
   return (
-    <section className="flex flex-col">
-      <h3 className="mb-3 font-semibold">Receive buffer</h3>
-      <div className="flex flex-col gap-2 border-t pt-3">
-        <div className="flex items-center gap-3">
-          <span className="flex-1 font-medium">Hold data while it cannot print</span>
-          <Input
-            aria-label="Bytes held while it cannot print"
-            aria-invalid={size === undefined}
-            inputMode="numeric"
-            className="h-8 w-24 text-right"
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-            // A size that is typed while the switch is on applies when the field is left.
-            onBlur={() => {
-              if (on && size !== undefined && size !== printer.hold_offline) hold(size);
-            }}
-          />
-          <span className="w-10 text-sm text-muted-foreground">bytes</span>
-          <Switch
-            aria-label="Hold data while it cannot print"
-            checked={on}
-            disabled={!on && size === undefined}
-            onCheckedChange={(next) => hold(next ? (size ?? DEFAULT_HOLD) : 0)}
-          />
-        </div>
-        {on && <p className="text-sm text-muted-foreground">{heldText(printer.held, printer.hold_offline)}</p>}
-        {size === undefined && <p className="text-sm text-destructive">Use a whole number of bytes from 1 to {MAX_HOLD.toLocaleString("en-US")}.</p>}
-      </div>
+    <section className="flex flex-col gap-3">
+      <h3 className="font-semibold">Receive buffer</h3>
+      <ByteSetting
+        key={`hold-${printer.hold_offline}`}
+        label="Printer buffer"
+        description="Bytes kept while it cannot print"
+        bytes={printer.hold_offline}
+        fallback={DEFAULT_HOLD}
+        apply={(bytes) => change({ hold_offline: bytes })}
+      />
+      <ByteSetting
+        key={`receive-${printer.receive_buffer}`}
+        label="Network buffer"
+        description="Bytes the network keeps for a program"
+        bytes={printer.receive_buffer}
+        fallback={DEFAULT_RECEIVE}
+        apply={(bytes) => change({ receive_buffer: bytes })}
+      />
     </section>
   );
 }

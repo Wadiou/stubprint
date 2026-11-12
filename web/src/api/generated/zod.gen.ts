@@ -238,7 +238,8 @@ export const zPrinted = z.object({
  */
 export const zPrinterChange = z.object({
     hold_offline: z.int().gte(0).nullish(),
-    profile: z.string().nullish()
+    profile: z.string().nullish(),
+    receive_buffer: z.int().gte(0).nullish()
 });
 
 /**
@@ -250,7 +251,8 @@ export const zPrinterSettings = z.object({
     hold_offline: z.int().gte(0).nullish(),
     listen: z.string().nullish(),
     name: z.string().nullish(),
-    profile: z.string().nullish()
+    profile: z.string().nullish(),
+    receive_buffer: z.int().gte(0).nullish()
 });
 
 /**
@@ -277,6 +279,7 @@ export const zPrinterInfo = z.object({
     listen: z.string(),
     name: z.string(),
     profile: z.string(),
+    receive_buffer: z.int().gte(0),
     status: zPrinterStatus
 });
 
