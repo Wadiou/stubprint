@@ -646,6 +646,12 @@ export type Printed = {
  */
 export type PrinterChange = {
     /**
+     * How many bytes it holds while it cannot print, as a real printer keeps them in its receive
+     * buffer. 0 holds nothing and prints whatever it receives. Connections that are open keep the
+     * number they had when they opened.
+     */
+    hold_offline?: number | null;
+    /**
      * The printer model, as `GET /api/profiles` lists them. Receipts printed from now on are read
      * and drawn as this model. The ones already kept stay as they were printed.
      */
@@ -661,6 +667,11 @@ export type PrinterInfo = {
      */
     connections: number;
     dialect: Dialect;
+    /**
+     * How many bytes it holds while it cannot print, such as with its cover open. 0 means it holds
+     * nothing and prints whatever it receives.
+     */
+    hold_offline: number;
     /**
      * The address of its TCP port.
      */
@@ -685,6 +696,13 @@ export type PrinterSettings = {
      * The command language it reads: `escpos`, `starline` or `starprnt`.
      */
     dialect?: string | null;
+    /**
+     * How many bytes it holds while it cannot print, as a real printer keeps them in its receive
+     * buffer: it is off line, its cover is open, its paper has run out or it has a fault. A program
+     * that sends more has to wait. What it held prints when the printer can print again, even if
+     * the program has gone. 0, the default, holds nothing: it prints whatever it receives.
+     */
+    hold_offline?: number | null;
     /**
      * The address of its TCP port, such as `127.0.0.1:9100`. Port 0 picks a free one.
      */
@@ -1324,6 +1342,10 @@ export type PrintBytesErrors = {
      * There is no such printer, receipt or connection, as `error` says
      */
     404: ErrorBody;
+    /**
+     * The printer cannot print and has no room to hold the bytes, as `error` says
+     */
+    503: ErrorBody;
 };
 
 export type PrintBytesError = PrintBytesErrors[keyof PrintBytesErrors];
@@ -1973,6 +1995,10 @@ export type PrintSampleErrors = {
      * There is no such sample, variant or printer, as `error` says
      */
     404: ErrorBody;
+    /**
+     * The printer cannot print and has no room to hold the bytes, as `error` says
+     */
+    503: ErrorBody;
 };
 
 export type PrintSampleError = PrintSampleErrors[keyof PrintSampleErrors];

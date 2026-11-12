@@ -8,6 +8,7 @@ import { DIALECTS, paperText } from "@/lib/profile";
 import { ModelPicker } from "./model-picker";
 import { PrinterConnect } from "./printer-connect";
 import { Field, refused } from "./printer-fields";
+import { PrinterRealismSettings } from "./printer-realism-settings";
 import { PrinterStatusSettings } from "./printer-status-settings";
 
 /** What one printer is and what it pretends to be going through. Each change applies at once. */
@@ -25,7 +26,7 @@ export function PrinterCard({ printer, onRemove }: { printer: PrinterInfo; onRem
     <Card>
       <CardHeader>
         <CardTitle>{printer.name}</CardTitle>
-        <CardDescription className="font-mono text-[13px]">{printer.listen}</CardDescription>
+        <CardDescription className="font-mono text-sm">{printer.listen}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
         <PrinterConnect printer={printer} />
@@ -54,6 +55,7 @@ export function PrinterCard({ printer, onRemove }: { printer: PrinterInfo; onRem
           </Alert>
         )}
         <PrinterStatusSettings printer={printer} />
+        <PrinterRealismSettings key={printer.hold_offline} printer={printer} />
         <Button variant="destructive" onClick={() => onRemove(printer)}>
           Delete printer
         </Button>

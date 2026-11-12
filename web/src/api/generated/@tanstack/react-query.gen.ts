@@ -257,7 +257,7 @@ export const getPrinterOptions = (options: Options<GetPrinterData>) => queryOpti
 });
 
 /**
- * Sets the printer to another model, as if another printer stood on its port.
+ * Sets the printer to another model, as if another printer stood on its port, or changes how much it holds while it cannot print.
  */
 export const updatePrinterMutation = (options?: Partial<Options<UpdatePrinterData>>): UseMutationOptions<UpdatePrinterResponse, UpdatePrinterError, Options<UpdatePrinterData>> => {
     const mutationOptions: UseMutationOptions<UpdatePrinterResponse, UpdatePrinterError, Options<UpdatePrinterData>> = {

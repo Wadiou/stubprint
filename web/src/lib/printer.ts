@@ -8,6 +8,23 @@ const typedPort = z
   .transform(Number)
   .pipe(z.number().int().min(1).max(65535));
 
+/** How many bytes a printer holds while it cannot print, when it holds any, if nothing else is chosen. */
+export const DEFAULT_HOLD = 4096;
+
+/** The most that can be asked, so a typing slip does not ask for gigabytes of memory. */
+export const MAX_HOLD = 1_048_576;
+
+/** A size as typed, in bytes: digits only, from 1 to the most. Nothing when it is not one. */
+export function holdSize(text: string) {
+  const size = z
+    .string()
+    .regex(/^\d+$/)
+    .transform(Number)
+    .pipe(z.number().int().min(1).max(MAX_HOLD))
+    .safeParse(text);
+  return size.success ? size.data : undefined;
+}
+
 export type Tone = "ok" | "warn" | "bad";
 
 /** How a printer is doing, in a word and a colour, from what it says about itself. */

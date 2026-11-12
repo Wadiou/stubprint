@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { connectTo, DEFAULT_LISTEN, freeName, port, printerState, resolveListen } from "./printer";
+import { connectTo, DEFAULT_LISTEN, freeName, holdSize, port, printerState, resolveListen } from "./printer";
 
 const fine = { online: true, cover_open: false, drawer_open: false, feed_button: false, paper: "adequate" } as const;
 
@@ -37,4 +37,11 @@ test("a printer listens on this computer with a free port until the form says ot
   expect(resolveListen({ host: "0.0.0.0", free: false, port: "" }).valid).toBe(false);
   expect(resolveListen({ host: "0.0.0.0", free: false, port: "70000" }).valid).toBe(false);
   expect(resolveListen({ host: "", free: true, port: "" }).valid).toBe(false);
+});
+
+test("the size a printer holds is a whole number of bytes from 1 to the most", () => {
+  expect(holdSize("4096")).toBe(4096);
+  expect(holdSize("1")).toBe(1);
+  expect(holdSize("1048576")).toBe(1_048_576);
+  for (const bad of ["", "0", "-5", "12.5", "1e3", "abc", "1048577", " 10"]) expect(holdSize(bad)).toBeUndefined();
 });

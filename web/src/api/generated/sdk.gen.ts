@@ -220,7 +220,7 @@ export const getPrinter = <ThrowOnError extends boolean = false>(options: Option
 });
 
 /**
- * Sets the printer to another model, as if another printer stood on its port.
+ * Sets the printer to another model, as if another printer stood on its port, or changes how much it holds while it cannot print.
  */
 export const updatePrinter = <ThrowOnError extends boolean = false>(options: Options<UpdatePrinterData, ThrowOnError>): RequestResult<UpdatePrinterResponses, UpdatePrinterErrors, ThrowOnError> => (options.client ?? client).patch<UpdatePrinterResponses, UpdatePrinterErrors, ThrowOnError>({
     requestValidator: async (data) => await z.object({
