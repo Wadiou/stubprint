@@ -32,7 +32,7 @@ pub enum Fault {
 
 /// What a printer would say about itself when it is asked. A program that talks to a printer
 /// reads these answers, and sets this to see how the program behaves when the paper runs out.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct PrinterStatus {
     /// The printer is on line and ready to print.

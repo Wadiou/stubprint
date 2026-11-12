@@ -38,6 +38,8 @@ impl Harness {
             keep,
             web,
             ready: None,
+            state: None,
+            restore: false,
         };
         let running = serve(config).await.unwrap();
         let base = format!("http://{}", running.http_addr());
@@ -870,6 +872,8 @@ async fn an_address_that_is_taken_is_said_before_anything_runs() {
         keep: 5,
         web: Web::Off,
         ready: None,
+        state: None,
+        restore: false,
     };
     let error = match serve(config).await {
         Ok(_) => panic!("the port was taken"),
@@ -2109,4 +2113,173 @@ async fn how_much_a_printer_holds_is_set_and_told_by_the_api() {
     assert!(server.ids().await.is_empty());
     server.report("till", json!({"cover_open": false})).await;
     assert_eq!(server.after(0).await["texts"], json!(["Later"]));
+}
+
+/// A file in the temporary folder that no other test uses, and that does not exist yet.
+fn state_file(name: &str) -> std::path::PathBuf {
+    let unique = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    std::env::temp_dir().join(format!(
+        "stubprint-{name}-{}-{unique}.json",
+        std::process::id()
+    ))
+}
+
+impl Harness {
+    /// Starts a server that keeps its printers in a file, with the printers of the configuration
+    /// when the file does not exist yet.
+    async fn start_keeping_state(printers: &[&str], file: &std::path::Path, restore: bool) -> Self {
+        let printers: Vec<PrinterConfig> = printers
+            .iter()
+            .map(|text| PrinterConfig::parse(&format!("listen=127.0.0.1:0,{text}")).unwrap())
+            .collect();
+        let config = Config {
+            http: ([127, 0, 0, 1], 0).into(),
+            printers,
+            keep: 500,
+            web: Web::Off,
+            ready: None,
+            state: Some(file.to_path_buf()),
+            restore,
+        };
+        let running = serve(config).await.unwrap();
+        let base = format!("http://{}", running.http_addr());
+        Self {
+            running,
+            client: reqwest::Client::new(),
+            base,
+        }
+    }
+}
+
+#[tokio::test]
+async fn the_printers_and_what_they_report_are_there_again_after_a_restart() {
+    let file = state_file("restart");
+    let first = Harness::start_keeping_state(&["name=till"], &file, true).await;
+    assert!(file.exists(), "the file is made when the server starts");
+    first
+        .post_json(
+            "/api/printers",
+            json!({"name": "bar", "dialect": "starline", "profile": "TM-T20III", "hold_offline": 2048}),
+        )
+        .await;
+    first
+        .post_json("/api/printers", json!({"name": "gone"}))
+        .await;
+    first
+        .report("till", json!({"cover_open": true, "paper": "near_end"}))
+        .await;
+    first
+        .client
+        .patch(format!("{}/api/printers/till", first.base))
+        .json(&json!({"hold_offline": 512}))
+        .send()
+        .await
+        .unwrap();
+    first
+        .client
+        .delete(format!("{}/api/printers/gone", first.base))
+        .send()
+        .await
+        .unwrap();
+    first.running.stop().await;
+
+    // The printer that the configuration names now is not used, since the file has the printers.
+    let second = Harness::start_keeping_state(&["name=other"], &file, true).await;
+    let printers = second.json("/api/printers").await;
+    let names: Vec<&str> = printers
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|printer| printer["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names, ["till", "bar"]);
+    assert_eq!(printers[0]["status"]["cover_open"], true);
+    assert_eq!(printers[0]["status"]["paper"], "near_end");
+    assert_eq!(printers[0]["hold_offline"], 512);
+    assert_eq!(printers[1]["dialect"], "starline");
+    assert_eq!(printers[1]["profile"], "TM-T20III");
+    assert_eq!(printers[1]["hold_offline"], 2048);
+    // What is restored works: a printer that holds, with its cover open, holds.
+    second.print("till", &receipt_bytes("Held"), 100).await;
+    assert!(second.ids().await.is_empty());
+    second.running.stop().await;
+    let _ = std::fs::remove_file(&file);
+}
+
+#[tokio::test]
+async fn a_port_that_is_taken_after_a_restart_gives_the_printer_another_and_it_still_works() {
+    let file = state_file("taken");
+    let first = Harness::start_keeping_state(&["name=till"], &file, true).await;
+    let before = first.printer("till");
+    first.running.stop().await;
+
+    let _squatter = tokio::net::TcpListener::bind(before).await.unwrap();
+    let second = Harness::start_keeping_state(&["name=till"], &file, true).await;
+    assert_ne!(second.printer("till"), before);
+    second
+        .print("till", &receipt_bytes("Still here"), 100)
+        .await;
+    assert_eq!(second.after(0).await["texts"], json!(["Still here"]));
+    // The file says where it listens now.
+    let saved: Value = serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
+    assert_eq!(
+        saved["printers"][0]["listen"],
+        second.printer("till").to_string()
+    );
+    second.running.stop().await;
+    let _ = std::fs::remove_file(&file);
+}
+
+#[tokio::test]
+async fn a_state_file_that_is_not_one_stops_the_server_from_starting_and_is_left_alone() {
+    let file = state_file("broken");
+    std::fs::write(&file, "not json").unwrap();
+    let config = Config {
+        http: ([127, 0, 0, 1], 0).into(),
+        printers: vec![PrinterConfig::default()],
+        keep: 5,
+        web: Web::Off,
+        ready: None,
+        state: Some(file.clone()),
+        restore: true,
+    };
+    let error = match serve(config).await {
+        Ok(_) => panic!("the file is broken"),
+        Err(error) => error,
+    };
+    assert!(error.to_string().contains("not a state file"), "{error}");
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), "not json");
+    let _ = std::fs::remove_file(&file);
+}
+
+#[tokio::test]
+async fn printers_that_are_given_win_over_the_ones_that_were_kept_and_are_kept_in_their_place() {
+    let file = state_file("given");
+    let first = Harness::start_keeping_state(&["name=till"], &file, true).await;
+    first.running.stop().await;
+
+    let second = Harness::start_keeping_state(&["name=other"], &file, false).await;
+    let printers = second.json("/api/printers").await;
+    assert_eq!(printers.as_array().unwrap().len(), 1);
+    assert_eq!(printers[0]["name"], "other");
+    second.running.stop().await;
+
+    // What was given is what is kept now.
+    let third = Harness::start_keeping_state(&["name=ignored"], &file, true).await;
+    assert_eq!(third.json("/api/printers").await[0]["name"], "other");
+    third.running.stop().await;
+    let _ = std::fs::remove_file(&file);
+}
+
+#[tokio::test]
+async fn the_folder_of_the_state_file_is_made_when_it_is_missing() {
+    let folder = state_file("folder").with_extension("");
+    let file = folder.join("deeper").join("state.json");
+    let server = Harness::start_keeping_state(&["name=till"], &file, true).await;
+    assert!(file.exists());
+    server.running.stop().await;
+    let _ = std::fs::remove_dir_all(&folder);
 }

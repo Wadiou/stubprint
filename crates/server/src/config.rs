@@ -17,6 +17,11 @@ pub struct Config {
     /// A file to write the addresses into once everything listens, so a program that started the
     /// server on port 0 can find it. It is removed when the server stops.
     pub ready: Option<PathBuf>,
+    /// A file to keep the printers in between runs, each with its settings and what it reports.
+    pub state: Option<PathBuf>,
+    /// Start the printers of `state` when it exists, instead of `printers`. It is false when the
+    /// printers were given, since what is asked for now wins over what was kept.
+    pub restore: bool,
 }
 
 /// Where the web page served next to the API comes from.
@@ -64,6 +69,8 @@ impl Default for Config {
             keep: 500,
             web: Web::default(),
             ready: None,
+            state: None,
+            restore: false,
         }
     }
 }
@@ -113,6 +120,7 @@ struct FileSettings {
     keep: Option<usize>,
     web: Option<PathBuf>,
     ready_file: Option<PathBuf>,
+    state_file: Option<PathBuf>,
     printers: Option<Vec<PrinterSettings>>,
 }
 
@@ -200,8 +208,26 @@ impl PrinterConfig {
     }
 }
 
+/// Where the printers are kept between runs unless told otherwise: the state folder of the system,
+/// or nothing when it cannot be found.
+pub fn default_state_file() -> Option<PathBuf> {
+    let var = |name: &str| {
+        std::env::var_os(name)
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from)
+    };
+    let folder = if cfg!(windows) {
+        var("LOCALAPPDATA")?
+    } else if cfg!(target_os = "macos") {
+        var("HOME")?.join("Library/Application Support")
+    } else {
+        var("XDG_STATE_HOME").or_else(|| var("HOME").map(|home| home.join(".local/state")))?
+    };
+    Some(folder.join("stubprint").join("state.json"))
+}
+
 impl Config {
-    /// A configuration written as JSON, with `http`, `keep`, `web`, `ready_file` and `printers` that each have `name`,
+    /// A configuration written as JSON, with `http`, `keep`, `web`, `ready_file`, `state_file` and `printers` that each have `name`,
     /// `listen`, `dialect`, `profile` and `hold_offline`. What is left out is the default.
     pub fn from_json(text: &str) -> Result<Self, String> {
         let file: FileSettings =
@@ -217,6 +243,8 @@ impl Config {
             config.web = Web::Folder(folder);
         }
         config.ready = file.ready_file;
+        config.state = file.state_file;
+        config.restore = file.printers.is_none();
         if let Some(printers) = file.printers {
             config.printers = printers
                 .into_iter()
@@ -246,6 +274,7 @@ impl Config {
             config.web = Web::Folder(folder);
         }
         config.ready = ready;
+        config.restore = printers.is_empty();
         if !printers.is_empty() {
             config.printers = printers
                 .iter()

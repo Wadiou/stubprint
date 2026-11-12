@@ -10,8 +10,8 @@ use stubprint_server::Config;
 #[derive(Parser)]
 #[command(name = "stubprint", version)]
 struct Options {
-    /// A JSON file with `http`, `keep`, `web`, `ready_file` and `printers`. The other options are not used with it.
-    #[arg(long, conflicts_with_all = ["http", "keep", "web", "ready_file", "printer"])]
+    /// A JSON file with `http`, `keep`, `web`, `ready_file`, `state_file` and `printers`. The other options are not used with it.
+    #[arg(long, conflicts_with_all = ["http", "keep", "web", "ready_file", "state", "no_state", "clear_state", "printer"])]
     config: Option<PathBuf>,
 
     /// Where the REST API listens. It has no password, so keep it on this machine unless the
@@ -34,8 +34,21 @@ struct Options {
     #[arg(long)]
     ready_file: Option<PathBuf>,
 
+    /// Where the printers are kept between runs, each with its settings and what it reports,
+    /// written after every change. [default: the state folder of the system]
+    #[arg(long, conflicts_with = "no_state")]
+    state: Option<PathBuf>,
+
+    /// Keep nothing between runs.
+    #[arg(long)]
+    no_state: bool,
+
+    /// Forget what was kept: start with the printers given, or the default one, and keep those.
+    #[arg(long, conflicts_with = "no_state")]
+    clear_state: bool,
+
     /// Print the description of the API as an OpenAPI document, and stop.
-    #[arg(long, conflicts_with_all = ["config", "http", "keep", "web", "ready_file", "printer"])]
+    #[arg(long, conflicts_with_all = ["config", "http", "keep", "web", "ready_file", "state", "no_state", "clear_state", "printer"])]
     openapi: bool,
 
     /// A printer, as `name=front,listen=127.0.0.1:9100,dialect=escpos,profile=TM-T88IV`. Say it
@@ -57,7 +70,15 @@ fn configuration(options: Options) -> Result<Config, String> {
             options.web,
             options.ready_file,
             &options.printer,
-        ),
+        )
+        .map(|config| Config {
+            state: match options.no_state {
+                true => None,
+                false => options.state.or_else(stubprint_server::default_state_file),
+            },
+            restore: config.restore && !options.clear_state,
+            ..config
+        }),
     }
 }
 

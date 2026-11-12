@@ -15,6 +15,7 @@ mod pictures;
 mod printer;
 mod samples;
 mod session;
+mod state;
 mod wire;
 
 use std::io;
@@ -27,7 +28,7 @@ use tokio::net::TcpListener;
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
 
-pub use config::{Config, PrinterConfig, Web};
+pub use config::{default_state_file, Config, PrinterConfig, Web};
 pub use hub::{Hub, Notice, Stored};
 pub use printer::VirtualPrinter;
 
@@ -93,11 +94,20 @@ pub async fn serve(config: Config) -> io::Result<Running> {
     let http = web.local_addr()?;
 
     let hub = Arc::new(Hub::new(config.keep));
-    for settings in config.printers {
-        if let Err(error) = hub.add_printer(settings).await {
-            hub.stop_printers().await;
-            return Err(error);
-        }
+    let saved = match (&config.state, config.restore) {
+        (Some(path), true) => state::read(path)?,
+        _ => None,
+    };
+    let started = match saved {
+        Some(saved) => restore(&hub, saved).await,
+        None => start(&hub, config.printers).await,
+    };
+    if let Err(error) = started {
+        hub.stop_printers().await;
+        return Err(error);
+    }
+    if let Some(path) = config.state {
+        hub.keep_state_in(path);
     }
     if let Some(path) = &config.ready {
         if let Err(error) = write_ready(path, http, &hub) {
@@ -127,6 +137,43 @@ pub async fn serve(config: Config) -> io::Result<Running> {
     })
 }
 
+/// Opens the port of each printer of the configuration.
+async fn start(hub: &Arc<Hub>, printers: Vec<PrinterConfig>) -> io::Result<()> {
+    for settings in printers {
+        hub.add_printer(settings).await?;
+    }
+    Ok(())
+}
+
+/// Opens the printers of the state file as they were, with what they reported. A port that is taken
+/// now is not a reason to stay down: the printer takes a free one and the output says so.
+async fn restore(hub: &Arc<Hub>, saved: Vec<state::Saved>) -> io::Result<()> {
+    for printer in saved {
+        let mut settings = printer
+            .config()
+            .map_err(|message| io::Error::new(io::ErrorKind::InvalidData, message))?;
+        let started = match hub.add_printer(settings.clone()).await {
+            Err(error) if error.kind() != io::ErrorKind::InvalidInput => {
+                let wanted = settings.listen;
+                settings.listen = if error.kind() == io::ErrorKind::AddrNotAvailable {
+                    ([127, 0, 0, 1], 0).into()
+                } else {
+                    SocketAddr::new(wanted.ip(), 0)
+                };
+                let started = hub.add_printer(settings).await?;
+                eprintln!(
+                    "stubprint: {} cannot listen on {wanted} any more, it listens on {}",
+                    started.name, started.listen
+                );
+                started
+            }
+            other => other?,
+        };
+        started.set_status(printer.status);
+    }
+    Ok(())
+}
+
 /// Writes the process, the address of the API and the printers as they are at the start, apart
 /// from the ones added later. The file appears whole or not at all.
 fn write_ready(path: &Path, http: SocketAddr, hub: &Hub) -> io::Result<()> {
@@ -147,6 +194,7 @@ fn write_ready(path: &Path, http: SocketAddr, hub: &Hub) -> io::Result<()> {
 
 /// Serves until the process gets Ctrl+C or a termination signal.
 pub async fn run(config: Config) -> io::Result<()> {
+    let state = config.state.clone();
     let running = serve(config).await?;
     println!(
         "API and live events: http://{}/api/openapi.json",
@@ -163,6 +211,9 @@ pub async fn run(config: Config) -> io::Result<()> {
             printer.listen,
             printer.profile().name
         );
+    }
+    if let Some(path) = state {
+        println!("printers are kept in {}", path.display());
     }
     shutdown_signal().await;
     running.stop().await;

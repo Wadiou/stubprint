@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 use std::io;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -16,6 +17,7 @@ use crate::config::PrinterConfig;
 use crate::listener;
 use crate::pictures::{PictureKey, Pictures};
 use crate::printer::VirtualPrinter;
+use crate::state;
 use crate::wire::{PrinterInfo, ReceiptSummary};
 
 /// A receipt the server keeps, and where it came from.
@@ -199,6 +201,8 @@ pub struct Hub {
     notices: broadcast::Sender<Notice>,
     /// How many watchers want every action, so they are only made when someone looks.
     action_watchers: AtomicUsize,
+    /// The file the printers are kept in, when there is one.
+    state: Mutex<Option<PathBuf>>,
 }
 
 impl Hub {
@@ -218,6 +222,29 @@ impl Hub {
             }),
             notices: broadcast::channel(4096).0,
             action_watchers: AtomicUsize::new(0),
+            state: Mutex::new(None),
+        }
+    }
+
+    /// Starts keeping the printers in a file, which is written now and after each change to a
+    /// printer or to what it reports.
+    pub fn keep_state_in(&self, path: PathBuf) {
+        *self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(path);
+        self.save_state();
+    }
+
+    fn save_state(&self) {
+        let guard = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(path) = guard.as_ref() {
+            if let Err(error) = state::write(path, &self.printers()) {
+                eprintln!("stubprint: cannot save {}: {error}", path.display());
+            }
         }
     }
 
@@ -342,6 +369,16 @@ impl Hub {
     }
 
     pub fn notify(&self, notice: Notice) {
+        // What a printer is, and what it reports, is kept when there is a file for it.
+        if matches!(
+            notice,
+            Notice::PrinterAdded(_)
+                | Notice::PrinterChanged(_)
+                | Notice::PrinterRemoved { .. }
+                | Notice::Status { .. }
+        ) {
+            self.save_state();
+        }
         // Nobody listening is fine.
         let _ = self.notices.send(notice);
     }
