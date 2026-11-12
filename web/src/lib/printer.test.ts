@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { connectTo, DEFAULT_LISTEN, freeName, byteSize, heldText, port, printerState, resolveListen, stuckText } from "./printer";
+import { byteSize, connectTo, DEFAULT_LISTEN, freeName, heldText, leftText, MAX_ROLL, metresText, port, printerState, resolveListen, rollLength, rollShare, stuckText } from "./printer";
 
 const fine = { online: true, cover_open: false, drawer_open: false, feed_button: false, paper: "adequate" } as const;
 
@@ -49,4 +49,28 @@ test("the size a printer holds is a whole number of bytes from 1 to the most", (
 test("how full the buffer is says the bytes held and the size, with thousands separated", () => {
   expect(heldText(0, 4096)).toBe("Holding 0 / 4,096 bytes");
   expect(heldText(312, 4096)).toBe("Holding 312 / 4,096 bytes");
+});
+
+test("a roll is typed in metres and is asked for in millimetres", () => {
+  expect(rollLength("80")).toBe(80_000);
+  expect(rollLength("1.5")).toBe(1500);
+  expect(rollLength("0,25")).toBe(250);
+  expect(rollLength(" 12.345 ")).toBe(12_345);
+  expect(rollLength("0")).toBeUndefined();
+  expect(rollLength("1.2345")).toBeUndefined();
+  expect(rollLength("-3")).toBeUndefined();
+  expect(rollLength("abc")).toBeUndefined();
+  expect(rollLength("")).toBeUndefined();
+  expect(rollLength(String(MAX_ROLL / 1000 + 1))).toBeUndefined();
+});
+
+test("paper is told in metres, and how much of the roll is left is a share of it", () => {
+  expect(metresText(80_000)).toBe("80");
+  expect(metresText(42_300)).toBe("42.3");
+  expect(metresText(250)).toBe("0.25");
+  expect(leftText(42_300, 80_000)).toBe("42.3 m of 80 m");
+  expect(rollShare(20_000, 80_000)).toBe(0.25);
+  expect(rollShare(0, 80_000)).toBe(0);
+  expect(rollShare(5, 0)).toBe(0);
+  expect(rollShare(90_000, 80_000)).toBe(1);
 });

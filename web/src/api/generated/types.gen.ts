@@ -667,6 +667,12 @@ export type PrinterChange = {
      */
     network_buffer?: number | null;
     /**
+     * Puts in a new roll, which is full: its length in millimetres. 0 is a roll that never runs
+     * out, and then the paper is set by hand. A printer that stopped at the end of its paper
+     * prints what it held.
+     */
+    paper_roll?: number | null;
+    /**
      * How many bytes it holds while it cannot print, as a real printer keeps them in its receive
      * buffer. 0 holds nothing and prints whatever it receives. Connections that are open follow
      * the change.
@@ -706,6 +712,15 @@ export type PrinterInfo = {
      */
     network_buffer: number;
     /**
+     * How much paper is left on the roll, in millimetres.
+     */
+    paper_left: number;
+    /**
+     * How long its paper roll was when it was full, in millimetres. 0 is a roll that never runs
+     * out, and then the paper is set by hand.
+     */
+    paper_roll: number;
+    /**
      * How many bytes it holds while it cannot print, such as with its cover open. 0 means it holds
      * nothing and prints whatever it receives.
      */
@@ -715,6 +730,10 @@ export type PrinterInfo = {
      */
     profile: string;
     status: PrinterStatus;
+    /**
+     * What it has done since it was made.
+     */
+    usage: Usage;
 };
 
 /**
@@ -741,6 +760,13 @@ export type PrinterSettings = {
      * is open keeps the size it had when it opened.
      */
     network_buffer?: number | null;
+    /**
+     * How long its paper roll is when it is full, in millimetres, such as 80000 for 80 m. It runs
+     * down as receipts print: it reports near end for the last tenth and end when it is used up,
+     * and a printer with no paper stops printing until paper is put in. The default is 0, a roll
+     * that never runs out.
+     */
+    paper_roll?: number | null;
     /**
      * How many bytes it holds while it cannot print, as a real printer keeps them in its receive
      * buffer: it is off line, its cover is open, its paper has run out or it has a fault. A program
@@ -1128,6 +1154,28 @@ export type TraceItem = {
      */
     start: number;
     state: Snapshot;
+};
+
+/**
+ * What a printer has done since it was made, which a real printer counts for its service.
+ */
+export type Usage = {
+    /**
+     * How many times the cutter cut.
+     */
+    cuts: number;
+    /**
+     * How many lines the paper was fed by line feeds and by feeding lines.
+     */
+    line_feeds: number;
+    /**
+     * How much paper it used, in millimetres.
+     */
+    paper_used: number;
+    /**
+     * How many receipts it printed.
+     */
+    receipts: number;
 };
 
 /**

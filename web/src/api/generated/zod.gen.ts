@@ -238,6 +238,7 @@ export const zPrinted = z.object({
  */
 export const zPrinterChange = z.object({
     network_buffer: z.int().gte(0).nullish(),
+    paper_roll: z.int().gte(0).nullish(),
     printer_buffer: z.int().gte(0).nullish(),
     profile: z.string().nullish()
 });
@@ -250,6 +251,7 @@ export const zPrinterSettings = z.object({
     listen: z.string().nullish(),
     name: z.string().nullish(),
     network_buffer: z.int().gte(0).nullish(),
+    paper_roll: z.int().gte(0).nullish(),
     printer_buffer: z.int().gte(0).nullish(),
     profile: z.string().nullish()
 });
@@ -265,21 +267,6 @@ export const zPrinterStatus = z.object({
     feed_button: z.boolean(),
     online: z.boolean(),
     paper: zPaper
-});
-
-/**
- * A printer, and how it is doing.
- */
-export const zPrinterInfo = z.object({
-    connections: z.int().gte(0),
-    dialect: zDialect,
-    held: z.int().gte(0),
-    listen: z.string(),
-    name: z.string(),
-    network_buffer: z.int().gte(0),
-    printer_buffer: z.int().gte(0),
-    profile: z.string(),
-    status: zPrinterStatus
 });
 
 /**
@@ -440,6 +427,34 @@ export const zBarcode = z.object({
     symbology: zSymbology,
     text: zTextPosition,
     width: z.int().gte(0).max(2147483647, { error: 'Invalid value: Expected int32 to be <= 2147483647' })
+});
+
+/**
+ * What a printer has done since it was made, which a real printer counts for its service.
+ */
+export const zUsage = z.object({
+    cuts: z.int().gte(0),
+    line_feeds: z.int().gte(0),
+    paper_used: z.number(),
+    receipts: z.int().gte(0)
+});
+
+/**
+ * A printer, and how it is doing.
+ */
+export const zPrinterInfo = z.object({
+    connections: z.int().gte(0),
+    dialect: zDialect,
+    held: z.int().gte(0),
+    listen: z.string(),
+    name: z.string(),
+    network_buffer: z.int().gte(0),
+    paper_left: z.number(),
+    paper_roll: z.int().gte(0),
+    printer_buffer: z.int().gte(0),
+    profile: z.string(),
+    status: zPrinterStatus,
+    usage: zUsage
 });
 
 /**

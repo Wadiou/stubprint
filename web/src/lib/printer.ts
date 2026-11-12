@@ -28,6 +28,32 @@ export function byteSize(text: string) {
   return size.success ? size.data : undefined;
 }
 
+/** How long a roll is when one is put in without a length chosen, in millimetres: 80 m, a common roll. */
+export const DEFAULT_ROLL = 80_000;
+
+/** The longest roll that can be asked for, in millimetres: a kilometre. */
+export const MAX_ROLL = 1_000_000;
+
+/** A length of paper as typed, in metres with up to three decimals: millimetres. Nothing when it is not one. */
+export function rollLength(text: string) {
+  const length = z
+    .string()
+    .regex(/^\d+([.,]\d{1,3})?$/)
+    .transform((typed) => Math.round(Number(typed.replace(",", ".")) * 1000))
+    .pipe(z.number().int().min(1).max(MAX_ROLL))
+    .safeParse(text.trim());
+  return length.success ? length.data : undefined;
+}
+
+/** A length in millimetres as metres to type or read: `42.3`. */
+export const metresText = (millimetres: number) => (millimetres / 1000).toLocaleString("en-US", { maximumFractionDigits: 3, useGrouping: false });
+
+/** How much of a roll is left, as a share from 0 to 1. A printer with no roll to run out has none. */
+export const rollShare = (left: number, roll: number) => (roll > 0 ? Math.min(1, Math.max(0, left / roll)) : 0);
+
+/** How much paper is left on the roll: `42.3 m of 80 m`. */
+export const leftText = (left: number, roll: number) => `${metresText(left)} m of ${metresText(roll)} m`;
+
 /** How full the buffer of a printer is: `Holding 312 / 4,096 bytes`. */
 export const heldText = (held: number, capacity: number) =>
   `Holding ${held.toLocaleString("en-US")} / ${capacity.toLocaleString("en-US")} bytes`;

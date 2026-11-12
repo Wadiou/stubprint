@@ -8,8 +8,10 @@ import { DIALECTS, paperText } from "@/lib/profile";
 import { ModelPicker } from "./model-picker";
 import { PrinterConnect } from "./printer-connect";
 import { Field, refused } from "./printer-fields";
+import { PrinterPaper } from "./printer-paper";
 import { PrinterRealismSettings } from "./printer-realism-settings";
 import { PrinterStatusSettings } from "./printer-status-settings";
+import { PrinterUsage } from "./printer-usage";
 
 /** What one printer is and what it pretends to be going through. Each change applies at once. */
 export function PrinterCard({ printer, onRemove }: { printer: PrinterInfo; onRemove: (printer: PrinterInfo) => void }) {
@@ -55,6 +57,8 @@ export function PrinterCard({ printer, onRemove }: { printer: PrinterInfo; onRem
           </Alert>
         )}
         <PrinterStatusSettings printer={printer} />
+        <PrinterPaper key={printer.paper_roll} printer={printer} />
+        <PrinterUsage printer={printer} />
         <PrinterRealismSettings key={printer.printer_buffer} printer={printer} />
         <Button variant="destructive" onClick={() => onRemove(printer)}>
           Delete printer
