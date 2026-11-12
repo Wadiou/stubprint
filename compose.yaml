@@ -14,7 +14,8 @@ services:
       - .:/work
       - cargo:/usr/local/cargo/registry
       - target:/work/target
-      # The printers and what they report, so they stay when the container is made again.
+      # The database with the printers, the receipts and the connections, so they stay when the
+      # container is made again.
       - state:/root/.local/state/stubprint
     ports:
       - "127.0.0.1:8080:8080"

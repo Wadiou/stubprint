@@ -10,18 +10,18 @@ use stubprint_server::Config;
 #[derive(Parser)]
 #[command(name = "stubprint", version)]
 struct Options {
-    /// Keep nothing: read no config file and write none. The printers and the address of the API
-    /// are gone when the server stops.
+    /// Keep nothing: use no database. The printers, the receipts and the connections are gone when
+    /// the server stops.
     #[arg(long)]
     ephemeral: bool,
 
-    /// Start again from the printers given, or the default one, and write that over the config
-    /// file.
+    /// Delete what the database has, and start again from the printers given, or the default
+    /// one.
     #[arg(long, conflicts_with = "ephemeral")]
     reset: bool,
 
-    /// Where the REST API and the web page listen. It is written to the config file and used from
-    /// then on. It has no password, so keep it on this machine unless the network can be trusted.
+    /// Where the REST API and the web page listen. It is saved in the database and used from then
+    /// on. It has no password, so keep it on this machine unless the network can be trusted.
     /// [default: 127.0.0.1:8080]
     #[arg(long)]
     http: Option<SocketAddr>,
@@ -39,7 +39,7 @@ struct Options {
     /// A printer, as settings written `key=value` and separated by commas. Say it again for more
     /// printers.
     ///
-    /// It is added when the config file has no printer of that name, and the file wins for one it
+    /// It is added when the database has no printer of that name, and the database wins for one it
     /// has. Without it there is one ESC/POS printer on 127.0.0.1:9100.
     ///
     /// Settings, all of them optional:
@@ -60,12 +60,12 @@ struct Options {
 }
 
 fn configuration(options: Options) -> Result<Config, String> {
-    let file = match options.ephemeral {
+    let database = match options.ephemeral {
         true => None,
-        false => stubprint_server::default_config_file(),
+        false => stubprint_server::default_database(),
     };
     Config::from_options(options.http, options.ready_file, &options.printer).map(|config| Config {
-        file,
+        database,
         reset: options.reset,
         ..config
     })

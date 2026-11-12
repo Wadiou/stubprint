@@ -28,7 +28,7 @@ impl Harness {
             http: Some(([127, 0, 0, 1], 0).into()),
             printers,
             ready: None,
-            file: None,
+            database: None,
             reset: false,
             given: false,
         };
@@ -860,7 +860,7 @@ async fn an_address_that_is_taken_is_said_before_anything_runs() {
             ..PrinterConfig::default()
         }],
         ready: None,
-        file: None,
+        database: None,
         reset: false,
         given: false,
     };
@@ -2155,23 +2155,61 @@ async fn the_size_of_the_network_buffer_is_set_by_the_api_for_the_connections_th
     assert_eq!(info["network_buffer"], 8192);
 }
 
-/// A file in the temporary folder that no other test uses, and that does not exist yet.
+/// A database file in the temporary folder that no other test uses, and that does not exist yet.
 fn state_file(name: &str) -> std::path::PathBuf {
     let unique = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
     std::env::temp_dir().join(format!(
-        "stubprint-{name}-{}-{unique}.json",
+        "stubprint-{name}-{}-{unique}.db",
         std::process::id()
     ))
 }
 
+/// Deletes a database and the files SQLite keeps beside it.
+fn remove_database(file: &std::path::Path) {
+    for suffix in ["", "-wal", "-shm"] {
+        let mut name = file.as_os_str().to_owned();
+        name.push(suffix);
+        let _ = std::fs::remove_file(name);
+    }
+}
+
+/// Asks the database a question with one answer, for a test that wants to see what was written.
+fn asked<T: rusqlite::types::FromSql>(file: &std::path::Path, sql: &str) -> T {
+    rusqlite::Connection::open(file)
+        .unwrap()
+        .query_row(sql, [], |row| row.get(0))
+        .unwrap()
+}
+
+/// A free address of this machine, which is free until something takes it.
+async fn free_address() -> SocketAddr {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    listener.local_addr().unwrap()
+}
+
+/// A configuration that keeps everything in `file` and has the one printer the database or the
+/// default gives it, listening wherever there is room.
+fn keeping_in(file: &std::path::Path, http: Option<SocketAddr>) -> Config {
+    Config {
+        http,
+        printers: vec![PrinterConfig {
+            listen: ([127, 0, 0, 1], 0).into(),
+            ..PrinterConfig::default()
+        }],
+        ready: None,
+        database: Some(file.to_path_buf()),
+        reset: false,
+        given: false,
+    }
+}
+
 impl Harness {
-    /// Starts a server that keeps its printers in a file, with the printers of the configuration
-    /// when the file does not exist yet.
+    /// Starts a server that keeps everything in a database, with the printers given when the
+    /// database has none yet. No printers is a run that is given none, which has the default one.
     async fn start_keeping_state(printers: &[&str], file: &std::path::Path, reset: bool) -> Self {
-        // No printers is a run that is given none, which has the default one.
         let given = !printers.is_empty();
         let mut printers: Vec<PrinterConfig> = printers
             .iter()
@@ -2184,12 +2222,10 @@ impl Harness {
             });
         }
         let config = Config {
-            http: Some(([127, 0, 0, 1], 0).into()),
             printers,
-            ready: None,
-            file: Some(file.to_path_buf()),
             reset,
             given,
+            ..keeping_in(file, Some(([127, 0, 0, 1], 0).into()))
         };
         let running = serve(config).await.unwrap();
         let base = format!("http://{}", running.http_addr());
@@ -2199,13 +2235,21 @@ impl Harness {
             base,
         }
     }
+
+    async fn delete(&self, path: &str) -> reqwest::Response {
+        self.client
+            .delete(format!("{}{path}", self.base))
+            .send()
+            .await
+            .unwrap()
+    }
 }
 
 #[tokio::test]
 async fn the_printers_and_what_they_report_are_there_again_after_a_restart() {
     let file = state_file("restart");
     let first = Harness::start_keeping_state(&["name=till"], &file, false).await;
-    assert!(file.exists(), "the file is made when the server starts");
+    assert!(file.exists(), "the database is made when the server starts");
     first
         .post_json(
             "/api/printers",
@@ -2225,12 +2269,7 @@ async fn the_printers_and_what_they_report_are_there_again_after_a_restart() {
         .send()
         .await
         .unwrap();
-    first
-        .client
-        .delete(format!("{}/api/printers/gone", first.base))
-        .send()
-        .await
-        .unwrap();
+    first.delete("/api/printers/gone").await;
     first.running.stop().await;
 
     // A run that is given no printers has the ones that were kept, and not the default one.
@@ -2253,7 +2292,7 @@ async fn the_printers_and_what_they_report_are_there_again_after_a_restart() {
     second.print("till", &receipt_bytes("Held"), 100).await;
     assert!(second.ids().await.is_empty());
     second.running.stop().await;
-    let _ = std::fs::remove_file(&file);
+    remove_database(&file);
 }
 
 #[tokio::test]
@@ -2263,7 +2302,6 @@ async fn a_port_that_is_taken_after_a_restart_gives_the_printer_another_and_it_s
     let before = first.printer("till");
     first.running.stop().await;
 
-    // Nothing is written for the printer, so it asks for the port that was kept.
     let _squatter = tokio::net::TcpListener::bind(before).await.unwrap();
     let second = Harness::start_keeping_state(&[], &file, false).await;
     assert_ne!(second.printer("till"), before);
@@ -2271,39 +2309,52 @@ async fn a_port_that_is_taken_after_a_restart_gives_the_printer_another_and_it_s
         .print("till", &receipt_bytes("Still here"), 100)
         .await;
     assert_eq!(second.after(0).await["texts"], json!(["Still here"]));
-    // The file says where it listens now.
-    let saved: Value = serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
-    assert_eq!(
-        saved["printers"][0]["listen"],
-        second.printer("till").to_string()
-    );
     second.running.stop().await;
-    let _ = std::fs::remove_file(&file);
+    // The database says where it listens now.
+    let listen: String = asked(&file, "SELECT listen FROM printers WHERE name = 'till'");
+    assert_ne!(listen, before.to_string());
+    remove_database(&file);
 }
 
 #[tokio::test]
-async fn a_state_file_that_is_not_one_stops_the_server_from_starting_and_is_left_alone() {
+async fn a_file_that_is_not_a_database_stops_the_server_from_starting_and_is_left_alone() {
     let file = state_file("broken");
-    std::fs::write(&file, "not json").unwrap();
-    let config = Config {
-        http: Some(([127, 0, 0, 1], 0).into()),
-        printers: vec![PrinterConfig::default()],
-        ready: None,
-        file: Some(file.clone()),
-        reset: false,
-        given: false,
-    };
-    let error = match serve(config).await {
-        Ok(_) => panic!("the file is broken"),
+    std::fs::write(
+        &file,
+        "this is not a database, only a long enough text to be read as one",
+    )
+    .unwrap();
+    let error = match serve(keeping_in(&file, Some(([127, 0, 0, 1], 0).into()))).await {
+        Ok(_) => panic!("the file is not a database"),
         Err(error) => error,
     };
-    assert!(error.to_string().contains("not a config file"), "{error}");
-    assert_eq!(std::fs::read_to_string(&file).unwrap(), "not json");
-    let _ = std::fs::remove_file(&file);
+    assert!(error.to_string().contains("database"), "{error}");
+    assert_eq!(
+        std::fs::read_to_string(&file).unwrap(),
+        "this is not a database, only a long enough text to be read as one"
+    );
+    remove_database(&file);
 }
 
 #[tokio::test]
-async fn a_printer_that_is_written_is_added_when_the_file_has_none_of_that_name_and_is_left_alone_when_it_has(
+async fn a_database_of_something_else_is_refused_and_not_changed() {
+    let file = state_file("other");
+    rusqlite::Connection::open(&file)
+        .unwrap()
+        .execute_batch("CREATE TABLE notes (text TEXT); INSERT INTO notes VALUES ('mine');")
+        .unwrap();
+    let error = match serve(keeping_in(&file, Some(([127, 0, 0, 1], 0).into()))).await {
+        Ok(_) => panic!("the database is not ours"),
+        Err(error) => error,
+    };
+    assert!(error.to_string().contains("something else"), "{error}");
+    let note: String = asked(&file, "SELECT text FROM notes");
+    assert_eq!(note, "mine");
+    remove_database(&file);
+}
+
+#[tokio::test]
+async fn a_printer_that_is_written_is_added_when_the_database_has_none_of_that_name_and_is_left_alone_when_it_has(
 ) {
     let file = state_file("written");
     let first = Harness::start_keeping_state(&["name=till"], &file, false).await;
@@ -2337,7 +2388,7 @@ async fn a_printer_that_is_written_is_added_when_the_file_has_none_of_that_name_
         .map(|printer| printer["name"].as_str().unwrap())
         .collect();
     assert_eq!(names, ["till", "other"]);
-    // The file says what `till` is.
+    // The database says what `till` is.
     assert_eq!(printers[0]["printer_buffer"], 512);
     assert_eq!(printers[0]["network_buffer"], 8192);
     assert_eq!(printers[0]["profile"], "TM-T20III");
@@ -2345,62 +2396,15 @@ async fn a_printer_that_is_written_is_added_when_the_file_has_none_of_that_name_
     assert_eq!(printers[0]["status"]["paper"], "near_end");
     second.running.stop().await;
 
-    // A reset starts with what is written and nothing else, and writes that over the file.
+    // A reset starts with what is written and nothing else.
     let third = Harness::start_keeping_state(&["name=other"], &file, true).await;
     let printers = third.json("/api/printers").await;
     assert_eq!(printers.as_array().unwrap().len(), 1);
     assert_eq!(printers[0]["name"], "other");
     third.running.stop().await;
-    let saved: Value = serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
-    assert_eq!(saved["printers"].as_array().unwrap().len(), 1);
-    let _ = std::fs::remove_file(&file);
-}
-
-#[tokio::test]
-async fn a_file_written_by_hand_may_leave_everything_out_but_the_name() {
-    let file = state_file("by-hand");
-    std::fs::write(
-        &file,
-        r#"{"printers": [
-            {"name": "till", "listen": "127.0.0.1:0", "status": {"cover_open": true}},
-            {"name": "bar", "listen": "127.0.0.1:0", "dialect": "starline", "hold": 1024}
-        ]}"#,
-    )
-    .unwrap();
-    let server = Harness::start_keeping_state(&[], &file, false).await;
-    let printers = server.json("/api/printers").await;
-    assert_eq!(printers[0]["name"], "till");
-    assert_eq!(printers[0]["dialect"], "escpos");
-    assert_eq!(printers[0]["printer_buffer"], 4096);
-    assert_eq!(printers[0]["status"]["cover_open"], true);
-    assert_eq!(printers[0]["status"]["online"], true);
-    assert_eq!(printers[1]["dialect"], "starline");
-    // A file from before the size had its name says `hold`.
-    assert_eq!(printers[1]["printer_buffer"], 1024);
-    server.running.stop().await;
-    let _ = std::fs::remove_file(&file);
-}
-
-/// A free address of this machine, which is free until something takes it.
-async fn free_address() -> SocketAddr {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    listener.local_addr().unwrap()
-}
-
-/// A configuration that keeps its state in `file` and has the one printer the file or the default
-/// gives it, listening wherever there is room.
-fn keeping_in(file: &std::path::Path, http: Option<SocketAddr>) -> Config {
-    Config {
-        http,
-        printers: vec![PrinterConfig {
-            listen: ([127, 0, 0, 1], 0).into(),
-            ..PrinterConfig::default()
-        }],
-        ready: None,
-        file: Some(file.to_path_buf()),
-        reset: false,
-        given: false,
-    }
+    let count: i64 = asked(&file, "SELECT count(*) FROM printers");
+    assert_eq!(count, 1);
+    remove_database(&file);
 }
 
 #[tokio::test]
@@ -2411,51 +2415,141 @@ async fn the_address_of_the_api_that_is_given_is_kept_and_used_again_until_anoth
     let first = serve(keeping_in(&file, Some(first_address))).await.unwrap();
     assert_eq!(first.http_addr(), first_address);
     first.stop().await;
-    let saved: Value = serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
-    assert_eq!(saved["http"], first_address.to_string());
+    let saved: String = asked(&file, "SELECT value FROM settings WHERE key = 'http'");
+    assert_eq!(saved, first_address.to_string());
 
-    // Given nothing, it listens where the file says.
+    // Given nothing, it listens where the database says.
     let again = serve(keeping_in(&file, None)).await.unwrap();
     assert_eq!(again.http_addr(), first_address);
     again.stop().await;
 
-    // What is given wins, and the file says it from then on.
+    // What is given wins, and the database says it from then on.
     let other = serve(keeping_in(&file, Some(second_address)))
         .await
         .unwrap();
     assert_eq!(other.http_addr(), second_address);
     other.stop().await;
-    let saved: Value = serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
-    assert_eq!(saved["http"], second_address.to_string());
-    let _ = std::fs::remove_file(&file);
+    let saved: String = asked(&file, "SELECT value FROM settings WHERE key = 'http'");
+    assert_eq!(saved, second_address.to_string());
+    remove_database(&file);
 }
 
 #[tokio::test]
-async fn a_file_without_an_address_of_the_api_is_still_a_config_file() {
-    let file = state_file("no-http");
-    std::fs::write(&file, r#"{"printers": [{"name": "till"}]}"#).unwrap();
-    let server = serve(keeping_in(&file, Some(free_address().await)))
+async fn the_receipts_and_the_connections_are_there_again_after_a_restart() {
+    let file = state_file("history");
+    let first = Harness::start_keeping_state(&["name=till"], &file, false).await;
+    let bytes = receipt_bytes("One");
+    first.print("till", &bytes, 100).await;
+    first.print("till", &receipt_bytes("Two"), 100).await;
+    first.print("till", &receipt_bytes("Three"), 100).await;
+    assert_eq!(first.ids().await, [1, 2, 3]);
+    assert_eq!(first.delete("/api/receipts/3").await.status(), 204);
+    let connections = first.json("/api/connections").await;
+    assert_eq!(connections.as_array().unwrap().len(), 3);
+    first.running.stop().await;
+
+    let second = Harness::start_keeping_state(&[], &file, false).await;
+    assert_eq!(second.ids().await, [1, 2], "what was removed stays removed");
+    let one = second.json("/api/receipts/1").await;
+    assert_eq!(one["texts"], json!(["One"]));
+    assert_eq!(one["printer"], "till");
+    // It is the same receipt, which can be read and drawn again.
+    let kept = second.get("/api/receipts/1/bytes").await;
+    assert_eq!(kept.bytes().await.unwrap().as_ref(), bytes.as_slice());
+    assert_eq!(second.get("/api/receipts/1/picture").await.status(), 200);
+    assert_eq!(second.get("/api/receipts/1/trace").await.status(), 200);
+    // The connections that printed them, closed, with the receipts they made.
+    let connections = second.json("/api/connections").await;
+    assert_eq!(connections.as_array().unwrap().len(), 3);
+    assert!(connections[0]["closed_at"].is_u64());
+    assert_eq!(connections[0]["receipts"], json!([1]));
+
+    // The number of the receipt that was removed is not used again, nor are the numbers of the
+    // connections.
+    second.print("till", &receipt_bytes("Four"), 100).await;
+    assert_eq!(second.ids().await, [1, 2, 4]);
+    let connections = second.json("/api/connections").await;
+    assert_eq!(connections[3]["id"], 4);
+    second.running.stop().await;
+    remove_database(&file);
+}
+
+#[tokio::test]
+async fn the_receipts_of_a_printer_that_was_removed_are_there_again_after_a_restart() {
+    let file = state_file("removed-printer");
+    let first = Harness::start_keeping_state(&["name=till"], &file, false).await;
+    first
+        .post_json(
+            "/api/printers",
+            json!({"name": "bar", "dialect": "starline"}),
+        )
+        .await;
+    first.print("bar", &receipt_bytes("From bar"), 100).await;
+    first.print("till", &receipt_bytes("From till"), 100).await;
+    first.delete("/api/printers/bar").await;
+    first.running.stop().await;
+
+    let second = Harness::start_keeping_state(&[], &file, false).await;
+    assert_eq!(second.ids().await, [1, 2]);
+    let from_bar = second.json("/api/receipts/1").await;
+    assert_eq!(from_bar["printer"], "bar");
+    assert_eq!(from_bar["dialect"], "starline");
+    assert_eq!(second.get("/api/receipts/1/picture").await.status(), 200);
+    second.running.stop().await;
+    remove_database(&file);
+}
+
+#[tokio::test]
+async fn the_receipts_that_were_cleared_stay_cleared_after_a_restart() {
+    let file = state_file("cleared");
+    let first = Harness::start_keeping_state(&["name=till"], &file, false).await;
+    first
+        .post_json("/api/printers", json!({"name": "bar"}))
+        .await;
+    first.print("till", &receipt_bytes("a"), 100).await;
+    first.print("bar", &receipt_bytes("b"), 100).await;
+    first.print("till", &receipt_bytes("c"), 100).await;
+    assert_eq!(
+        first.delete("/api/receipts?printer=till").await.status(),
+        200
+    );
+    first.running.stop().await;
+
+    let second = Harness::start_keeping_state(&[], &file, false).await;
+    assert_eq!(second.ids().await, [2]);
+    assert_eq!(second.delete("/api/receipts").await.status(), 200);
+    second.running.stop().await;
+
+    let third = Harness::start_keeping_state(&[], &file, false).await;
+    assert!(third.ids().await.is_empty());
+    third.running.stop().await;
+    remove_database(&file);
+}
+
+#[tokio::test]
+async fn a_reset_forgets_the_receipts_and_the_connections_too() {
+    let file = state_file("reset");
+    let first = Harness::start_keeping_state(&["name=till"], &file, false).await;
+    first.print("till", &receipt_bytes("One"), 100).await;
+    first.running.stop().await;
+
+    let second = Harness::start_keeping_state(&["name=till"], &file, true).await;
+    assert!(second.ids().await.is_empty());
+    assert!(second
+        .json("/api/connections")
         .await
-        .unwrap();
-    assert!(server.hub().printer("till").is_some());
-    server.stop().await;
-    let _ = std::fs::remove_file(&file);
+        .as_array()
+        .unwrap()
+        .is_empty());
+    second.print("till", &receipt_bytes("Two"), 100).await;
+    assert_eq!(second.ids().await, [1]);
+    second.running.stop().await;
+    remove_database(&file);
 }
 
 #[tokio::test]
-async fn the_names_a_setting_had_before_it_was_renamed_are_still_read() {
-    let file = state_file("old-names");
-    std::fs::write(
-        &file,
-        r#"{"printers": [{"name": "till", "hold_offline": 1024, "receive_buffer": 2048}]}"#,
-    )
-    .unwrap();
-    let server = Harness::start_keeping_state(&[], &file, false).await;
-    let printers = server.json("/api/printers").await;
-    assert_eq!(printers[0]["printer_buffer"], 1024);
-    assert_eq!(printers[0]["network_buffer"], 2048);
-
-    // A request may use them too, and the answer uses the new names.
+async fn the_names_a_setting_had_before_it_was_renamed_are_still_read_in_a_request() {
+    let server = Harness::start(&["name=till"]).await;
     let changed = server
         .client
         .patch(format!("{}/api/printers/till", server.base))
@@ -2467,12 +2561,10 @@ async fn the_names_a_setting_had_before_it_was_renamed_are_still_read() {
     let changed: Value = changed.json().await.unwrap();
     assert_eq!(changed["printer_buffer"], 512);
     assert_eq!(changed["network_buffer"], 4096);
-    server.running.stop().await;
-    let _ = std::fs::remove_file(&file);
 }
 
 #[tokio::test]
-async fn nothing_is_read_or_written_when_there_is_no_file() {
+async fn nothing_is_read_or_written_when_nothing_is_kept() {
     let server = Harness::start(&["name=till"]).await;
     server.report("till", json!({"cover_open": true})).await;
     assert_eq!(server.json("/api/printers").await[0]["name"], "till");
@@ -2480,9 +2572,9 @@ async fn nothing_is_read_or_written_when_there_is_no_file() {
 }
 
 #[tokio::test]
-async fn the_folder_of_the_state_file_is_made_when_it_is_missing() {
+async fn the_folder_of_the_database_is_made_when_it_is_missing() {
     let folder = state_file("folder").with_extension("");
-    let file = folder.join("deeper").join("state.json");
+    let file = folder.join("deeper").join("stubprint.db");
     let server = Harness::start_keeping_state(&["name=till"], &file, false).await;
     assert!(file.exists());
     server.running.stop().await;

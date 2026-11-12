@@ -1,23 +1,22 @@
+use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::io;
-use std::net::SocketAddr;
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard, RwLock};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use axum::body::Bytes;
-use serde::Serialize;
-use stubprint_core::{Event, Printer, PrinterStatus, Profile, Receipt, Snapshot};
+use serde::{Deserialize, Serialize};
+use stubprint_core::{Dialect, Event, Printer, PrinterStatus, Profile, Receipt, Snapshot};
 use tokio::sync::broadcast;
 use tokio::time::Instant;
 use utoipa::ToSchema;
 
 use crate::config::PrinterConfig;
-use crate::file;
 use crate::listener;
 use crate::pictures::{PictureKey, Pictures};
 use crate::printer::VirtualPrinter;
+use crate::store::{Command, Loaded, SavedPrinter, SavedReceipt, Store};
 use crate::wire::{PrinterInfo, ReceiptSummary};
 
 /// A receipt the server keeps, and where it came from.
@@ -33,7 +32,7 @@ pub struct Stored {
 }
 
 /// One piece of a connection's bytes as it arrived.
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct Chunk {
     /// Milliseconds after the connection opened.
     pub at: u64,
@@ -45,7 +44,7 @@ pub struct Chunk {
 const MAX_CHUNKS: usize = 10_000;
 
 /// One program talking to a printer: when, how, and what came of it.
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct Connection {
     /// The number of the connection, which is never used again.
     pub id: u64,
@@ -206,8 +205,8 @@ pub struct Hub {
     notices: broadcast::Sender<Notice>,
     /// How many watchers want every action, so they are only made when someone looks.
     action_watchers: AtomicUsize,
-    /// The config file to keep up to date and the API address to write in it, if state is kept.
-    state: Mutex<Option<(PathBuf, SocketAddr)>>,
+    /// The database that everything is also written to, when it is kept.
+    store: OnceLock<Store>,
 }
 
 impl Default for Hub {
@@ -232,30 +231,99 @@ impl Hub {
             }),
             notices: broadcast::channel(4096).0,
             action_watchers: AtomicUsize::new(0),
-            state: Mutex::new(None),
+            store: OnceLock::new(),
         }
     }
 
-    /// Starts saving to the config file: the API address and the printers. It writes the file now
-    /// and again after every change to a printer or its status.
-    pub fn keep_state_in(&self, path: PathBuf, http: SocketAddr) {
-        *self
-            .state
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some((path, http));
+    /// Starts writing everything that changes to the database: the address of the API now, and
+    /// the printers, the receipts and the connections as they change.
+    pub(crate) fn keep_state_in(&self, store: Store, http: std::net::SocketAddr) {
+        if self.store.set(store).is_err() {
+            return;
+        }
+        self.write(Command::Http(http));
         self.save_state();
     }
 
-    fn save_state(&self) {
-        let guard = self
-            .state
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        if let Some((path, http)) = guard.as_ref() {
-            if let Err(error) = file::write(path, *http, &self.printers()) {
-                eprintln!("stubprint: cannot save {}: {error}", path.display());
-            }
+    /// Hands a change to the database, if there is one.
+    fn write(&self, command: Command) {
+        if let Some(store) = self.store.get() {
+            store.send(command);
         }
+    }
+
+    /// Writes the printers with their settings and status.
+    fn save_state(&self) {
+        if self.store.get().is_some() {
+            let printers = self
+                .printers()
+                .iter()
+                .map(|printer| SavedPrinter::of(printer))
+                .collect();
+            self.write(Command::Printers(printers));
+        }
+    }
+
+    /// Waits until everything is written to the database, and writes nothing after that.
+    pub fn close_store(&self) {
+        if let Some(store) = self.store.get() {
+            store.close();
+        }
+    }
+
+    /// Puts back the receipts and the connections that the database had. A receipt is read again
+    /// from the bytes it was made from, by the printer that printed it, or by what is left of it
+    /// when that printer is gone.
+    pub(crate) fn restore_history(&self, loaded: Loaded) {
+        let mut gone: HashMap<String, Arc<VirtualPrinter>> = HashMap::new();
+        let mut shelf = self.shelf();
+        for saved in loaded.receipts {
+            let Some(dialect) = Dialect::from_name(&saved.dialect) else {
+                eprintln!(
+                    "stubprint: receipt {} is left out: it has no dialect",
+                    saved.id
+                );
+                continue;
+            };
+            let profile = Arc::new(Profile::named(&saved.profile).unwrap_or_else(Profile::generic));
+            let printer = self
+                .printer(&saved.printer)
+                .or_else(|| gone.get(&saved.printer).cloned())
+                .unwrap_or_else(|| {
+                    let printer = Arc::new(VirtualPrinter::new(
+                        saved.printer.clone(),
+                        dialect,
+                        (*profile).clone(),
+                        ([127, 0, 0, 1], 0).into(),
+                        0,
+                        0,
+                    ));
+                    gone.insert(saved.printer.clone(), printer.clone());
+                    printer
+                });
+            let mut reader = Printer::with_dialect(dialect, (*profile).clone());
+            let mut receipts = reader.push_traced(&saved.raw).receipts;
+            receipts.extend(reader.finish_traced().receipts);
+            let Some(receipt) = receipts.into_iter().next() else {
+                eprintln!(
+                    "stubprint: receipt {} is left out: it reads as nothing",
+                    saved.id
+                );
+                continue;
+            };
+            shelf.receipts.push_back(Arc::new(Stored {
+                id: saved.id,
+                printer,
+                profile,
+                at: saved.at,
+                receipt,
+            }));
+        }
+        shelf.next_id = shelf.next_id.max(loaded.next_receipt);
+        drop(shelf);
+        let mut log = self.log();
+        log.connections.extend(loaded.connections);
+        log.next_id = log.next_id.max(loaded.next_connection);
     }
 
     pub fn printers(&self) -> Vec<Arc<VirtualPrinter>> {
@@ -380,7 +448,7 @@ impl Hub {
     }
 
     pub fn notify(&self, notice: Notice) {
-        // What a printer is, and what it reports, is kept when there is a file for it.
+        // What a printer is, and what it reports, is written to the database.
         if matches!(
             notice,
             Notice::PrinterAdded(_)
@@ -492,6 +560,11 @@ impl Hub {
             connection.closed_at = Some(now());
             None
         });
+        if self.store.get().is_some() {
+            if let Some(connection) = self.connection(id) {
+                self.write(Command::Connection(connection));
+            }
+        }
     }
 
     /// The connections remembered, oldest first, of one printer or of all.
@@ -505,7 +578,12 @@ impl Hub {
     }
 
     pub fn connection(&self, id: u64) -> Option<Connection> {
-        self.log().connections.iter().find(|c| c.id == id).cloned()
+        self.log()
+            .connections
+            .iter()
+            .rev()
+            .find(|c| c.id == id)
+            .cloned()
     }
 
     /// Prints what programs that have gone left in a printer, if a printer in `status` can print.
@@ -561,6 +639,14 @@ impl Hub {
             shelf.receipts.push_back(stored.clone());
             stored
         };
+        self.write(Command::Receipt(SavedReceipt {
+            id: stored.id,
+            printer: stored.printer.name.clone(),
+            dialect: stored.printer.dialect.name().to_string(),
+            profile: stored.profile.name.clone(),
+            at: stored.at,
+            raw: stored.receipt.raw().to_vec(),
+        }));
         self.update(connection, |c| {
             c.receipts.push(stored.id);
             None
@@ -610,6 +696,7 @@ impl Hub {
             before != shelf.receipts.len()
         };
         if removed {
+            self.write(Command::RemoveReceipt(id));
             self.notify(Notice::ReceiptRemoved { id });
         }
         removed
@@ -627,6 +714,7 @@ impl Hub {
             shelf.pictures.forget(|id| !kept.contains(&id));
             before - shelf.receipts.len()
         };
+        self.write(Command::ClearReceipts(printer.map(str::to_string)));
         self.notify(Notice::Cleared {
             printer: printer.map(str::to_string),
         });

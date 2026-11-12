@@ -7,7 +7,6 @@
 
 pub mod api;
 mod config;
-mod file;
 mod hub;
 mod listener;
 mod network;
@@ -16,6 +15,7 @@ mod pictures;
 mod printer;
 mod samples;
 mod session;
+mod store;
 mod wire;
 
 use std::io;
@@ -28,7 +28,7 @@ use tokio::net::TcpListener;
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
 
-pub use config::{default_config_file, Config, PrinterConfig, DEFAULT_HTTP};
+pub use config::{default_database, Config, PrinterConfig, DEFAULT_HTTP};
 pub use hub::{Hub, Notice, Stored};
 pub use printer::VirtualPrinter;
 
@@ -68,8 +68,9 @@ impl Running {
         self.hub.printer(name).map(|printer| printer.listen)
     }
 
-    /// Stops the printers, closes their connections and waits for them to finish. The live event
-    /// stream never ends by itself, so the API gets 2 seconds to finish and is then cut.
+    /// Stops the printers, closes their connections and waits for them to finish, then waits until
+    /// everything is written to the database. The live event stream never ends by itself, so the
+    /// API gets 2 seconds to finish and is then cut.
     pub async fn stop(mut self) {
         self.hub.stop_printers().await;
         let _ = self.stop.send(true);
@@ -79,6 +80,7 @@ impl Running {
         {
             self.api.abort();
         }
+        self.hub.close_store();
         if let Some(path) = self.ready {
             let _ = std::fs::remove_file(path);
         }
@@ -91,20 +93,16 @@ pub async fn serve(config: Config) -> io::Result<Running> {
         .check()
         .map_err(|message| io::Error::new(io::ErrorKind::InvalidInput, message))?;
 
-    // The saved config, unless there is no file (`--ephemeral`) or it is ignored (`--reset`).
-    let kept = match (&config.file, config.reset) {
-        (Some(path), false) => file::read(path)?,
-        _ => None,
+    // What the database has, unless nothing is kept (`--ephemeral`).
+    let (store, loaded) = match &config.database {
+        Some(path) => {
+            let (store, loaded) = store::Store::open(path, config.reset)?;
+            (Some(store), loaded)
+        }
+        None => (None, store::Loaded::default()),
     };
-    let (saved_http, saved) = match kept {
-        Some(kept) => (
-            kept.http,
-            Some(kept.printers).filter(|printers| !printers.is_empty()),
-        ),
-        None => (None, None),
-    };
-    // The API address: the one given, else the one in the file, else the default.
-    let wanted = config.http.or(saved_http).unwrap_or(DEFAULT_HTTP);
+    // The API address: the one given, else the one in the database, else the default.
+    let wanted = config.http.or(loaded.http).unwrap_or(DEFAULT_HTTP);
 
     let web = TcpListener::bind(wanted).await.map_err(|error| {
         io::Error::new(
@@ -115,23 +113,37 @@ pub async fn serve(config: Config) -> io::Result<Running> {
     let http = web.local_addr()?;
 
     let hub = Arc::new(Hub::new());
-    let started = match saved {
-        Some(saved) => {
-            let written = if config.given {
-                config.printers
-            } else {
-                Vec::new()
-            };
-            restore(&hub, saved, written).await
-        }
-        None => start(&hub, config.printers).await,
+    let store::Loaded {
+        printers: saved,
+        receipts,
+        connections,
+        next_receipt,
+        next_connection,
+        ..
+    } = loaded;
+    let started = if saved.is_empty() {
+        start(&hub, config.printers).await
+    } else {
+        let written = if config.given {
+            config.printers
+        } else {
+            Vec::new()
+        };
+        restore(&hub, saved, written).await
     };
     if let Err(error) = started {
         hub.stop_printers().await;
         return Err(error);
     }
-    if let Some(path) = config.file {
-        hub.keep_state_in(path, wanted);
+    hub.restore_history(store::Loaded {
+        receipts,
+        connections,
+        next_receipt,
+        next_connection,
+        ..store::Loaded::default()
+    });
+    if let Some(store) = store {
+        hub.keep_state_in(store, wanted);
     }
     if let Some(path) = &config.ready {
         if let Err(error) = write_ready(path, http, &hub) {
@@ -169,13 +181,13 @@ async fn start(hub: &Arc<Hub>, printers: Vec<PrinterConfig>) -> io::Result<()> {
     Ok(())
 }
 
-/// Starts the printers saved in the config file, each with the status it had. Then adds the
-/// printers from `--printer` whose names the file does not have: the file's version of a printer
-/// always wins. If a saved printer's port is taken now, it listens on a free port instead and a
+/// Starts the printers saved in the database, each with the status it had. Then adds the printers
+/// from `--printer` whose names the database does not have: the saved version of a printer always
+/// wins. If a saved printer's port is taken now, it listens on a free port instead and a
 /// message says so.
 async fn restore(
     hub: &Arc<Hub>,
-    saved: Vec<file::Saved>,
+    saved: Vec<store::SavedPrinter>,
     written: Vec<PrinterConfig>,
 ) -> io::Result<()> {
     for printer in &saved {
@@ -229,7 +241,7 @@ fn write_ready(path: &Path, http: SocketAddr, hub: &Hub) -> io::Result<()> {
 
 /// Serves until the process gets Ctrl+C or a termination signal.
 pub async fn run(config: Config) -> io::Result<()> {
-    let file = config.file.clone();
+    let database = config.database.clone();
     let running = serve(config).await?;
     println!(
         "API and live events: http://{}/api/openapi.json",
@@ -247,12 +259,12 @@ pub async fn run(config: Config) -> io::Result<()> {
             printer.profile().name
         );
     }
-    match file {
+    match database {
         Some(path) => println!(
-            "the printers and the address of the API are kept in {}",
+            "the printers, the receipts and the connections are kept in {}",
             path.display()
         ),
-        None => println!("nothing is kept: the printers are gone when the server stops"),
+        None => println!("nothing is kept: it is all gone when the server stops"),
     }
     shutdown_signal().await;
     running.stop().await;

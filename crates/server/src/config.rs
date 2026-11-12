@@ -8,22 +8,23 @@ use stubprint_core::{Dialect, Profile};
 /// its state.
 #[derive(Debug, Clone)]
 pub struct Config {
-    /// Where the API and the web page listen. `None` means the address saved in the config file,
-    /// or [`DEFAULT_HTTP`] if the file has none. An address set here is saved to the file.
+    /// Where the API and the web page listen. `None` means the address saved in the database, or
+    /// [`DEFAULT_HTTP`] if there is none. An address set here is saved.
     pub http: Option<SocketAddr>,
     /// The printers from `--printer`, or just the default printer when there were none.
     pub printers: Vec<PrinterConfig>,
     /// A file to write the real addresses into once everything is listening, for a program that
     /// started the server on port 0. It is deleted when the server stops.
     pub ready: Option<PathBuf>,
-    /// The config file. It is read when the server starts and rewritten after every change.
-    /// `None` keeps nothing: no file is read or written.
-    pub file: Option<PathBuf>,
-    /// Ignore the config file when starting: start from `printers` and overwrite the file with them.
+    /// The database: the address of the API, the printers, the receipts and the connections. It is
+    /// read when the server starts and written after every change. `None` keeps nothing, so it
+    /// is all gone when the server stops.
+    pub database: Option<PathBuf>,
+    /// Delete what the database has when starting, and start from `printers`.
     pub reset: bool,
     /// True if `printers` came from `--printer`, false if it is only the default printer.
-    /// A printer from `--printer` is added to the file's printers only when none of them has the
-    /// same name. The file's version of a printer is never changed.
+    /// A printer from `--printer` is added to the saved printers only when none of them has the
+    /// same name. The saved version of a printer is never changed.
     pub given: bool,
 }
 
@@ -48,7 +49,7 @@ pub struct PrinterConfig {
 /// The `printer_buffer` of a printer when none is set, in bytes.
 pub const DEFAULT_PRINTER_BUFFER: usize = 4096;
 
-/// Where the API listens when neither `--http` nor the config file says.
+/// Where the API listens when neither `--http` nor the database says.
 pub const DEFAULT_HTTP: SocketAddr =
     SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), 8080);
 
@@ -58,7 +59,7 @@ impl Default for Config {
             http: None,
             printers: vec![PrinterConfig::default()],
             ready: None,
-            file: None,
+            database: None,
             reset: false,
             given: false,
         }
@@ -199,9 +200,9 @@ impl PrinterConfig {
     }
 }
 
-/// Where the config file is unless told otherwise: the state folder of the system, or nothing when
-/// it cannot be found.
-pub fn default_config_file() -> Option<PathBuf> {
+/// Where the database is unless told otherwise: `stubprint.db` in the state folder of the system,
+/// or nothing when that folder cannot be found.
+pub fn default_database() -> Option<PathBuf> {
     let var = |name: &str| {
         std::env::var_os(name)
             .filter(|value| !value.is_empty())
@@ -214,7 +215,7 @@ pub fn default_config_file() -> Option<PathBuf> {
     } else {
         var("XDG_STATE_HOME").or_else(|| var("HOME").map(|home| home.join(".local/state")))?
     };
-    Some(folder.join("stubprint").join("state.json"))
+    Some(folder.join("stubprint").join("stubprint.db"))
 }
 
 impl Config {

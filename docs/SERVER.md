@@ -9,7 +9,7 @@ that another program can start.
 cargo run -p stubprint-server -- --printer name=till,listen=127.0.0.1:9100,dialect=escpos
 ```
 
-Contents: [Running it](#running-it) · [Printers](#printers) · [The config file](#the-config-file) ·
+Contents: [Running it](#running-it) · [Printers](#printers) · [What is kept](#what-is-kept) ·
 [What a printer does](#what-a-printer-does) · [While it cannot print](#while-it-cannot-print) ·
 [How much a program can send before it waits](#how-much-a-program-can-send-before-it-waits) · [The API](#the-api)
 
@@ -17,14 +17,11 @@ Contents: [Running it](#running-it) · [Printers](#printers) · [The config file
 
 | Option | Meaning | Default |
 |---|---|---|
-| `--http <address>` | where the API and the web page listen. It is written to the config file and used from then on, until another is given. It has no password, so keep it on this machine unless the network can be trusted | what the file says, else `127.0.0.1:8080` |
+| `--http <address>` | where the API and the web page listen. It is saved and used from then on, until another is given. It has no password, so keep it on this machine unless the network can be trusted | what was saved, else `127.0.0.1:8080` |
 | `--printer <settings>` | a printer, as `name=front,listen=127.0.0.1:9100`. Say it again for more printers. `--help` lists every setting. See [Printers](#printers) | one ESC/POS printer on `127.0.0.1:9100` |
-| `--ephemeral` | keep nothing: read no config file and write none, so the printers and the address are gone when the server stops | |
-| `--reset` | start again from the printers given, or the default one, and write that over the file | |
+| `--ephemeral` | keep nothing: use no database, so the printers, the receipts and the connections are gone when the server stops | |
+| `--reset` | delete everything that was kept, and start again from the printers given, or the default one | |
 | `--ready-file <file>` | write the addresses there once everything listens, and remove it on stop. With port 0 it is how a program finds out which port it got | |
-
-Receipts and connections are kept in memory, with no limit, and are gone when the server stops.
-Clear the receipts from the page or with `DELETE /api/receipts`.
 
 The web page is in the program and is served at the address of the API.
 
@@ -47,61 +44,54 @@ a real printer, since the same bytes mean different things in ESC/POS and in Sta
 | `network_buffer` | how many bytes the network keeps for a program before the printer reads them. 0 leaves it to the system. See [How much a program can send before it waits](#how-much-a-program-can-send-before-it-waits) | `0` | yes, `PATCH`, for connections that open after |
 | status | what it reports: `online`, `cover_open`, `paper`, `drawer_open`, `feed_button`, `fault` | online, nothing wrong | yes, `POST /api/printers/{name}` |
 
-## The config file
+## What is kept
 
-One file says where the API listens and what the printers are. The server reads it when it starts,
-and writes it when it starts and after every change: the address, a printer added or removed, its
-model, its two sizes and its status. The page and the API change the file, so it is always what is
-running. It is `state.json` in the state folder of the system, `~/.local/state/stubprint/` on Linux,
-and the output says where it is.
+Everything is kept in one SQLite database: where the API listens, the printers with their settings
+and status, the receipts and the connections. It is `stubprint.db` in the state folder of the
+system, `~/.local/state/stubprint/` on Linux, and the output says where it is. The server reads it
+when it starts. After that it works from memory, and writes every change to the database as it
+happens, without making a printer wait. Stopping the server waits until all of it is written.
 
-```json
-{
-  "http": "127.0.0.1:8080",
-  "printers": [
-    {
-      "name": "till",
-      "listen": "0.0.0.0:9100",
-      "dialect": "escpos",
-      "profile": "TM-T20III",
-      "printer_buffer": 4096,
-      "network_buffer": 0,
-      "status": { "online": true, "cover_open": false, "paper": "adequate", "drawer_open": false, "feed_button": false, "fault": null }
-    }
-  ]
-}
-```
+| In the database | What it is |
+|---|---|
+| the address of the API | what `--http` last gave |
+| the printers | their name, port, command language, model, two sizes and status, in the order they were added |
+| the receipts | the bytes each was made from, which printer read them, as which model, and when. Its lines and its picture are made again from the bytes when the server starts |
+| the connections | each one when it closed: when, the pieces its bytes came in, and the receipts it printed |
 
-It can be written by hand. Whatever is left out is the default, so `{"printers": [{"name": "till"}]}`
-is a file. A file that is not a config file stops the server and is not changed. The receipts, the
-connections and the bytes a printer holds are not kept.
-
-The two sizes were called `hold_offline` and `receive_buffer`. A file, a `--printer` and a request
-that still use those names are read as before, and the file is written with the new ones.
+The bytes a printer holds while it cannot print are not kept. A number is never used again, even for
+a receipt that was removed, so a program that remembers a receipt by its number is never given
+another. Receipts and connections have no limit: clear the receipts from the page or with
+`DELETE /api/receipts`, and use `--reset` to start from nothing.
 
 **Choosing how it is kept:**
 
 | You want | Run |
 |---|---|
-| the printers and the address kept, in the default place | `stubprint` |
+| everything kept, in the default place | `stubprint` |
 | nothing kept, a session that is gone when the server stops | `stubprint --ephemeral` |
-| to start again from the default printer, or the ones given | `stubprint --reset` |
+| to start again from nothing, with the default printer or the ones given | `stubprint --reset` |
 
-The file is always in the default place. To keep it somewhere else, such as a volume, put that
-folder there: the development container mounts one at `/root/.local/state/stubprint`.
+The database is always in the default place. To keep it somewhere else, such as a volume, put that
+folder there: the development container mounts one at `/root/.local/state/stubprint`. A file that
+is not a database of Stubprint, or was made by a newer one, stops the server and is not changed.
 
-**`--printer` and the file.** `--printer` is for a printer that should exist. It is added when the
-file has no printer of that name, and the file wins for one it has: change the model in the page
-and the next run keeps it, even if `--printer` writes another. To change a printer that is in the
-file, change it in the page, edit the file, or use `--reset`. The address works the other way: what
-`--http` gives wins over the file, and is written to it. With `--ephemeral` there is no file,
-and `--printer` says what the printers are.
+The two sizes were called `hold_offline` and `receive_buffer`. A `--printer` and a request that
+still use those names are read as before.
 
-- A printer that is in the file is started even when the command line does not name it.
+**`--printer` and the database.** `--printer` is for a printer that should exist. It is added when
+the database has no printer of that name, and the database wins for one it has: change the model in
+the page and the next run keeps it, even if `--printer` writes another. To change a printer that is
+kept, change it in the page, or use `--reset`. The address works the other way: what `--http` gives
+wins over what was saved, and is saved. With `--ephemeral` there is no database, and `--printer`
+says what the printers are.
+
+- A printer that was kept is started even when the command line does not name it.
 - If the port of a printer is taken when it starts, it listens on a free one and the output says
   which.
-- The development container passes `--http 0.0.0.0:8080` and `--printer name=printer,listen=0.0.0.0:9100`, so the first run
-  makes that printer reachable from outside the container, and the file is in a volume after that.
+- The development container passes `--http 0.0.0.0:8080` and `--printer name=printer,listen=0.0.0.0:9100`,
+  so the first run makes that printer reachable from outside the container, and the database is in a
+  volume after that.
 
 ## What a printer does
 
