@@ -112,6 +112,10 @@ pub struct Printer {
     stream: Vec<u8>,
     /// How many bytes came before the first one of `stream`.
     before: usize,
+    /// How many bytes it holds while it is off line, when it holds any.
+    hold: Option<usize>,
+    /// What it received while off line, which prints when it is back on line.
+    held: Vec<u8>,
 }
 
 impl Printer {
@@ -133,7 +137,34 @@ impl Printer {
             steps: Vec::new(),
             stream: Vec::new(),
             before: 0,
+            hold: None,
+            held: Vec::new(),
         }
+    }
+
+    /// Makes the printer hold what it receives while it cannot print, up to `capacity` bytes, as
+    /// a real printer keeps it in its receive buffer. It is read and printed when the printer can
+    /// print again. `None` makes it read everything at once, whatever its status.
+    pub fn hold_while_offline(&mut self, capacity: Option<usize>) {
+        self.hold = capacity;
+    }
+
+    /// Whether the printer is holding what it receives now.
+    fn holding(&self) -> bool {
+        self.hold.is_some() && self.status().halts_printing(self.decoder.dialect())
+    }
+
+    /// How many more bytes the printer takes while it holds what it receives, so a program that
+    /// sends more has to wait. `None` while it prints what it receives, which has no limit.
+    pub fn room(&self) -> Option<usize> {
+        let capacity = self.hold.filter(|_| self.holding())?;
+        Some(capacity.saturating_sub(self.held.len()))
+    }
+
+    /// Takes what the printer holds, as when the program that sent it has gone and the bytes stay
+    /// in the printer.
+    pub fn take_held(&mut self) -> Vec<u8> {
+        std::mem::take(&mut self.held)
     }
 
     /// The bytes the printer answered with since the last call, to send back to the connection.
@@ -145,9 +176,31 @@ impl Printer {
         self.decoder.status()
     }
 
-    /// Changes what the printer says about itself, as when the paper runs out.
-    pub fn set_status(&mut self, status: PrinterStatus) {
+    /// Changes what the printer says about itself, as when the paper runs out. What it held is
+    /// read now if it can print again, and what that finished is returned.
+    pub fn set_status(&mut self, status: PrinterStatus) -> Pushed {
         self.decoder.set_status(status);
+        self.release()
+    }
+
+    /// Reads what was held, when the printer can print.
+    fn release(&mut self) -> Pushed {
+        if self.holding() {
+            return Pushed::default();
+        }
+        self.read(&[])
+    }
+
+    /// Reads bytes after the ones that were held.
+    fn read(&mut self, bytes: &[u8]) -> Pushed {
+        let mut all = std::mem::take(&mut self.held);
+        all.extend_from_slice(bytes);
+        if all.is_empty() {
+            return Pushed::default();
+        }
+        self.stream.extend_from_slice(&all);
+        let traced = self.decoder.push_traced(&all);
+        self.absorb(traced)
     }
 
     /// Adds received bytes and returns the receipts they finished.
@@ -158,9 +211,15 @@ impl Printer {
     /// As [`Printer::push`], and also each event the bytes made, with the place of its command in
     /// the whole stream, so a program can show them while the job is still being sent.
     pub fn push_traced(&mut self, bytes: &[u8]) -> Pushed {
-        self.stream.extend_from_slice(bytes);
-        let traced = self.decoder.push_traced(bytes);
-        self.absorb(traced)
+        if !self.holding() {
+            return self.read(bytes);
+        }
+        // The requests for the status are answered as they come. The rest waits.
+        let from = self.held.len().saturating_sub(2);
+        self.held.extend_from_slice(bytes);
+        self.decoder.answer_real_time(&mut self.held, from);
+        // An answer may have been a recovery, which lets the printer go on.
+        self.release()
     }
 
     /// Ends the stream, as when the connection closes. A receipt that was not cut is still returned
@@ -171,8 +230,11 @@ impl Printer {
 
     /// As [`Printer::finish`], with the events the end of the stream made.
     pub fn finish_traced(&mut self) -> Pushed {
+        let released = self.release();
         let traced = self.decoder.finish_traced();
         let mut pushed = self.absorb(traced);
+        pushed.traced.splice(0..0, released.traced);
+        pushed.receipts.splice(0..0, released.receipts);
         let events = std::mem::take(&mut self.events);
         let steps = std::mem::take(&mut self.steps);
         let raw = std::mem::take(&mut self.stream);
@@ -338,5 +400,157 @@ mod tests {
         assert_eq!(last.receipts[0].raw(), b"two\n");
         let own: Vec<usize> = last.receipts[0].steps().iter().map(|s| s.end).collect();
         assert_eq!(own, [4, 4]);
+    }
+
+    fn cover_open() -> PrinterStatus {
+        PrinterStatus {
+            cover_open: true,
+            ..PrinterStatus::default()
+        }
+    }
+
+    #[test]
+    fn a_printer_that_does_not_hold_prints_whatever_its_status() {
+        let mut printer = Printer::new();
+        printer.set_status(cover_open());
+        assert_eq!(printer.room(), None);
+        let pushed = printer.push_traced(&[b"one\n".as_slice(), &CUT].concat());
+        assert_eq!(pushed.receipts.len(), 1);
+    }
+
+    #[test]
+    fn a_printer_that_holds_keeps_what_it_receives_until_it_can_print_and_then_prints_it_in_order()
+    {
+        let mut printer = Printer::new();
+        printer.hold_while_offline(Some(64));
+        printer.set_status(cover_open());
+        assert_eq!(printer.room(), Some(64));
+
+        let job = [b"one\n".as_slice(), &CUT, b"two\n", &CUT].concat();
+        let pushed = printer.push_traced(&job);
+        assert!(pushed.traced.is_empty() && pushed.receipts.is_empty());
+        assert_eq!(printer.room(), Some(64 - job.len()));
+
+        let released = printer.set_status(PrinterStatus::default());
+        assert_eq!(released.receipts.len(), 2);
+        assert_eq!(released.receipts[0].texts(), ["one"]);
+        assert_eq!(released.receipts[1].texts(), ["two"]);
+        assert_eq!(
+            released.receipts[0].raw(),
+            [b"one\n".as_slice(), &CUT].concat()
+        );
+        assert_eq!(printer.room(), None);
+        assert!(printer.take_held().is_empty());
+    }
+
+    #[test]
+    fn the_room_of_a_printer_that_holds_runs_out_and_never_goes_below_nothing() {
+        let mut printer = Printer::new();
+        printer.hold_while_offline(Some(4));
+        printer.set_status(cover_open());
+        printer.push_traced(b"abcdef");
+        assert_eq!(printer.room(), Some(0));
+    }
+
+    #[test]
+    fn what_is_held_is_given_up_when_the_program_has_gone() {
+        let mut printer = Printer::new();
+        printer.hold_while_offline(Some(64));
+        printer.set_status(cover_open());
+        printer.push_traced(b"one\n");
+        printer.finish_traced();
+        assert_eq!(printer.take_held(), b"one\n");
+    }
+
+    #[test]
+    fn a_status_request_is_answered_at_once_while_holding_and_is_not_kept() {
+        let mut printer = Printer::new();
+        printer.hold_while_offline(Some(64));
+        printer.set_status(cover_open());
+        // DLE EOT 2 says why the printer is off line: the cover.
+        printer.push_traced(&[b'a', 0x10, 0x04, 0x02, b'b']);
+        assert_eq!(printer.take_replies(), [0x12 | 0x04]);
+        assert_eq!(printer.take_held(), b"ab");
+    }
+
+    #[test]
+    fn a_request_that_is_cut_in_two_pieces_is_still_answered_once() {
+        let mut printer = Printer::new();
+        printer.hold_while_offline(Some(64));
+        printer.set_status(cover_open());
+        printer.push_traced(&[b'a', 0x10]);
+        assert!(printer.take_replies().is_empty());
+        printer.push_traced(&[0x04, 0x02]);
+        assert_eq!(printer.take_replies(), [0x12 | 0x04]);
+        assert_eq!(printer.take_held(), b"a");
+    }
+
+    #[test]
+    fn a_recovery_asked_while_holding_lets_the_printer_print_what_it_held() {
+        let mut printer = Printer::new();
+        printer.hold_while_offline(Some(64));
+        printer.set_status(PrinterStatus {
+            fault: Some(crate::status::Fault::Recoverable),
+            ..PrinterStatus::default()
+        });
+        let pushed = printer.push_traced(&[b"one\n".as_slice(), &CUT].concat());
+        assert!(pushed.receipts.is_empty());
+        // DLE ENQ 1 asks the printer to go on after the error.
+        let pushed = printer.push_traced(&[0x10, 0x05, 0x01]);
+        assert_eq!(pushed.receipts.len(), 1);
+        assert_eq!(printer.room(), None);
+    }
+
+    #[test]
+    fn a_fault_that_does_not_go_away_is_not_cleared_by_a_request_to_recover() {
+        let mut printer = Printer::new();
+        printer.hold_while_offline(Some(64));
+        printer.set_status(PrinterStatus {
+            fault: Some(crate::status::Fault::Unrecoverable),
+            ..PrinterStatus::default()
+        });
+        printer.push_traced(&[b"one\n".as_slice(), &CUT, &[0x10, 0x05, 0x01]].concat());
+        assert!(printer.room().is_some());
+    }
+
+    #[test]
+    fn a_star_line_printer_answers_enq_and_eot_while_holding() {
+        let mut printer = Printer::with_dialect(Dialect::StarLine, Profile::generic());
+        printer.hold_while_offline(Some(64));
+        printer.set_status(cover_open());
+        printer.push_traced(&[b'a', 0x05, 0x04, b'b']);
+        // ENQ says there is another error, which an open cover is. EOT says the paper is adequate.
+        assert_eq!(printer.take_replies(), [0x04, 0x10]);
+        assert_eq!(printer.take_held(), b"ab");
+    }
+
+    #[test]
+    fn the_status_that_stops_a_printer_depends_on_the_language() {
+        let held = PrinterStatus {
+            feed_button: true,
+            ..PrinterStatus::default()
+        };
+        assert!(held.halts_printing(Dialect::EscPos));
+        assert!(!held.halts_printing(Dialect::StarLine));
+        for stops in [
+            PrinterStatus {
+                online: false,
+                ..PrinterStatus::default()
+            },
+            PrinterStatus {
+                paper: crate::status::Paper::End,
+                ..PrinterStatus::default()
+            },
+            cover_open(),
+        ] {
+            assert!(stops.halts_printing(Dialect::EscPos));
+            assert!(stops.halts_printing(Dialect::StarPrnt));
+        }
+        let near_end = PrinterStatus {
+            paper: crate::status::Paper::NearEnd,
+            ..PrinterStatus::default()
+        };
+        assert!(!near_end.halts_printing(Dialect::EscPos));
+        assert!(!PrinterStatus::default().halts_printing(Dialect::EscPos));
     }
 }

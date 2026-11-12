@@ -18,6 +18,10 @@ pub(super) trait Language: std::fmt::Debug + Send {
     /// What a number of the command that picks a code page means.
     fn code_pages(&self) -> CodePages;
 
+    /// Answers the requests that a printer does not leave in its buffer, even while it holds what
+    /// it receives, and takes them out of `held`. Only what starts at `from` or later is new.
+    fn answer_real_time(&mut self, machine: &mut Machine, held: &mut Vec<u8>, from: usize);
+
     /// The status of the printer was changed from outside, as when the paper runs out. A language
     /// that has the printer say so by itself does it here.
     fn status_changed(&mut self, machine: &mut Machine, before: &PrinterStatus);

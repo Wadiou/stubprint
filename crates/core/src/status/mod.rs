@@ -3,6 +3,8 @@ mod star;
 
 use serde::{Deserialize, Serialize};
 
+use crate::dialect::Dialect;
+
 /// How much paper is left, as the paper sensors tell.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -60,6 +62,18 @@ impl Default for PrinterStatus {
 }
 
 impl PrinterStatus {
+    /// Whether a printer in this state stops printing: it is off line, its cover is open, its paper
+    /// has run out or something is wrong. An Epson printer is also off line while its feed button is
+    /// held, and a Star printer is not.
+    pub fn halts_printing(&self, dialect: Dialect) -> bool {
+        let halted =
+            !self.online || self.cover_open || self.paper == Paper::End || self.fault.is_some();
+        match dialect {
+            Dialect::EscPos => halted || self.feed_button,
+            Dialect::StarLine | Dialect::StarPrnt => halted,
+        }
+    }
+
     /// Which of the things `GS a n` was asked to watch differ between two statuses.
     pub(crate) fn changed(&self, other: &PrinterStatus, mask: u8) -> bool {
         (mask & 0x01 != 0 && self.drawer_open != other.drawer_open)

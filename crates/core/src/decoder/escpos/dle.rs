@@ -1,12 +1,48 @@
 //! The requests that start with `DLE`, which a printer answers while it prints.
 
 use super::super::machine::Machine;
-use super::super::reader::{Input, Step};
+use super::super::reader::{Input, Step, DLE};
 use super::EscPos;
 use crate::event::{Event, Pulse};
 use crate::status::Fault;
 
 impl EscPos {
+    /// The program asks the printer to go on after an error that can be recovered from.
+    fn recover(&mut self, machine: &mut Machine) {
+        if machine.status.fault == Some(Fault::Recoverable) {
+            let mut status = machine.status;
+            status.fault = None;
+            self.set_status(machine, status);
+        }
+    }
+
+    /// A printer reads `DLE EOT n` and `DLE ENQ n` as soon as they come, even in the middle of what
+    /// it is holding, so they are answered and taken out of the bytes that wait.
+    pub(super) fn answer_held(&mut self, machine: &mut Machine, held: &mut Vec<u8>, from: usize) {
+        let mut at = from;
+        while at + 2 < held.len() {
+            let (kind, n) = (held[at + 1], held[at + 2]);
+            let answered = held[at] == DLE
+                && match kind {
+                    0x04 => machine
+                        .status
+                        .real_time(n)
+                        .map(|answer| machine.reply(&[answer]))
+                        .is_some(),
+                    0x05 if matches!(n, 1 | 2) => {
+                        self.recover(machine);
+                        true
+                    }
+                    _ => false,
+                };
+            if answered {
+                held.drain(at..at + 3);
+            } else {
+                at += 1;
+            }
+        }
+    }
+
     /// `DLE EOT n` asks for a status, `DLE ENQ n` asks to recover from an error, and
     /// `DLE DC4 1 m t` kicks the cash drawer.
     pub(super) fn dle(
@@ -29,12 +65,7 @@ impl EscPos {
                     };
                     machine.reply(&[answer]);
                 } else if matches!(n, 1 | 2) {
-                    // The program asks the printer to go on after an error that can be recovered from.
-                    if machine.status.fault == Some(Fault::Recoverable) {
-                        let mut status = machine.status;
-                        status.fault = None;
-                        self.set_status(machine, status);
-                    }
+                    self.recover(machine);
                 } else {
                     return input.fixed_unknown(3, events);
                 }

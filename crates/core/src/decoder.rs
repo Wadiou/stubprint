@@ -146,6 +146,13 @@ impl Decoder {
         &self.machine.status
     }
 
+    /// Answers the requests that a printer reads as soon as it receives them, and takes them out of
+    /// the bytes it holds. Only what starts at `from` or later is new.
+    pub fn answer_real_time(&mut self, held: &mut Vec<u8>, from: usize) {
+        self.language
+            .answer_real_time(&mut self.machine, held, from);
+    }
+
     /// Changes what the printer says about itself, as when the paper runs out. A language that has
     /// the printer report such a change by itself adds the report to the replies.
     pub fn set_status(&mut self, status: PrinterStatus) {

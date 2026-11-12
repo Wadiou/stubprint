@@ -100,6 +100,10 @@ impl Language for EscPos {
         |profile, number| profile.code_page(number)
     }
 
+    fn answer_real_time(&mut self, machine: &mut Machine, held: &mut Vec<u8>, from: usize) {
+        self.answer_held(machine, held, from);
+    }
+
     /// If `GS a` asked the printer to report such a change, the report is sent.
     fn status_changed(&mut self, machine: &mut Machine, before: &PrinterStatus) {
         let mask = self.automatic_status;

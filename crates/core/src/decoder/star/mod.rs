@@ -87,6 +87,26 @@ impl Language for Star {
         |_, number| text::code_page(number)
     }
 
+    /// In line mode `ENQ` and `EOT` are answered as soon as they come, even while the printer holds
+    /// what it receives, and are not kept.
+    fn answer_real_time(&mut self, machine: &mut Machine, held: &mut Vec<u8>, from: usize) {
+        if self.dialect != Dialect::StarLine {
+            return;
+        }
+        let mut at = from;
+        while at < held.len() {
+            match held[at] {
+                ENQ => machine.reply(&[machine.status.star_enq()]),
+                EOT => machine.reply(&[machine.status.star_eot()]),
+                _ => {
+                    at += 1;
+                    continue;
+                }
+            }
+            held.remove(at);
+        }
+    }
+
     /// The status is sent by itself when the program asked for that, and something changed.
     fn status_changed(&mut self, machine: &mut Machine, before: &PrinterStatus) {
         if self.kept.reports_by_itself() && *before != machine.status {
