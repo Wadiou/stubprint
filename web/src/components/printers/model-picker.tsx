@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { columnsText, featureLabels, paperText } from "@/lib/profile";
+import { columnsText, paperText } from "@/lib/profile";
 
 const GENERIC = "Generic";
 const ALL = "all";
@@ -35,13 +35,6 @@ function ModelRow({ model, selected, fits, onPick }: { model: ProfileInfo; selec
         <Badge variant="outline">{maker(model)}</Badge>
       </span>
       {facts(model).length > 0 && <span className="text-[13px] text-muted-foreground">{facts(model).join(" · ")}</span>}
-      <span className="flex flex-wrap gap-1">
-        {featureLabels(model.features).map((label) => (
-          <Badge key={label} variant="secondary">
-            {label}
-          </Badge>
-        ))}
-      </span>
     </button>
   );
 }
