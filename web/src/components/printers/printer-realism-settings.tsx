@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { DEFAULT_HOLD, holdSize, MAX_HOLD } from "@/lib/printer";
 
-/** What the printer does as a real one does, which is off until it is chosen so tests stay fast. */
+/** The receive buffer of the printer, which holds what it is sent while it cannot print. Off until it is chosen so tests stay fast. */
 export function PrinterRealismSettings({ printer }: { printer: PrinterInfo }) {
   const queryClient = useQueryClient();
   const update = useMutation({
@@ -20,12 +20,12 @@ export function PrinterRealismSettings({ printer }: { printer: PrinterInfo }) {
 
   return (
     <section className="flex flex-col">
-      <h3 className="mb-3 font-semibold">Real printer behaviour</h3>
+      <h3 className="mb-3 font-semibold">Receive buffer</h3>
       <div className="flex flex-col gap-2 border-t pt-3">
         <div className="flex items-center gap-3">
-          <span className="flex-1 font-medium">Hold data while offline</span>
+          <span className="flex-1 font-medium">Hold data while it cannot print</span>
           <Input
-            aria-label="Bytes held while offline"
+            aria-label="Bytes held while it cannot print"
             aria-invalid={size === undefined}
             inputMode="numeric"
             className="h-8 w-24 text-right"
@@ -38,7 +38,7 @@ export function PrinterRealismSettings({ printer }: { printer: PrinterInfo }) {
           />
           <span className="w-10 text-sm text-muted-foreground">bytes</span>
           <Switch
-            aria-label="Hold data while offline"
+            aria-label="Hold data while it cannot print"
             checked={on}
             disabled={!on && size === undefined}
             onCheckedChange={(next) => hold(next ? (size ?? DEFAULT_HOLD) : 0)}
