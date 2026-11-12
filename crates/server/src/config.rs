@@ -61,6 +61,9 @@ pub struct PrinterConfig {
     pub hold_offline: usize,
 }
 
+/// The size of the receive buffer of a printer, in bytes, when none is chosen.
+pub const DEFAULT_HOLD: usize = 4096;
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -82,7 +85,7 @@ impl Default for PrinterConfig {
             listen: ([127, 0, 0, 1], 9100).into(),
             dialect: Dialect::EscPos,
             profile: Profile::generic(),
-            hold_offline: 0,
+            hold_offline: DEFAULT_HOLD,
         }
     }
 }
@@ -108,7 +111,7 @@ pub struct PrinterSettings {
     /// How many bytes it holds while it cannot print, as a real printer keeps them in its receive
     /// buffer: it is off line, its cover is open, its paper has run out or it has a fault. A program
     /// that sends more has to wait. What it held prints when the printer can print again, even if
-    /// the program has gone. 0, the default, holds nothing: it prints whatever it receives.
+    /// the program has gone. The default is 4096. 0 holds nothing: it prints whatever it receives.
     #[schema(example = 4096)]
     pub hold_offline: Option<usize>,
 }

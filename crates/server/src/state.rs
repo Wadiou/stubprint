@@ -23,8 +23,14 @@ pub(crate) struct Saved {
     listen: String,
     dialect: String,
     profile: String,
-    hold_offline: usize,
+    /// Files written before the size was kept by this name have none, and get the default.
+    #[serde(default = "default_hold")]
+    hold: usize,
     pub(crate) status: PrinterStatus,
+}
+
+fn default_hold() -> usize {
+    crate::config::DEFAULT_HOLD
 }
 
 impl Saved {
@@ -34,7 +40,7 @@ impl Saved {
             listen: printer.listen.to_string(),
             dialect: printer.dialect.name().to_string(),
             profile: printer.profile().name.clone(),
-            hold_offline: printer.hold_offline(),
+            hold: printer.hold_offline(),
             status: printer.status(),
         }
     }
@@ -51,7 +57,7 @@ impl Saved {
             dialect: Dialect::from_name(&self.dialect)
                 .ok_or_else(|| format!("`{}` is not a dialect", self.dialect))?,
             profile: Profile::named(&self.profile).unwrap_or_else(Profile::generic),
-            hold_offline: self.hold_offline,
+            hold_offline: self.hold,
         })
     }
 }

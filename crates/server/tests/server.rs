@@ -1972,8 +1972,20 @@ async fn a_printer_that_holds_prints_nothing_while_its_cover_is_open_and_all_of_
 }
 
 #[tokio::test]
-async fn a_printer_that_is_not_set_to_hold_prints_with_its_cover_open() {
+async fn a_printer_with_no_settings_holds_what_it_receives_while_its_cover_is_open() {
     let server = Harness::start(&["name=till"]).await;
+    server.report("till", json!({"cover_open": true})).await;
+    let mut stream = TcpStream::connect(server.printer("till")).await.unwrap();
+    stream.write_all(&receipt_bytes("Held")).await.unwrap();
+    tokio::time::sleep(SETTLE).await;
+    assert!(server.ids().await.is_empty());
+    server.report("till", json!({"cover_open": false})).await;
+    assert_eq!(server.after(0).await["texts"], json!(["Held"]));
+}
+
+#[tokio::test]
+async fn a_printer_that_holds_nothing_prints_with_its_cover_open() {
+    let server = Harness::start(&["name=till,hold_offline=0"]).await;
     server.report("till", json!({"cover_open": true})).await;
     server.print("till", &receipt_bytes("Anyway"), 100).await;
     assert_eq!(server.after(0).await["texts"], json!(["Anyway"]));
@@ -2093,7 +2105,7 @@ async fn a_request_that_does_not_fit_in_a_printer_that_cannot_print_is_refused_a
 async fn how_much_a_printer_holds_is_set_and_told_by_the_api() {
     let server = Harness::start(&["name=till"]).await;
     let info = server.json("/api/printers").await;
-    assert_eq!(info[0]["hold_offline"], 0);
+    assert_eq!(info[0]["hold_offline"], 4096);
 
     let changed = server
         .client

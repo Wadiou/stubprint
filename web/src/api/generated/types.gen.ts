@@ -662,8 +662,8 @@ export type Printed = {
 export type PrinterChange = {
     /**
      * How many bytes it holds while it cannot print, as a real printer keeps them in its receive
-     * buffer. 0 holds nothing and prints whatever it receives. Connections that are open keep the
-     * number they had when they opened.
+     * buffer. 0 holds nothing and prints whatever it receives. Connections that are open follow
+     * the change.
      */
     hold_offline?: number | null;
     /**
@@ -719,7 +719,7 @@ export type PrinterSettings = {
      * How many bytes it holds while it cannot print, as a real printer keeps them in its receive
      * buffer: it is off line, its cover is open, its paper has run out or it has a fault. A program
      * that sends more has to wait. What it held prints when the printer can print again, even if
-     * the program has gone. 0, the default, holds nothing: it prints whatever it receives.
+     * the program has gone. The default is 4096. 0 holds nothing: it prints whatever it receives.
      */
     hold_offline?: number | null;
     /**

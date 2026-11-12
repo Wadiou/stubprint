@@ -20,7 +20,7 @@ a real printer, since the same bytes mean different things in ESC/POS and in Sta
 | `listen` | the address of its TCP port. Port 0 picks a free one | `127.0.0.1:9100` |
 | `dialect` | `escpos`, `starline` or `starprnt` | `escpos` |
 | `profile` | the model, which sets the code pages, the columns and the answers to questions | `generic` |
-| `hold_offline` | how many bytes it holds while it cannot print, see below. 0 holds nothing | `0` |
+| `hold_offline` | how many bytes it holds while it cannot print, see below. 0 holds nothing | `4096` |
 
 `--printer` can be given again for more printers. `--web <folder>` serves the built web page from
 that folder at the address of the API, and any path that is not the API gives the page, so its own
@@ -60,13 +60,14 @@ there. The receipts, the connections and what a printer holds are not kept.
 
 A real printer that is off line, has its cover open, is out of paper or has a fault does not print.
 What it is sent goes into its receive buffer, and when the buffer is full it stops taking more, so
-the program that sends has to wait. Set `hold_offline` to the size of the buffer to get the same:
+the program that sends has to wait. A printer here does the same, with a buffer of `hold_offline`
+bytes:
 the status that stops it is `online` off, `cover_open`, `paper` at `end` or a `fault`, and on an
 Epson printer a held `feed_button` too.
 
 - While it cannot print, what is received is held, not read. No receipt is made and no command is
-  decoded. Nothing about the status changes this when `hold_offline` is 0, the default, so tests
-  stay as they were.
+  decoded. A printer with `hold_offline` at 0 prints whatever it receives, whatever the status, which
+  is what a test that does not care about the status wants.
 - The requests for the status are the exception, as on a real printer: `DLE EOT n` and `DLE ENQ n`
   in ESC/POS, and `ENQ` and `EOT` in Star Line mode, are answered at once and taken out of what is
   held, so a program can ask why the printer is stuck. They are found in the bytes wherever they
