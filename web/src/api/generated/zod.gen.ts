@@ -239,6 +239,7 @@ export const zPrinted = z.object({
 export const zPrinterChange = z.object({
     network_buffer: z.int().gte(0).nullish(),
     paper_roll: z.int().gte(0).nullish(),
+    print_speed: z.int().gte(0).nullish(),
     printer_buffer: z.int().gte(0).nullish(),
     profile: z.string().nullish()
 });
@@ -252,6 +253,7 @@ export const zPrinterSettings = z.object({
     name: z.string().nullish(),
     network_buffer: z.int().gte(0).nullish(),
     paper_roll: z.int().gte(0).nullish(),
+    print_speed: z.int().gte(0).nullish(),
     printer_buffer: z.int().gte(0).nullish(),
     profile: z.string().nullish()
 });
@@ -451,6 +453,7 @@ export const zPrinterInfo = z.object({
     network_buffer: z.int().gte(0),
     paper_left: z.number(),
     paper_roll: z.int().gte(0),
+    print_speed: z.int().gte(0),
     printer_buffer: z.int().gte(0),
     profile: z.string(),
     status: zPrinterStatus,

@@ -673,6 +673,11 @@ export type PrinterChange = {
      */
     paper_roll?: number | null;
     /**
+     * How fast it prints, in millimetres of paper a second. 0 prints without taking any time. A
+     * receipt that is printing now keeps the printer busy as long as it was set to.
+     */
+    print_speed?: number | null;
+    /**
      * How many bytes it holds while it cannot print, as a real printer keeps them in its receive
      * buffer. 0 holds nothing and prints whatever it receives. Connections that are open follow
      * the change.
@@ -721,6 +726,10 @@ export type PrinterInfo = {
      */
     paper_roll: number;
     /**
+     * How fast it prints, in millimetres of paper a second. 0 prints without taking any time.
+     */
+    print_speed: number;
+    /**
      * How many bytes it holds while it cannot print, such as with its cover open. 0 means it holds
      * nothing and prints whatever it receives.
      */
@@ -767,6 +776,13 @@ export type PrinterSettings = {
      * that never runs out.
      */
     paper_roll?: number | null;
+    /**
+     * How fast it prints, in millimetres of paper a second: a real receipt printer does 100 to 300.
+     * A receipt keeps the printer busy for as long as its paper takes to come out, and a program
+     * that sends more has to wait until it is done. The default is 0, which prints without taking
+     * any time.
+     */
+    print_speed?: number | null;
     /**
      * How many bytes it holds while it cannot print, as a real printer keeps them in its receive
      * buffer: it is off line, its cover is open, its paper has run out or it has a fault. A program

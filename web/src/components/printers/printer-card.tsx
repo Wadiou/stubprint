@@ -10,6 +10,7 @@ import { PrinterConnect } from "./printer-connect";
 import { Field, refused } from "./printer-fields";
 import { PrinterPaper } from "./printer-paper";
 import { PrinterRealismSettings } from "./printer-realism-settings";
+import { PrinterSpeed } from "./printer-speed";
 import { PrinterStatusSettings } from "./printer-status-settings";
 import { PrinterUsage } from "./printer-usage";
 
@@ -59,6 +60,7 @@ export function PrinterCard({ printer, onRemove }: { printer: PrinterInfo; onRem
         <PrinterStatusSettings printer={printer} />
         <PrinterPaper key={printer.paper_roll} printer={printer} />
         <PrinterUsage printer={printer} />
+        <PrinterSpeed key={printer.print_speed} printer={printer} />
         <PrinterRealismSettings key={printer.printer_buffer} printer={printer} />
         <Button variant="destructive" onClick={() => onRemove(printer)}>
           Delete printer

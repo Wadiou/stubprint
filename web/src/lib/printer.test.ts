@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { byteSize, connectTo, DEFAULT_LISTEN, freeName, heldText, leftText, MAX_ROLL, metresText, port, printerState, resolveListen, rollLength, rollShare, stuckText } from "./printer";
+import { byteSize, connectTo, DEFAULT_LISTEN, freeName, heldText, leftText, MAX_ROLL, MAX_SPEED, metresText, port, printerState, printSpeed, resolveListen, rollLength, rollShare, stuckText } from "./printer";
 
 const fine = { online: true, cover_open: false, drawer_open: false, feed_button: false, paper: "adequate" } as const;
 
@@ -73,4 +73,15 @@ test("paper is told in metres, and how much of the roll is left is a share of it
   expect(rollShare(0, 80_000)).toBe(0);
   expect(rollShare(5, 0)).toBe(0);
   expect(rollShare(90_000, 80_000)).toBe(1);
+});
+
+test("a speed is typed in millimetres a second, from 1 to the most", () => {
+  expect(printSpeed("150")).toBe(150);
+  expect(printSpeed(" 80 ")).toBe(80);
+  expect(printSpeed("0")).toBeUndefined();
+  expect(printSpeed("1.5")).toBeUndefined();
+  expect(printSpeed("-3")).toBeUndefined();
+  expect(printSpeed("fast")).toBeUndefined();
+  expect(printSpeed("")).toBeUndefined();
+  expect(printSpeed(String(MAX_SPEED + 1))).toBeUndefined();
 });

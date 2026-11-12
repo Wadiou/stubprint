@@ -28,6 +28,23 @@ export function byteSize(text: string) {
   return size.success ? size.data : undefined;
 }
 
+/** How fast a printer prints when it is turned on and no speed is chosen, in millimetres a second: a common receipt printer. */
+export const DEFAULT_SPEED = 150;
+
+/** The fastest that can be asked for, in millimetres a second. */
+export const MAX_SPEED = 1000;
+
+/** A speed as typed, in millimetres a second: digits only, from 1 to the most. Nothing when it is not one. */
+export function printSpeed(text: string) {
+  const speed = z
+    .string()
+    .regex(/^\d+$/)
+    .transform(Number)
+    .pipe(z.number().int().min(1).max(MAX_SPEED))
+    .safeParse(text.trim());
+  return speed.success ? speed.data : undefined;
+}
+
 /** How long a roll is when one is put in without a length chosen, in millimetres: 80 m, a common roll. */
 export const DEFAULT_ROLL = 80_000;
 
