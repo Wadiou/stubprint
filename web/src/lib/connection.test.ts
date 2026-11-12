@@ -100,10 +100,3 @@ test("a change that cannot follow what the list has says the list must be asked 
   // A connection the list never saw, which already has pieces.
   expect(applyChange([], { ...opened, id: 9, pieces: 3 })).toBeUndefined();
 });
-
-test("the list keeps the latest 200, as the server does", () => {
-  let list: Connection[] = [];
-  for (let id = 1; id <= 201; id++) list = applied(list, { ...opened, id });
-  expect(list).toHaveLength(200);
-  expect(list[0]?.id).toBe(2);
-});

@@ -20,7 +20,7 @@ export function PrinterConnections({ printer }: { printer: PrinterInfo }) {
     <Card>
       <CardHeader>
         <CardTitle>Connections</CardTitle>
-        <CardDescription>The programs that connected to {printer.name}. The server keeps the latest 200.</CardDescription>
+        <CardDescription>The programs that connected to {printer.name}.</CardDescription>
       </CardHeader>
       <CardContent>
         <DataTable

@@ -1,8 +1,5 @@
 import type { Chunk, Connection, ConnectionChange } from "@/api/generated/types.gen";
 
-/** How many connections the server keeps, which is how many the list keeps. */
-const KEPT = 200;
-
 /**
  * The list of connections as it is after a change that the live events told about, or nothing when
  * the list cannot be brought up to date from it, because it missed an earlier one: it has to be
@@ -34,7 +31,7 @@ export function applyChange(list: Connection[], change: ConnectionChange): Conne
   };
   return known
     ? list.map((connection) => (connection.id === change.id ? next : connection))
-    : [...list, next].slice(-KEPT);
+    : [...list, next];
 }
 
 /** A connection that has not closed yet. */

@@ -55,7 +55,7 @@ export function PrinterCard({ printer, onRemove }: { printer: PrinterInfo; onRem
           </Alert>
         )}
         <PrinterStatusSettings printer={printer} />
-        <PrinterRealismSettings key={printer.hold_offline} printer={printer} />
+        <PrinterRealismSettings key={printer.printer_buffer} printer={printer} />
         <Button variant="destructive" onClick={() => onRemove(printer)}>
           Delete printer
         </Button>

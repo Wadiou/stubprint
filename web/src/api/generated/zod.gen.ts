@@ -237,9 +237,9 @@ export const zPrinted = z.object({
  * What a request changes about the printer itself. What is left out stays as it is.
  */
 export const zPrinterChange = z.object({
-    hold_offline: z.int().gte(0).nullish(),
-    profile: z.string().nullish(),
-    receive_buffer: z.int().gte(0).nullish()
+    network_buffer: z.int().gte(0).nullish(),
+    printer_buffer: z.int().gte(0).nullish(),
+    profile: z.string().nullish()
 });
 
 /**
@@ -248,11 +248,11 @@ export const zPrinterChange = z.object({
  */
 export const zPrinterSettings = z.object({
     dialect: z.string().nullish(),
-    hold_offline: z.int().gte(0).nullish(),
     listen: z.string().nullish(),
     name: z.string().nullish(),
-    profile: z.string().nullish(),
-    receive_buffer: z.int().gte(0).nullish()
+    network_buffer: z.int().gte(0).nullish(),
+    printer_buffer: z.int().gte(0).nullish(),
+    profile: z.string().nullish()
 });
 
 /**
@@ -275,11 +275,11 @@ export const zPrinterInfo = z.object({
     connections: z.int().gte(0),
     dialect: zDialect,
     held: z.int().gte(0),
-    hold_offline: z.int().gte(0),
     listen: z.string(),
     name: z.string(),
+    network_buffer: z.int().gte(0),
+    printer_buffer: z.int().gte(0),
     profile: z.string(),
-    receive_buffer: z.int().gte(0),
     status: zPrinterStatus
 });
 

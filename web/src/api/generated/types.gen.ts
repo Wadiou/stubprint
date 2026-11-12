@@ -661,22 +661,22 @@ export type Printed = {
  */
 export type PrinterChange = {
     /**
+     * How many bytes the network keeps for what a program sends before the printer reads it, as
+     * the network chip of a real printer does. 0 leaves it to the system, which keeps a lot. It
+     * applies to connections that open from now on.
+     */
+    network_buffer?: number | null;
+    /**
      * How many bytes it holds while it cannot print, as a real printer keeps them in its receive
      * buffer. 0 holds nothing and prints whatever it receives. Connections that are open follow
      * the change.
      */
-    hold_offline?: number | null;
+    printer_buffer?: number | null;
     /**
      * The printer model, as `GET /api/profiles` lists them. Receipts printed from now on are read
      * and drawn as this model. The ones already kept stay as they were printed.
      */
     profile?: string | null;
-    /**
-     * How many bytes the network keeps for what a program sends before the printer reads it, as
-     * the network chip of a real printer does. 0 leaves it to the system, which keeps a lot. It
-     * applies to connections that open from now on.
-     */
-    receive_buffer?: number | null;
 };
 
 /**
@@ -693,11 +693,6 @@ export type PrinterInfo = {
      */
     held: number;
     /**
-     * How many bytes it holds while it cannot print, such as with its cover open. 0 means it holds
-     * nothing and prints whatever it receives.
-     */
-    hold_offline: number;
-    /**
      * The address of its TCP port.
      */
     listen: string;
@@ -706,14 +701,19 @@ export type PrinterInfo = {
      */
     name: string;
     /**
-     * The printer model, which decides the code pages, the columns and the answers.
-     */
-    profile: string;
-    /**
      * How many bytes the network keeps for what a program sends before the printer reads it. 0
      * leaves it to the system, which keeps a lot.
      */
-    receive_buffer: number;
+    network_buffer: number;
+    /**
+     * How many bytes it holds while it cannot print, such as with its cover open. 0 means it holds
+     * nothing and prints whatever it receives.
+     */
+    printer_buffer: number;
+    /**
+     * The printer model, which decides the code pages, the columns and the answers.
+     */
+    profile: string;
     status: PrinterStatus;
 };
 
@@ -727,13 +727,6 @@ export type PrinterSettings = {
      */
     dialect?: string | null;
     /**
-     * How many bytes it holds while it cannot print, as a real printer keeps them in its receive
-     * buffer: it is off line, its cover is open, its paper has run out or it has a fault. A program
-     * that sends more has to wait. What it held prints when the printer can print again, even if
-     * the program has gone. The default is 4096. 0 holds nothing: it prints whatever it receives.
-     */
-    hold_offline?: number | null;
-    /**
      * The address of its TCP port, such as `127.0.0.1:9100`. Port 0 picks a free one.
      */
     listen?: string | null;
@@ -742,18 +735,25 @@ export type PrinterSettings = {
      */
     name?: string | null;
     /**
-     * The printer model, as `GET /api/profiles` lists them. It decides the code pages, the
-     * columns and the answers.
-     */
-    profile?: string | null;
-    /**
      * How many bytes the network keeps for what a program sends before the printer reads it, as
      * the network chip of a real printer does. A program that sends more than that, and more than
      * its own system keeps, has to wait. 0, the default, leaves it to the system, which keeps a
      * lot, so a program may not wait at all. The system rounds the number, and a connection that
      * is open keeps the size it had when it opened.
      */
-    receive_buffer?: number | null;
+    network_buffer?: number | null;
+    /**
+     * How many bytes it holds while it cannot print, as a real printer keeps them in its receive
+     * buffer: it is off line, its cover is open, its paper has run out or it has a fault. A program
+     * that sends more has to wait. What it held prints when the printer can print again, even if
+     * the program has gone. The default is 4096. 0 holds nothing: it prints whatever it receives.
+     */
+    printer_buffer?: number | null;
+    /**
+     * The printer model, as `GET /api/profiles` lists them. It decides the code pages, the
+     * columns and the answers.
+     */
+    profile?: string | null;
 };
 
 /**

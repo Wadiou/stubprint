@@ -4,7 +4,7 @@ import { listPrintersQueryKey, updatePrinterMutation } from "@/api/generated/@ta
 import type { PrinterInfo } from "@/api/generated/types.gen";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { byteSize, DEFAULT_HOLD, DEFAULT_RECEIVE, MAX_BYTES } from "@/lib/printer";
+import { byteSize, DEFAULT_PRINTER_BUFFER, DEFAULT_NETWORK_BUFFER, MAX_BYTES } from "@/lib/printer";
 
 /** A setting that is a number of bytes and is off at 0: the size, and a switch. A size typed while it is on applies when the field is left. */
 function ByteSetting({ label, description, bytes, fallback, apply }: { label: string; description: string; bytes: number; fallback: number; apply: (bytes: number) => void }) {
@@ -45,26 +45,26 @@ export function PrinterRealismSettings({ printer }: { printer: PrinterInfo }) {
     ...updatePrinterMutation(),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: listPrintersQueryKey() }),
   });
-  const change = (body: { hold_offline?: number; receive_buffer?: number }) => update.mutate({ path: { name: printer.name }, body });
+  const change = (body: { printer_buffer?: number; network_buffer?: number }) => update.mutate({ path: { name: printer.name }, body });
 
   return (
     <section className="flex flex-col gap-3">
-      <h3 className="font-semibold">Receive buffer</h3>
+      <h3 className="font-semibold">Buffers</h3>
       <ByteSetting
-        key={`hold-${printer.hold_offline}`}
+        key={`printer-${printer.printer_buffer}`}
         label="Printer buffer"
         description="Bytes kept while it cannot print"
-        bytes={printer.hold_offline}
-        fallback={DEFAULT_HOLD}
-        apply={(bytes) => change({ hold_offline: bytes })}
+        bytes={printer.printer_buffer}
+        fallback={DEFAULT_PRINTER_BUFFER}
+        apply={(bytes) => change({ printer_buffer: bytes })}
       />
       <ByteSetting
-        key={`receive-${printer.receive_buffer}`}
+        key={`network-${printer.network_buffer}`}
         label="Network buffer"
         description="Bytes the network keeps for a program"
-        bytes={printer.receive_buffer}
-        fallback={DEFAULT_RECEIVE}
-        apply={(bytes) => change({ receive_buffer: bytes })}
+        bytes={printer.network_buffer}
+        fallback={DEFAULT_NETWORK_BUFFER}
+        apply={(bytes) => change({ network_buffer: bytes })}
       />
     </section>
   );

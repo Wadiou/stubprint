@@ -9,10 +9,10 @@ const typedPort = z
   .pipe(z.number().int().min(1).max(65535));
 
 /** How many bytes a printer holds while it cannot print, when it holds any, if nothing else is chosen. */
-export const DEFAULT_HOLD = 4096;
+export const DEFAULT_PRINTER_BUFFER = 4096;
 
 /** How many bytes the network keeps for what a program sends, when it is limited, if nothing else is chosen. */
-export const DEFAULT_RECEIVE = 8192;
+export const DEFAULT_NETWORK_BUFFER = 8192;
 
 /** The most that can be asked, so a typing slip does not ask for gigabytes of memory. */
 export const MAX_BYTES = 1_048_576;
