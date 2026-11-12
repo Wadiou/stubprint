@@ -1,5 +1,6 @@
 import { createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
 import { Shell } from "@/components/shell";
+import { liveSearch, printersSearch } from "@/lib/search";
 import { LivePage } from "@/pages/live";
 import { Placeholder } from "@/pages/placeholder";
 import { PrintersPage } from "@/components/printers/printers-page";
@@ -11,8 +12,7 @@ const liveRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   staticData: { title: "Live paper" },
-  validateSearch: (search: Record<string, unknown>): { receipt?: number } =>
-    typeof search.receipt === "number" ? { receipt: search.receipt } : {},
+  validateSearch: (search: Record<string, unknown>) => liveSearch.parse(search),
   component: LiveRoute,
 });
 
@@ -38,11 +38,7 @@ const printersRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/printers",
   staticData: { title: "Printers" },
-  validateSearch: (search: Record<string, unknown>): { printer?: string; add?: boolean; remove?: string } => ({
-    ...(typeof search.printer === "string" ? { printer: search.printer } : {}),
-    ...(search.add === true || search.add === "true" ? { add: true } : {}),
-    ...(typeof search.remove === "string" ? { remove: search.remove } : {}),
-  }),
+  validateSearch: (search: Record<string, unknown>) => printersSearch.parse(search),
   component: PrintersRoute,
 });
 
@@ -52,15 +48,16 @@ function PrintersRoute() {
   return <PrintersPage search={search} onSearchChange={(next) => navigate({ search: next })} />;
 }
 
-const unbuilt = [
-  { path: "/connections", title: "Connections" },
-  { path: "/playground", title: "Send and decode" },
-  { path: "/settings", title: "Settings" },
-].map(({ path, title }) =>
-  createRoute({ getParentRoute: () => rootRoute, path, staticData: { title }, component: Placeholder }),
-);
+const settingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/settings",
+  staticData: { title: "Settings" },
+  component: Placeholder,
+});
 
-export const router = createRouter({ routeTree: rootRoute.addChildren([liveRoute, samplesRoute, printersRoute, ...unbuilt]) });
+export const router = createRouter({
+  routeTree: rootRoute.addChildren([liveRoute, printersRoute, samplesRoute, settingsRoute]),
+});
 
 declare module "@tanstack/react-router" {
   interface Register {

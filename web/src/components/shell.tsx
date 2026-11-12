@@ -1,32 +1,16 @@
 import { Link, Outlet, useMatches } from "@tanstack/react-router";
-import {
-  Activity,
-  LayoutGrid,
-  type LucideIcon,
-  Plug,
-  Printer,
-  Receipt,
-  Settings,
-  Terminal,
-} from "lucide-react";
+import { Activity, LayoutGrid, type LucideIcon, Printer, Receipt, Settings } from "lucide-react";
 import { useLiveEvents } from "@/api/events";
 import { PrinterStatus } from "@/components/printer-status";
 import { Toaster } from "@/components/ui/sonner";
 
 const GROUPS: { label: string; items: { to: string; label: string; icon: LucideIcon }[] }[] = [
-  {
-    label: "Watch",
-    items: [
-      { to: "/", label: "Live paper", icon: Activity },
-      { to: "/connections", label: "Connections", icon: Plug },
-    ],
-  },
+  { label: "Watch", items: [{ to: "/", label: "Live paper", icon: Activity }] },
   {
     label: "Control",
     items: [
       { to: "/printers", label: "Printers", icon: Printer },
       { to: "/samples", label: "Samples", icon: LayoutGrid },
-      { to: "/playground", label: "Send and decode", icon: Terminal },
     ],
   },
   { label: "Connect", items: [{ to: "/settings", label: "Settings", icon: Settings }] },

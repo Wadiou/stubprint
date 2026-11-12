@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { addPrinterMutation, listPrintersQueryKey, listProfilesOptions } from "@/api/generated/@tanstack/react-query.gen";
 import type { Dialect } from "@/api/generated/types.gen";
+import { zDialect } from "@/api/generated/zod.gen";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,7 +58,10 @@ function CreateForm({ preset, onAdded, onClose }: { preset?: PrinterPreset; onAd
           <Select
             items={Object.entries(DIALECTS).map(([value, label]) => ({ value, label }))}
             value={dialect}
-            onValueChange={(value) => setDialect(value as Dialect)}
+            onValueChange={(value) => {
+              const chosen = zDialect.safeParse(value);
+              if (chosen.success) setDialect(chosen.data);
+            }}
           >
             <SelectTrigger aria-label="Language" className="w-full">
               <SelectValue />

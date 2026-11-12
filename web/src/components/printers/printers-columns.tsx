@@ -3,7 +3,7 @@ import type { PrinterInfo } from "@/api/generated/types.gen";
 import { printerState, type Tone } from "@/lib/printer";
 import { DIALECTS } from "@/lib/profile";
 
-export type PrinterRow = PrinterInfo & { receipts: number };
+export type PrinterRow = PrinterInfo & { open: number; receipts: number };
 
 const DOT: Record<Tone, string> = { ok: "bg-green-500", warn: "bg-amber-500", bad: "bg-red-500" };
 
@@ -32,6 +32,11 @@ export const printersColumns: ColumnDef<PrinterRow>[] = [
         </span>
       );
     },
+  },
+  {
+    accessorKey: "open",
+    header: () => <span className="block text-right">Open</span>,
+    cell: ({ row }) => <span className="block text-right text-muted-foreground">{row.original.open}</span>,
   },
   {
     accessorKey: "receipts",

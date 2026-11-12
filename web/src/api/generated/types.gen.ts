@@ -116,6 +116,55 @@ export type Connection = {
     receipts: Array<number>;
 };
 
+/**
+ * What a connection is at the moment it changes: it opened, bytes came in or went out, it printed
+ * a receipt, or it closed. The pieces are not repeated, which would make a long job quadratic:
+ * only how many there are, and the one that just came in.
+ */
+export type ConnectionChange = {
+    /**
+     * How many bytes the program has sent so far.
+     */
+    bytes_in: number;
+    /**
+     * How many bytes the printer has answered so far.
+     */
+    bytes_out: number;
+    chunk?: Chunk | null;
+    /**
+     * Milliseconds since 1970, or nothing while it is open.
+     */
+    closed_at?: number | null;
+    /**
+     * The number of the connection, which is never used again.
+     */
+    id: number;
+    /**
+     * False once it closed.
+     */
+    open: boolean;
+    /**
+     * Milliseconds since 1970.
+     */
+    opened_at: number;
+    /**
+     * The address of the program, or `http` for a request to print.
+     */
+    peer: string;
+    /**
+     * How many pieces the bytes have come in so far.
+     */
+    pieces: number;
+    /**
+     * The name of the printer it connected to.
+     */
+    printer: string;
+    /**
+     * The receipts it printed so far.
+     */
+    receipts: Array<number>;
+};
+
 export type CutMode = 'full' | 'partial';
 
 export type Decoded = {
@@ -450,12 +499,10 @@ export type Notice = {
     };
 } | {
     type: 'connection';
-    value: {
-        id: number;
-        open: boolean;
-        peer: string;
-        printer: string;
-    };
+    /**
+     * A connection opened, got or gave bytes, printed a receipt or closed.
+     */
+    value: ConnectionChange;
 } | {
     type: 'printer_added';
     /**

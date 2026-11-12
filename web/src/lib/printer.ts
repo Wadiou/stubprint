@@ -1,4 +1,12 @@
+import { z } from "zod";
 import type { NetworkAddress, PrinterInfo } from "@/api/generated/types.gen";
+
+/** A port as typed: digits only, from 1 to 65535. */
+const typedPort = z
+  .string()
+  .regex(/^\d+$/)
+  .transform(Number)
+  .pipe(z.number().int().min(1).max(65535));
 
 export type Tone = "ok" | "warn" | "bad";
 
@@ -48,7 +56,6 @@ export const DEFAULT_LISTEN: ListenChoice = { host: "127.0.0.1", free: true, por
 
 /** The address a choice asks for, and whether it is complete: an address, and a port from 1 to 65535 unless the system picks it. */
 export function resolveListen({ host, free, port: portText }: ListenChoice) {
-  const portNumber = Number(portText);
-  const valid = host.length > 0 && (free || (/^\d+$/.test(portText) && portNumber >= 1 && portNumber <= 65535));
+  const valid = host.length > 0 && (free || typedPort.safeParse(portText).success);
   return { valid, listen: listenAddress(host, free ? "" : portText) };
 }

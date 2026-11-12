@@ -7,7 +7,10 @@ import { router } from "./router";
 
 const queryClient = new QueryClient();
 
-createRoot(document.getElementById("root") as HTMLElement).render(
+const root = document.getElementById("root");
+if (!root) throw new Error("The page has no element with the id root.");
+
+createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />

@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { listPrintersQueryKey, setPrinterStatusMutation } from "@/api/generated/@tanstack/react-query.gen";
 import type { Fault, Paper, PrinterInfo } from "@/api/generated/types.gen";
+import { zFault, zPaper } from "@/api/generated/zod.gen";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 
@@ -51,7 +52,10 @@ export function PrinterStatusSettings({ printer }: { printer: PrinterInfo }) {
         </Setting>
       ))}
       <Setting label="Paper">
-        <Select items={PAPER} value={printer.status.paper} onValueChange={(value) => set({ paper: value as Paper })}>
+        <Select items={PAPER} value={printer.status.paper} onValueChange={(value) => {
+            const paper = zPaper.safeParse(value);
+            if (paper.success) set({ paper: paper.data });
+          }}>
           <SelectTrigger aria-label="Paper" size="sm" className="w-40">
             <SelectValue />
           </SelectTrigger>
@@ -68,7 +72,11 @@ export function PrinterStatusSettings({ printer }: { printer: PrinterInfo }) {
         <Select
           items={FAULTS}
           value={printer.status.fault ?? "none"}
-          onValueChange={(value) => set({ fault: value === "none" ? null : (value as Fault) })}
+          onValueChange={(value) => {
+            if (value === "none") return set({ fault: null });
+            const fault = zFault.safeParse(value);
+            if (fault.success) set({ fault: fault.data });
+          }}
         >
           <SelectTrigger aria-label="Fault" size="sm" className="w-40">
             <SelectValue />
