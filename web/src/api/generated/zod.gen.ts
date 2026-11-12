@@ -272,6 +272,7 @@ export const zPrinterStatus = z.object({
 export const zPrinterInfo = z.object({
     connections: z.int().gte(0),
     dialect: zDialect,
+    held: z.int().gte(0),
     hold_offline: z.int().gte(0),
     listen: z.string(),
     name: z.string(),
@@ -631,6 +632,13 @@ export const zNotice = z.union([
         type: z.enum(['printer_removed']),
         value: z.object({
             name: z.string()
+        })
+    }),
+    z.object({
+        type: z.enum(['held']),
+        value: z.object({
+            held: z.int().gte(0),
+            printer: z.string()
         })
     }),
     z.object({

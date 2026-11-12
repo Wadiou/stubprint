@@ -4,7 +4,7 @@ import { listPrintersQueryKey, updatePrinterMutation } from "@/api/generated/@ta
 import type { PrinterInfo } from "@/api/generated/types.gen";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { DEFAULT_HOLD, holdSize, MAX_HOLD } from "@/lib/printer";
+import { DEFAULT_HOLD, heldText, holdSize, MAX_HOLD } from "@/lib/printer";
 
 /** The receive buffer of the printer, which holds what it is sent while it cannot print. Off until it is chosen so tests stay fast. */
 export function PrinterRealismSettings({ printer }: { printer: PrinterInfo }) {
@@ -44,6 +44,7 @@ export function PrinterRealismSettings({ printer }: { printer: PrinterInfo }) {
             onCheckedChange={(next) => hold(next ? (size ?? DEFAULT_HOLD) : 0)}
           />
         </div>
+        {on && <p className="text-sm text-muted-foreground">{heldText(printer.held, printer.hold_offline)}</p>}
         {size === undefined && <p className="text-sm text-destructive">Use a whole number of bytes from 1 to {MAX_HOLD.toLocaleString("en-US")}.</p>}
       </div>
     </section>

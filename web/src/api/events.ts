@@ -19,6 +19,7 @@ const STALE = {
   receipt_removed: [listReceiptsQueryKey()],
   cleared: [listReceiptsQueryKey()],
   status: [listPrintersQueryKey()],
+  held: [listPrintersQueryKey()],
   printer_added: [listPrintersQueryKey()],
   printer_changed: [listPrintersQueryKey()],
   printer_removed: [listPrintersQueryKey()],

@@ -524,6 +524,21 @@ export type Notice = {
         name: string;
     };
 } | {
+    type: 'held';
+    /**
+     * How many bytes a printer holds changed, because it cannot print.
+     */
+    value: {
+        /**
+         * How many bytes it holds now.
+         */
+        held: number;
+        /**
+         * The name of the printer.
+         */
+        printer: string;
+    };
+} | {
     type: 'action';
     /**
      * A command was read, while the job is still being sent. Only sent to those who ask for the
@@ -667,6 +682,10 @@ export type PrinterInfo = {
      */
     connections: number;
     dialect: Dialect;
+    /**
+     * How many bytes it holds now because it cannot print.
+     */
+    held: number;
     /**
      * How many bytes it holds while it cannot print, such as with its cover open. 0 means it holds
      * nothing and prints whatever it receives.

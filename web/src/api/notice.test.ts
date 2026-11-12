@@ -38,3 +38,9 @@ test("a receipt event is read with its number, its printer and its first lines",
   expect(notice?.type).toBe("receipt");
   if (notice?.type === "receipt") expect(notice.value.preview).toEqual(["", "THANK YOU"]);
 });
+
+test("a held event is read with the printer and how many bytes it holds", () => {
+  const notice = readNotice(JSON.stringify({ type: "held", value: { printer: "till", held: 312 } }));
+  expect(notice?.type).toBe("held");
+  if (notice?.type === "held") expect(notice.value.held).toBe(312);
+});

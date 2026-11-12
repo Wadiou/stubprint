@@ -25,6 +25,10 @@ export function holdSize(text: string) {
   return size.success ? size.data : undefined;
 }
 
+/** How full the buffer of a printer is: `Holding 312 / 4,096 bytes`. */
+export const heldText = (held: number, capacity: number) =>
+  `Holding ${held.toLocaleString("en-US")} / ${capacity.toLocaleString("en-US")} bytes`;
+
 export type Tone = "ok" | "warn" | "bad";
 
 /** How a printer is doing, in a word and a colour, from what it says about itself. */
