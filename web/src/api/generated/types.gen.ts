@@ -718,8 +718,7 @@ export type PrinterInfo = {
 };
 
 /**
- * A printer as it is written in a configuration file or in a request, where what is left out is
- * the default.
+ * A printer as written in `--printer` or in an API request. Anything left out gets its default.
  */
 export type PrinterSettings = {
     /**
