@@ -36,7 +36,13 @@ export function DataTable<T>({ data, columns, getRowId, selected, onSelect, empt
         </TableHeader>
         <TableBody>
           {table.getRowModel().rows.map((row) => (
-            <TableRow key={row.id} data-state={row.id === selected ? "selected" : undefined} onClick={() => onSelect?.(row.id)}>
+            <TableRow
+              key={row.id}
+              data-state={row.id === selected ? "selected" : undefined}
+              // Only a table that can choose a row shows that its rows can be pressed.
+              className={onSelect ? "cursor-pointer" : undefined}
+              onClick={() => onSelect?.(row.id)}
+            >
               {row.getVisibleCells().map((cell) => (
                 <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
               ))}
