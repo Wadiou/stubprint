@@ -153,6 +153,25 @@ impl EscPos {
                 self.printer_id(machine, third);
                 Step::Consumed(3)
             }
+            // GS g 2 m nL nH asks for the maintenance counter numbered nL + 256 nH, and m is 0. The
+            // answer is a header of 0x5F, the value as digits, and a NUL. A number the printer has
+            // no counter for cannot be asked, so it is reported and nothing is answered.
+            0x67 if third == b'2' => {
+                let (Some(m), Some(low), Some(high)) = (input.get(3), input.get(4), input.get(5))
+                else {
+                    return Step::Incomplete;
+                };
+                let number = u16::from(low) | (u16::from(high) << 8);
+                let value = machine.counters.get(number).filter(|_| m == 0);
+                let Some(value) = value else {
+                    return input.fixed_unknown(6, events);
+                };
+                let mut answer = vec![0x5f];
+                answer.extend(value.to_string().bytes());
+                answer.push(0);
+                machine.reply(&answer);
+                Step::Consumed(6)
+            }
             0x6b => self.parse_barcode(machine, input, events),
             0x28 => self.parse_gs_function(machine, input, third, events),
             // GS 8 L is the graphics command with a length of four bytes.

@@ -181,6 +181,12 @@ impl Printer {
         self.decoder.status()
     }
 
+    /// Changes what the printer counted about its own work, which a program can ask for with
+    /// `GS g 2`.
+    pub fn set_counters(&mut self, counters: crate::counters::Counters) {
+        self.decoder.set_counters(counters);
+    }
+
     /// Changes what the printer says about itself, as when the paper runs out. What it held is
     /// read now if it can print again, and what that finished is returned.
     pub fn set_status(&mut self, status: PrinterStatus) -> Pushed {
@@ -293,6 +299,33 @@ pub struct Pushed {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_maintenance_counter_is_answered_with_its_digits_between_a_header_and_a_nul() {
+        let mut printer = Printer::new();
+        printer.set_counters(crate::counters::Counters {
+            line_feeds: 120,
+            cuts: 3,
+        });
+        // The command may come in pieces.
+        printer.push(&[0x1d, b'g', b'2']);
+        printer.push(&[0, 20]);
+        assert!(printer.take_replies().is_empty());
+        printer.push(&[0]);
+        assert_eq!(printer.take_replies(), [0x5f, b'1', b'2', b'0', 0]);
+        printer.push(&[0x1d, b'g', b'2', 0, 50, 0]);
+        assert_eq!(printer.take_replies(), [0x5f, b'3', 0]);
+    }
+
+    #[test]
+    fn a_counter_the_printer_does_not_have_is_not_answered() {
+        let mut printer = Printer::new();
+        printer.push(&[0x1d, b'g', b'2', 0, 99, 0]);
+        assert!(printer.take_replies().is_empty());
+        // Nor is one asked with an m other than 0.
+        printer.push(&[0x1d, b'g', b'2', 1, 20, 0]);
+        assert!(printer.take_replies().is_empty());
+    }
 
     const CUT: [u8; 4] = [0x1d, b'V', 0x42, 0x00];
 

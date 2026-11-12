@@ -6,6 +6,7 @@
 
 mod bitmap;
 mod codepage;
+mod counters;
 mod decoder;
 mod dialect;
 mod event;
@@ -16,6 +17,7 @@ mod snapshot;
 mod status;
 
 pub use bitmap::Bitmap;
+pub use counters::Counters;
 pub use decoder::{Decoder, Traced};
 pub use dialect::Dialect;
 pub use event::{

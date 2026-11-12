@@ -9,6 +9,7 @@ use super::memory::Memory;
 use super::reader::MAX_LINE_BYTES;
 use crate::bitmap::Bitmap;
 use crate::codepage::{self, TextContext};
+use crate::counters::Counters;
 use crate::event::{Align, Event, Style};
 use crate::layout::Layout;
 use crate::profile::Profile;
@@ -75,6 +76,8 @@ pub(super) struct Machine {
     pub(super) memory: Memory,
     /// What the printer says about itself when it is asked.
     pub(super) status: PrinterStatus,
+    /// What the printer counted about its own work, which a program can ask for.
+    pub(super) counters: Counters,
     /// The bytes the printer answered with, which the connection has not taken yet.
     pub(super) replies: Vec<u8>,
     code_pages: CodePages,
@@ -89,6 +92,7 @@ impl Machine {
             line_reported: false,
             memory: Memory::default(),
             status: PrinterStatus::default(),
+            counters: Counters::default(),
             replies: Vec::new(),
             code_pages,
         }

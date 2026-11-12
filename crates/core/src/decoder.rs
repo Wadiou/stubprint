@@ -153,6 +153,11 @@ impl Decoder {
             .answer_real_time(&mut self.machine, held, from);
     }
 
+    /// Changes what the printer counted about its own work, as it is when the program asks.
+    pub fn set_counters(&mut self, counters: crate::counters::Counters) {
+        self.machine.counters = counters;
+    }
+
     /// Changes what the printer says about itself, as when the paper runs out. A language that has
     /// the printer report such a change by itself adds the report to the replies.
     pub fn set_status(&mut self, status: PrinterStatus) {
