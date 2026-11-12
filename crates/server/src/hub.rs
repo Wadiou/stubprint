@@ -8,7 +8,6 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use axum::body::Bytes;
 use serde::Serialize;
 use stubprint_core::{Event, Printer, PrinterStatus, Profile, Receipt, Snapshot};
-use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tokio::time::Instant;
 use utoipa::ToSchema;
@@ -284,7 +283,7 @@ impl Hub {
                 format!("there is already a printer called {}", settings.name),
             ));
         }
-        let socket = TcpListener::bind(settings.listen).await.map_err(|error| {
+        let socket = listener::open(settings.listen, settings.receive_buffer).map_err(|error| {
             io::Error::new(
                 error.kind(),
                 format!(
@@ -299,6 +298,7 @@ impl Hub {
             settings.profile,
             socket.local_addr()?,
             settings.hold_offline,
+            settings.receive_buffer,
         ));
         {
             let mut printers = self

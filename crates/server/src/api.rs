@@ -378,9 +378,13 @@ struct PrinterChange {
     /// buffer. 0 holds nothing and prints whatever it receives. Connections that are open follow
     /// the change.
     hold_offline: Option<usize>,
+    /// How many bytes the network keeps for what a program sends before the printer reads it, as
+    /// the network chip of a real printer does. 0 leaves it to the system, which keeps a lot. It
+    /// applies to connections that open from now on.
+    receive_buffer: Option<usize>,
 }
 
-/// Sets the printer to another model, as if another printer stood on its port, or changes how much it holds while it cannot print.
+/// Sets the printer to another model, as if another printer stood on its port, or changes how much it holds while it cannot print and how much the network keeps for a program.
 #[utoipa::path(patch, path = "/api/printers/{name}", operation_id = "update_printer", tag = "printers", params(("name" = String, Path, description = "The name of the printer")),
     request_body = PrinterChange, responses(
         (status = 200, description = "The printer", body = PrinterInfo),
@@ -407,6 +411,9 @@ async fn update_printer(
         printer.set_hold_offline(bytes);
         // A printer that holds nothing prints what it has, if it can.
         hub.release_held(&printer, printer.status());
+    }
+    if let Some(bytes) = change.receive_buffer {
+        printer.set_receive_buffer(bytes);
     }
     hub.notify(Notice::PrinterChanged(PrinterInfo::of(&printer)));
     Ok(Json(PrinterInfo::of(&printer)))

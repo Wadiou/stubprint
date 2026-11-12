@@ -1260,6 +1260,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "socket2",
  "stubprint-core",
  "stubprint-render",
  "tokio",

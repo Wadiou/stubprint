@@ -1,10 +1,12 @@
 //! The TCP side: programs connect to a port and send the bytes they would send to a printer.
 
+use std::io;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::{TcpListener, TcpSocket, TcpStream};
 use tokio::sync::{watch, Semaphore};
 use tokio::time::timeout;
 
@@ -19,6 +21,37 @@ const MAX_CONNECTIONS: usize = 64;
 const MAX_CONNECTION_BYTES: usize = 256 * 1024 * 1024;
 /// How long an answer can wait for a program that does not read.
 const WRITE_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Opens the port. The network keeps `receive_buffer` bytes for what arrives before it is read, or
+/// what the system chooses when that is 0. It is set before the port opens, so the first thing a
+/// program is told about how much it may send already says so.
+pub(crate) fn open(listen: SocketAddr, receive_buffer: usize) -> io::Result<TcpListener> {
+    let socket = if listen.is_ipv4() {
+        TcpSocket::new_v4()?
+    } else {
+        TcpSocket::new_v6()?
+    };
+    #[cfg(unix)]
+    socket.set_reuseaddr(true)?;
+    if receive_buffer > 0 {
+        socket.set_recv_buffer_size(buffer_size(receive_buffer))?;
+    }
+    socket.bind(listen)?;
+    socket.listen(1024)
+}
+
+/// The size to ask the system for, which does not fit in what it takes for a huge number.
+fn buffer_size(bytes: usize) -> u32 {
+    u32::try_from(bytes).unwrap_or(u32::MAX)
+}
+
+/// Sets how much the network keeps for what this program sends. The system may change it.
+fn limit_receive_buffer(stream: &TcpStream, receive_buffer: usize) {
+    if receive_buffer > 0 {
+        let _ = socket2::SockRef::from(stream)
+            .set_recv_buffer_size(receive_buffer.min(u32::MAX as usize));
+    }
+}
 
 /// Waits until the printer is told to stop, which may have happened before the call.
 async fn stopped(mut stop: watch::Receiver<bool>) {
@@ -37,6 +70,7 @@ pub async fn listen(hub: Arc<Hub>, printer: Arc<VirtualPrinter>, listener: TcpLi
                     let Ok(permit) = room.clone().try_acquire_owned() else {
                         continue;
                     };
+                    limit_receive_buffer(&stream, printer.receive_buffer());
                     let session = Session::open(hub.clone(), printer.clone(), peer.to_string());
                     let stop = stop.clone();
                     let status = printer.watch_status();

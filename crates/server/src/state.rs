@@ -26,6 +26,9 @@ pub(crate) struct Saved {
     /// Files written before the size was kept by this name have none, and get the default.
     #[serde(default = "default_hold")]
     hold: usize,
+    /// Files written before it was kept leave it to the system.
+    #[serde(default)]
+    receive_buffer: usize,
     pub(crate) status: PrinterStatus,
 }
 
@@ -41,6 +44,7 @@ impl Saved {
             dialect: printer.dialect.name().to_string(),
             profile: printer.profile().name.clone(),
             hold: printer.hold_offline(),
+            receive_buffer: printer.receive_buffer(),
             status: printer.status(),
         }
     }
@@ -58,6 +62,7 @@ impl Saved {
                 .ok_or_else(|| format!("`{}` is not a dialect", self.dialect))?,
             profile: Profile::named(&self.profile).unwrap_or_else(Profile::generic),
             hold_offline: self.hold,
+            receive_buffer: self.receive_buffer,
         })
     }
 }

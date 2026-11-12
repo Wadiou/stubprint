@@ -21,6 +21,7 @@ a real printer, since the same bytes mean different things in ESC/POS and in Sta
 | `dialect` | `escpos`, `starline` or `starprnt` | `escpos` |
 | `profile` | the model, which sets the code pages, the columns and the answers to questions | `generic` |
 | `hold_offline` | how many bytes it holds while it cannot print, see below. 0 holds nothing | `4096` |
+| `receive_buffer` | how many bytes the network keeps for what a program sends before the printer reads it, see below. 0 leaves it to the system | `0` |
 
 `--printer` can be given again for more printers. `--web <folder>` serves the built web page from
 that folder at the address of the API, and any path that is not the API gives the page, so its own
@@ -83,6 +84,22 @@ Epson printer a held `feed_button` too.
 - A connection that is open follows the size as it changes. Turning it off prints what was held. A request (`POST /api/print`, a sample) cannot
   wait, so one that does not fit is refused with 503.
 
+### How much a program can send before it waits
+
+A program that sends to a printer waits when the printer does not read: first its own system keeps
+what it wrote, then the network of the printer keeps some, then the printer itself. Stubprint runs
+on a computer whose system keeps a lot for each connection, so a receipt of 70 KB goes in without
+the program ever waiting, even when the printer holds it. A real printer keeps far less.
+`receive_buffer` sets how much the network keeps on the printer's side, so a program that sends a
+lot has to wait for the printer, as it does for a real one.
+
+- It is set when the port opens and again when a connection opens, so a change applies to the
+  connections that open after it.
+- The system rounds the number. Linux keeps about twice what is asked, with a minimum.
+- The program's own system keeps its share, which Stubprint cannot change. A program that sets a
+  small send buffer of its own waits sooner still.
+- 0 leaves the size to the system, which grows it as data arrives.
+
 ## The API
 
 `GET /api` says what this is and where the description is. The description of the API is made from
@@ -109,7 +126,7 @@ the code and is served at `/api/openapi.json`, with every route, parameter and f
 | `POST /api/printers` | adds a printer while the server runs, from the same settings as `--printer` (`name`, `listen`, `dialect`, `profile`, `hold_offline`), and opens its port at once. Without `listen` the system picks a free port, and a name that is taken gets `_2`, `_3` and so on after it, which the answer says. 409 when the address is taken |
 | `DELETE /api/printers/{name}` | removes a printer: its port and its connections close, and the receipts it printed stay |
 | `POST /api/printers/{name}` | changes what the printer pretends: `online`, `cover_open`, `paper` (`adequate`, `near_end`, `end`), `drawer_open`, `feed_button`, `fault` (`cutter`, `unrecoverable`, `recoverable` or `null`) |
-| `PATCH /api/printers/{name}` | sets the printer to another model, `{"profile": "TM-T20III"}`, as if another printer stood on its port. Receipts printed from then on are read and drawn as that model, and each receipt keeps the one it was printed on (`profile` in the receipt). It also sets how much the printer holds while it cannot print, `{"hold_offline": 4096}` |
+| `PATCH /api/printers/{name}` | sets the printer to another model, `{"profile": "TM-T20III"}`, as if another printer stood on its port. Receipts printed from then on are read and drawn as that model, and each receipt keeps the one it was printed on (`profile` in the receipt). It also sets how much the printer holds while it cannot print, `{"hold_offline": 4096}`, and how much the network keeps for a program, `{"receive_buffer": 8192}` |
 | `GET /api/events` | live events: `receipt`, `receipt_removed`, `cleared`, `status`, `connection` (each time one opens, receives or answers bytes, prints a receipt or closes, with its state then: its bytes, how many pieces, its receipts, and in `chunk` the piece that just came in), `printer_added`, `printer_changed`, `printer_removed`, `held` (how many bytes a printer holds changed), and `lagged` when a watcher was too slow. With `?detail=actions` also `action`, one for each command as it is read, with where its bytes are and what the printer believed after it. Commands are only made while someone watches them |
 | `GET /api/connections`, `GET /api/connections/{id}` | the programs that connected: when, in what pieces and at what times the bytes came, how many bytes the printer answered, and which receipts they printed. The latest 200 are kept |
 | `POST /api/decode` | reads the body as a printer would, in `?dialect=` and `?profile=`, and says every command, the answers and how many receipts. Nothing is kept. It shows what the same bytes mean to another language or model |

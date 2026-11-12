@@ -29,6 +29,8 @@ pub struct VirtualPrinter {
     status: watch::Sender<PrinterStatus>,
     /// How many bytes it holds while it cannot print. 0 is none.
     hold_offline: AtomicUsize,
+    /// How many bytes the network keeps for what a program sends. 0 leaves it to the system.
+    receive_buffer: AtomicUsize,
     /// What programs that have gone left in it.
     held: Mutex<Vec<Held>>,
     /// How many bytes the connections that are open hold.
@@ -49,6 +51,7 @@ impl VirtualPrinter {
         profile: Profile,
         listen: SocketAddr,
         hold_offline: usize,
+        receive_buffer: usize,
     ) -> Self {
         Self {
             name,
@@ -57,6 +60,7 @@ impl VirtualPrinter {
             listen,
             status: watch::channel(PrinterStatus::default()).0,
             hold_offline: AtomicUsize::new(hold_offline),
+            receive_buffer: AtomicUsize::new(receive_buffer),
             held: Mutex::new(Vec::new()),
             session_held: AtomicUsize::new(0),
             told_held: AtomicUsize::new(0),
@@ -103,6 +107,17 @@ impl VirtualPrinter {
     pub fn set_hold_offline(&self, bytes: usize) {
         self.hold_offline.store(bytes, Ordering::Relaxed);
         self.status.send_modify(|_| {});
+    }
+
+    /// How many bytes the network keeps for what a program sends before the printer reads it. 0
+    /// leaves it to the system.
+    pub fn receive_buffer(&self) -> usize {
+        self.receive_buffer.load(Ordering::Relaxed)
+    }
+
+    /// Changes it for the connections that open from now on.
+    pub fn set_receive_buffer(&self, bytes: usize) {
+        self.receive_buffer.store(bytes, Ordering::Relaxed);
     }
 
     /// How many bytes a connection may hold: the size it is set to hold, less what programs that

@@ -2155,6 +2155,59 @@ async fn a_connection_that_is_open_follows_how_much_the_printer_holds_as_it_chan
     assert_eq!(server.after(0).await["texts"], json!(["Held"]));
 }
 
+#[tokio::test]
+async fn a_small_receive_buffer_makes_a_program_that_sends_a_lot_wait_until_the_printer_can_print()
+{
+    let server = Harness::start(&["name=till,receive_buffer=4096"]).await;
+    assert_eq!(
+        server.json("/api/printers").await[0]["receive_buffer"],
+        4096
+    );
+    server.report("till", json!({"cover_open": true})).await;
+
+    // A program that keeps little itself, so what it sends has nowhere to wait but the printer.
+    let socket = tokio::net::TcpSocket::new_v4().unwrap();
+    socket.set_send_buffer_size(4096).unwrap();
+    let mut stream = socket.connect(server.printer("till")).await.unwrap();
+    let job = "A".repeat(63) + "\n";
+    let job = job.repeat(1100);
+    let size = job.len();
+    let sender = tokio::spawn(async move {
+        stream.write_all(job.as_bytes()).await.unwrap();
+        stream
+    });
+    tokio::time::sleep(Duration::from_millis(600)).await;
+    assert!(
+        !sender.is_finished(),
+        "the program has to wait while the printer cannot print"
+    );
+
+    server.report("till", json!({"cover_open": false})).await;
+    let stream = tokio::time::timeout(Duration::from_secs(10), sender)
+        .await
+        .expect("the program goes on when the printer can print")
+        .unwrap();
+    drop(stream);
+    server.after(0).await;
+    assert_eq!(server.connections().await[0]["bytes_in"], size);
+}
+
+#[tokio::test]
+async fn the_size_of_the_receive_buffer_is_set_by_the_api_for_the_connections_that_open_after() {
+    let server = Harness::start(&["name=till"]).await;
+    assert_eq!(server.json("/api/printers").await[0]["receive_buffer"], 0);
+    let changed = server
+        .client
+        .patch(format!("{}/api/printers/till", server.base))
+        .json(&json!({"receive_buffer": 8192}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(changed.status(), 200);
+    let info: Value = changed.json().await.unwrap();
+    assert_eq!(info["receive_buffer"], 8192);
+}
+
 /// A file in the temporary folder that no other test uses, and that does not exist yet.
 fn state_file(name: &str) -> std::path::PathBuf {
     let unique = std::time::SystemTime::now()

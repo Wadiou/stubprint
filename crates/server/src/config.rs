@@ -59,6 +59,10 @@ pub struct PrinterConfig {
     /// How many bytes it holds while it cannot print, such as with its cover open. 0 means it holds
     /// nothing and prints whatever it receives, whatever it reports.
     pub hold_offline: usize,
+    /// How many bytes the network keeps for what a program sends before the printer reads it. 0
+    /// leaves it to the system, which is large. A small one makes a program that sends a lot wait
+    /// early, as it does for a real printer.
+    pub receive_buffer: usize,
 }
 
 /// The size of the receive buffer of a printer, in bytes, when none is chosen.
@@ -86,6 +90,7 @@ impl Default for PrinterConfig {
             dialect: Dialect::EscPos,
             profile: Profile::generic(),
             hold_offline: DEFAULT_HOLD,
+            receive_buffer: 0,
         }
     }
 }
@@ -114,6 +119,13 @@ pub struct PrinterSettings {
     /// the program has gone. The default is 4096. 0 holds nothing: it prints whatever it receives.
     #[schema(example = 4096)]
     pub hold_offline: Option<usize>,
+    /// How many bytes the network keeps for what a program sends before the printer reads it, as
+    /// the network chip of a real printer does. A program that sends more than that, and more than
+    /// its own system keeps, has to wait. 0, the default, leaves it to the system, which keeps a
+    /// lot, so a program may not wait at all. The system rounds the number, and a connection that
+    /// is open keeps the size it had when it opened.
+    #[schema(example = 8192)]
+    pub receive_buffer: Option<usize>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -135,17 +147,23 @@ impl PrinterSettings {
             dialect: None,
             profile: None,
             hold_offline: None,
+            receive_buffer: None,
         };
         for pair in text.split(',').filter(|pair| !pair.is_empty()) {
             let (key, value) = pair
                 .split_once('=')
                 .ok_or_else(|| format!("`{pair}` should be key=value"))?;
-            if key == "hold_offline" {
-                settings.hold_offline = Some(
+            if key == "hold_offline" || key == "receive_buffer" {
+                let bytes = Some(
                     value
                         .parse()
                         .map_err(|_| format!("`{value}` is not a number of bytes"))?,
                 );
+                if key == "hold_offline" {
+                    settings.hold_offline = bytes;
+                } else {
+                    settings.receive_buffer = bytes;
+                }
                 continue;
             }
             let slot = match key {
@@ -180,6 +198,9 @@ impl PrinterSettings {
         if let Some(bytes) = self.hold_offline {
             printer.hold_offline = bytes;
         }
+        if let Some(bytes) = self.receive_buffer {
+            printer.receive_buffer = bytes;
+        }
         Ok(printer)
     }
 }
@@ -204,7 +225,7 @@ impl PrinterConfig {
         Ok(())
     }
 
-    /// A printer written as `name=front,listen=127.0.0.1:9100,dialect=escpos,profile=TM-T88IV,hold_offline=4096`.
+    /// A printer written as `name=front,listen=127.0.0.1:9100,dialect=escpos,profile=TM-T88IV,hold_offline=4096,receive_buffer=8192`.
     /// What is left out is the default of [`PrinterConfig::default`].
     pub fn parse(text: &str) -> Result<Self, String> {
         PrinterSettings::from_pairs(text)?.build()
@@ -231,7 +252,7 @@ pub fn default_state_file() -> Option<PathBuf> {
 
 impl Config {
     /// A configuration written as JSON, with `http`, `keep`, `web`, `ready_file`, `state_file` and `printers` that each have `name`,
-    /// `listen`, `dialect`, `profile` and `hold_offline`. What is left out is the default.
+    /// `listen`, `dialect`, `profile`, `hold_offline` and `receive_buffer`. What is left out is the default.
     pub fn from_json(text: &str) -> Result<Self, String> {
         let file: FileSettings =
             serde_json::from_str(text).map_err(|error| format!("bad configuration: {error}"))?;
