@@ -1,4 +1,5 @@
 import type { ColumnDef } from "@tanstack/react-table";
+import { Loader2Icon } from "lucide-react";
 import type { PrinterInfo, SampleSummary, VariantInfo } from "@/api/generated/types.gen";
 import { Button } from "@/components/ui/button";
 
@@ -59,7 +60,7 @@ export function createSamplesColumns({ paperMm, printers, printing, onPrint }: S
                 if (target && first) onPrint(target, row.original, first);
               }}
             >
-              Print
+              {printing ? <Loader2Icon className="size-3.5 animate-spin" /> : "Print"}
             </Button>
           </div>
         );

@@ -167,7 +167,8 @@ export const getOpenapiOptions = (options?: Options<GetOpenapiData>) => queryOpt
 });
 
 /**
- * Sends bytes to a printer as if a program had connected and sent them.
+ * Sends bytes to a printer as if a program had connected and sent them, and waits for them to
+ * print.
  */
 export const printBytesMutation = (options?: Partial<Options<PrintBytesData>>): UseMutationOptions<PrintBytesResponse, PrintBytesError, Options<PrintBytesData>> => {
     const mutationOptions: UseMutationOptions<PrintBytesResponse, PrintBytesError, Options<PrintBytesData>> = {
@@ -545,9 +546,9 @@ export const getSamplePictureOptions = (options: Options<GetSamplePictureData>) 
 });
 
 /**
- * Prints a sample to a printer, as if a program had connected and sent it. Without `dialect` it
- * sends a variant in the command language the printer is set to, because a printer only reads
- * its own.
+ * Prints a sample to a printer, as if a program had connected and sent it, and waits for it to
+ * print. Without `dialect` it sends a variant in the command language the printer is set to,
+ * because a printer only reads its own.
  */
 export const printSampleMutation = (options?: Partial<Options<PrintSampleData>>): UseMutationOptions<PrintSampleResponse, PrintSampleError, Options<PrintSampleData>> => {
     const mutationOptions: UseMutationOptions<PrintSampleResponse, PrintSampleError, Options<PrintSampleData>> = {

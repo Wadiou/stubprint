@@ -138,7 +138,8 @@ export const getOpenapi = <ThrowOnError extends boolean = false>(options?: Optio
 });
 
 /**
- * Sends bytes to a printer as if a program had connected and sent them.
+ * Sends bytes to a printer as if a program had connected and sent them, and waits for them to
+ * print.
  */
 export const printBytes = <ThrowOnError extends boolean = false>(options: Options<PrintBytesData, ThrowOnError>): RequestResult<PrintBytesResponses, PrintBytesErrors, ThrowOnError> => (options.client ?? client).post<PrintBytesResponses, PrintBytesErrors, ThrowOnError>({
     bodySerializer: null,
@@ -455,9 +456,9 @@ export const getSamplePicture = <ThrowOnError extends boolean = false>(options: 
 });
 
 /**
- * Prints a sample to a printer, as if a program had connected and sent it. Without `dialect` it
- * sends a variant in the command language the printer is set to, because a printer only reads
- * its own.
+ * Prints a sample to a printer, as if a program had connected and sent it, and waits for it to
+ * print. Without `dialect` it sends a variant in the command language the printer is set to,
+ * because a printer only reads its own.
  */
 export const printSample = <ThrowOnError extends boolean = false>(options: Options<PrintSampleData, ThrowOnError>): RequestResult<PrintSampleResponses, PrintSampleErrors, ThrowOnError> => (options.client ?? client).post<PrintSampleResponses, PrintSampleErrors, ThrowOnError>({
     requestValidator: async (data) => await z.object({

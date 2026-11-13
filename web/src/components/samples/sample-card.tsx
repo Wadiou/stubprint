@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Loader2Icon } from "lucide-react";
 import { useState } from "react";
 import { getSamplePictureOptions } from "@/api/generated/@tanstack/react-query.gen";
 import { getSamplePicture, getSampleText } from "@/api/generated/sdk.gen";
@@ -129,7 +130,16 @@ export function SampleCard({
         </div>
         <div className="flex gap-2">
           <Button className="flex-1" disabled={!printer || !fits || printing} onClick={() => printer && onPrint(printer, sample, variant)}>
-            {printer ? `Print to ${printer.name}` : "No printer"}
+            {printing ? (
+              <>
+                <Loader2Icon className="animate-spin" />
+                Printing
+              </>
+            ) : printer ? (
+              `Print to ${printer.name}`
+            ) : (
+              "No printer"
+            )}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button variant="outline" />}>Download</DropdownMenuTrigger>

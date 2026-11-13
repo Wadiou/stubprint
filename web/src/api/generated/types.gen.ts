@@ -1510,7 +1510,7 @@ export type PrintBytesErrors = {
      */
     404: ErrorBody;
     /**
-     * The printer cannot print and has no room to hold the bytes, as `error` says
+     * The printer cannot print and has no room to hold the bytes, or did not finish printing them in time, as `error` says
      */
     503: ErrorBody;
 };
@@ -2163,7 +2163,7 @@ export type PrintSampleErrors = {
      */
     404: ErrorBody;
     /**
-     * The printer cannot print and has no room to hold the bytes, as `error` says
+     * The printer cannot print and has no room to hold the bytes, or did not finish printing them in time, as `error` says
      */
     503: ErrorBody;
 };
