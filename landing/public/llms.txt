@@ -1,0 +1,22 @@
+# Stubprint
+
+> A thermal printer simulator for development and testing. It reads ESC/POS, Star Line and StarPRNT like a real receipt printer, and shows what came out as a picture of the paper, as text, or as the list of commands with their bytes. It comes as one program with a web app and a CLI.
+
+Programs print to its TCP ports (127.0.0.1:9100 by default) exactly as they would to a network printer. `stubprint wait` waits for the next receipt and exits 0 when one came, which is how a test or an agent checks what was printed. The same data is available over an HTTP API described by an OpenAPI document at `/api/openapi.json` of a running server.
+
+Install on macOS and Linux with `curl -fsSL https://stubprint.dev/install.sh | sh`, and on Windows with `irm https://stubprint.dev/install.ps1 | iex`. A version goes in the address: `https://stubprint.dev/<version>/install.sh`.
+
+## Docs
+
+- [Command line](https://github.com/Wadiou/stubprint/blob/main/docs/CLI.md): every command, the options and the exit codes
+- [Server](https://github.com/Wadiou/stubprint/blob/main/docs/SERVER.md): printers, what a printer does, the API and live events
+
+## Reference
+
+- [ESC/POS](https://github.com/Wadiou/stubprint/blob/main/docs/reference/ESCPOS.md): which commands are read, and what is left out
+- [Star Line and StarPRNT](https://github.com/Wadiou/stubprint/blob/main/docs/reference/STAR.md): the same for the Star languages
+
+## Optional
+
+- [Source and releases](https://github.com/Wadiou/stubprint): the code, the changelog and the downloads
+- [Contributing](https://github.com/Wadiou/stubprint/blob/main/CONTRIBUTING.md): how to work on it
