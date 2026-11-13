@@ -951,17 +951,6 @@ export type SampleSummary = {
 };
 
 /**
- * What a request changes about the server. What is left out stays as it is.
- */
-export type ServerChange = {
-    /**
-     * The address the API and the web page listen on, such as `127.0.0.1:8080`. It is saved and
-     * used from the next start, and the server keeps listening where it is until then.
-     */
-    http?: string | null;
-};
-
-/**
  * How the server is running.
  */
 export type ServerInfo = {
@@ -974,11 +963,6 @@ export type ServerInfo = {
      * a new address cannot be saved.
      */
     kept: boolean;
-    /**
-     * The address saved for the next start, when it is not the one it listens on now. `null` when
-     * they are the same, or when nothing is kept.
-     */
-    next_http?: string | null;
     /**
      * The version of the program.
      */
@@ -2258,36 +2242,3 @@ export type GetServerResponses = {
 };
 
 export type GetServerResponse = GetServerResponses[keyof GetServerResponses];
-
-export type UpdateServerData = {
-    body: ServerChange;
-    path?: never;
-    query?: never;
-    url: '/api/server';
-};
-
-export type UpdateServerErrors = {
-    /**
-     * The address is not one, or it cannot be listened on, as `error` says
-     */
-    400: ErrorBody;
-    /**
-     * No server runs this API, as `error` says
-     */
-    404: ErrorBody;
-    /**
-     * Nothing is kept, so there is nowhere to save it, as `error` says
-     */
-    409: ErrorBody;
-};
-
-export type UpdateServerError = UpdateServerErrors[keyof UpdateServerErrors];
-
-export type UpdateServerResponses = {
-    /**
-     * How the server is running, with the address saved for the next start
-     */
-    200: ServerInfo;
-};
-
-export type UpdateServerResponse = UpdateServerResponses[keyof UpdateServerResponses];

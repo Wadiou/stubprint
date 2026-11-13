@@ -250,8 +250,6 @@ pub struct Hub {
     store: OnceLock<Store>,
     /// How the server was started, once it was.
     server: OnceLock<ServerInfo>,
-    /// The address of the API that the database has, which the next start listens on.
-    saved_http: Mutex<Option<std::net::SocketAddr>>,
     /// The jobs that are being printed, by the connection that sent them.
     open: Mutex<HashMap<u64, Open>>,
 }
@@ -279,7 +277,6 @@ impl Hub {
             notices: broadcast::channel(4096).0,
             store: OnceLock::new(),
             server: OnceLock::new(),
-            saved_http: Mutex::new(None),
             open: Mutex::new(HashMap::new()),
         }
     }
@@ -291,15 +288,7 @@ impl Hub {
 
     /// How the server was started, or `None` for a hub that no server runs.
     pub fn server(&self) -> Option<ServerInfo> {
-        let mut info = self.server.get()?.clone();
-        let saved = *self
-            .saved_http
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        info.next_http = saved
-            .map(|address| address.to_string())
-            .filter(|address| *address != info.http);
-        Some(info)
+        self.server.get().cloned()
     }
 
     /// Saves the address the API listens on from the next start. Says no when nothing is kept.
@@ -308,10 +297,6 @@ impl Hub {
             return false;
         }
         self.write(Command::Http(http));
-        *self
-            .saved_http
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(http);
         true
     }
 

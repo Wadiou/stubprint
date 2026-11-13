@@ -847,9 +847,6 @@ fn info(client: &Client, json: bool) -> Result<(), Failure> {
         show::text(&server, "version"),
         show::text(&server, "http")
     ));
-    if let Some(next) = server["next_http"].as_str() {
-        say(format!("it listens on {next} after the next start"));
-    }
     say(if server["kept"] == true {
         "its state is kept in a database"
     } else {

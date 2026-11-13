@@ -50,7 +50,7 @@ pub fn router(hub: Arc<Hub>) -> Router {
         .route("/api/openapi.json", get(document))
         .route("/api/profiles", get(profiles))
         .route("/api/network", get(network))
-        .route("/api/server", get(server).patch(update_server))
+        .route("/api/server", get(server))
         .route("/api/printers", get(printers).post(add_printer))
         .route(
             "/api/printers/{name}",
@@ -156,7 +156,6 @@ async fn health() -> Json<serde_json::Value> {
         profiles,
         network,
         server,
-        update_server,
         printers,
         printer,
         add_printer,
@@ -225,57 +224,6 @@ async fn network() -> Json<NetworkInfo> {
     (status = 200, description = "How the server is running", body = ServerInfo),
     (status = 404, description = "No server runs this API, as `error` says", body = ErrorBody)))]
 async fn server(State(hub): State<Arc<Hub>>) -> Reply<Json<ServerInfo>> {
-    hub.server()
-        .map(Json)
-        .ok_or_else(|| ApiError::not_found("this API was not started by a server"))
-}
-
-/// What a request changes about the server. What is left out stays as it is.
-#[derive(Debug, Deserialize, ToSchema)]
-#[serde(deny_unknown_fields)]
-struct ServerChange {
-    /// The address the API and the web page listen on, such as `127.0.0.1:8080`. It is saved and
-    /// used from the next start, and the server keeps listening where it is until then.
-    #[schema(example = "127.0.0.1:8080")]
-    http: Option<String>,
-}
-
-/// Changes how the server starts next time: the address of the API and the web page.
-#[utoipa::path(patch, path = "/api/server", operation_id = "update_server", tag = "meta", request_body = ServerChange, responses(
-    (status = 200, description = "How the server is running, with the address saved for the next start", body = ServerInfo),
-    (status = 400, description = "The address is not one, or it cannot be listened on, as `error` says", body = ErrorBody),
-    (status = 404, description = "No server runs this API, as `error` says", body = ErrorBody),
-    (status = 409, description = "Nothing is kept, so there is nowhere to save it, as `error` says", body = ErrorBody)))]
-async fn update_server(
-    State(hub): State<Arc<Hub>>,
-    Json(change): Json<ServerChange>,
-) -> Reply<Json<ServerInfo>> {
-    let current = hub
-        .server()
-        .ok_or_else(|| ApiError::not_found("this API was not started by a server"))?;
-    if let Some(text) = change.http {
-        let address: std::net::SocketAddr = text.parse().map_err(|_| {
-            ApiError(
-                StatusCode::BAD_REQUEST,
-                format!("`{text}` is not an address like 127.0.0.1:8080"),
-            )
-        })?;
-        // An address that cannot be listened on would stop the next start.
-        if address.to_string() != current.http {
-            std::net::TcpListener::bind(address).map_err(|error| {
-                ApiError(
-                    StatusCode::BAD_REQUEST,
-                    format!("the API cannot listen on {address}: {error}"),
-                )
-            })?;
-        }
-        if !hub.save_http(address) {
-            return Err(ApiError(
-                StatusCode::CONFLICT,
-                "nothing is kept, so the address cannot be saved".into(),
-            ));
-        }
-    }
     hub.server()
         .map(Json)
         .ok_or_else(|| ApiError::not_found("this API was not started by a server"))

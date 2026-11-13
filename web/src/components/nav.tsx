@@ -1,11 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { Activity, LayoutGrid, type LucideIcon, Printer, Settings } from "lucide-react";
+import { Activity, LayoutGrid, type LucideIcon, Printer } from "lucide-react";
 
 const ITEMS: { to: string; label: string; icon: LucideIcon }[] = [
   { to: "/", label: "Live paper", icon: Activity },
   { to: "/printers", label: "Printers", icon: Printer },
   { to: "/samples", label: "Samples", icon: LayoutGrid },
-  { to: "/settings", label: "Settings", icon: Settings },
 ];
 
 /**

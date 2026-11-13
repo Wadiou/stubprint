@@ -311,19 +311,11 @@ export const zReceiptSummary = z.object({
 });
 
 /**
- * What a request changes about the server. What is left out stays as it is.
- */
-export const zServerChange = z.object({
-    http: z.string().nullish()
-});
-
-/**
  * How the server is running.
  */
 export const zServerInfo = z.object({
     http: z.string(),
     kept: z.boolean(),
-    next_http: z.string().nullish(),
     version: z.string()
 });
 
@@ -1044,10 +1036,3 @@ export const zGetSampleTextResponse = z.string();
  * How the server is running
  */
 export const zGetServerResponse = zServerInfo;
-
-export const zUpdateServerBody = zServerChange;
-
-/**
- * How the server is running, with the address saved for the next start
- */
-export const zUpdateServerResponse = zServerInfo;

@@ -4,7 +4,6 @@ import { liveSearch, printersSearch } from "@/lib/search";
 import { LivePage } from "@/pages/live";
 import { PrintersPage } from "@/components/printers/printers-page";
 import { SamplesPage } from "@/components/samples/samples-page";
-import { SettingsPage } from "@/components/settings/settings-page";
 
 const rootRoute = createRootRoute({ component: Shell });
 
@@ -47,15 +46,8 @@ function PrintersRoute() {
   return <PrintersPage search={search} onSearchChange={(next) => navigate({ search: next })} />;
 }
 
-const settingsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/settings",
-  staticData: { title: "Settings" },
-  component: SettingsPage,
-});
-
 export const router = createRouter({
-  routeTree: rootRoute.addChildren([liveRoute, printersRoute, samplesRoute, settingsRoute]),
+  routeTree: rootRoute.addChildren([liveRoute, printersRoute, samplesRoute]),
 });
 
 declare module "@tanstack/react-router" {
