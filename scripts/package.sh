@@ -4,10 +4,13 @@
 # every target after `cargo build --release --target <target> -p stubprint-server`.
 #
 #   scripts/package.sh x86_64-unknown-linux-gnu 0.4.0
+# -e stops at the first failure, -u at an unset variable, and pipefail at a failure inside a pipe.
 set -euo pipefail
 
+# ${1:?text} stops with that text when the argument is missing.
 target="${1:?say the target, such as x86_64-unknown-linux-gnu}"
 version="${2:?say the version, such as 0.4.0}"
+# The root of the repository, wherever the script was started from.
 cd "$(dirname "$0")/.."
 
 name="stubprint-${version}-${target}"

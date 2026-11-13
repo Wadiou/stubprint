@@ -1,5 +1,7 @@
 name: Release
 
+# Starts when CI has finished on main, so a commit whose tests failed is never released. The first
+# job also checks that CI succeeded: this trigger fires on failures too.
 on:
   workflow_run:
     workflows: ["CI"]
@@ -25,6 +27,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          # All the history: the version is worked out from the commit messages since the last tag.
           fetch-depth: 0
           ref: ${{ github.event.workflow_run.head_sha }}
 
@@ -33,6 +36,9 @@ jobs:
         with:
           node-version: 24
 
+      # `npx --yes -p <pkg> ...` runs a program from npm without installing it for good: --yes
+      # answers "install it?" for us, and each -p adds one package for this run. They are pinned, so a
+      # new plugin version cannot change how we release. The id is how later jobs read the version.
       - name: Release
         id: release
         run: >
@@ -102,7 +108,10 @@ jobs:
     needs: [release, parts]
     runs-on: ${{ matrix.os }}
     strategy:
+      # One target failing must not cancel the others, so one run shows everything that is wrong.
       fail-fast: false
+      # `target` is the Rust name of the system and `os` the machine that builds it. Linux ARM and
+      # macOS Intel have runners of their own, so nothing is cross compiled.
       matrix:
         include:
           - { target: x86_64-unknown-linux-gnu, os: ubuntu-22.04 }
@@ -114,6 +123,7 @@ jobs:
           - { target: x86_64-pc-windows-msvc, os: windows-latest }
     env:
       VERSION: ${{ needs.release.outputs.version }}
+    # bash on every system, Windows included, so the steps below are written once.
     defaults:
       run:
         shell: bash
@@ -135,6 +145,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y musl-tools
+          # Lines written to $GITHUB_ENV become environment variables of the steps after this one.
           echo "CC_x86_64_unknown_linux_musl=musl-gcc" >> "$GITHUB_ENV"
           echo "CC_aarch64_unknown_linux_musl=musl-gcc" >> "$GITHUB_ENV"
 
@@ -146,6 +157,9 @@ jobs:
         with:
           key: release-${{ matrix.target }}
 
+      # --locked: fail if Cargo.lock needs changing, instead of quietly picking other versions.
+      # --target: the system to build for, which puts the program in target/<target>/release.
+      # -p: only the program, not the other crates.
       - name: Build
         run: cargo build --release --locked --target ${{ matrix.target }} -p stubprint-server
 
@@ -153,18 +167,29 @@ jobs:
       # worth publishing.
       - name: Try it
         run: |
+          # `[ test ] && command` runs the command only when the test is true.
           bin="target/${{ matrix.target }}/release/stubprint"
           [ "$RUNNER_OS" = Windows ] && bin="$bin.exe"
           server=http://127.0.0.1:18080
+          # grep -q prints nothing and only sets the exit code, which fails the step on no match.
           "$bin" --version | grep -q "$VERSION"
+          # --ephemeral keeps nothing on disk. Port 0 of the printer is "any free port", so it cannot
+          # clash with anything. The & at the end runs the server in the background.
           "$bin" --ephemeral --host 127.0.0.1 --port 18080 --printer name=try,listen=127.0.0.1:0 &
+          # $! is the process id of what was just put in the background. The trap stops the server when
+          # the step ends, and `|| true` keeps a failed kill from failing the step.
           pid=$!
           trap 'kill $pid 2>/dev/null || true' EXIT
+          # Up to 100 tries 0.2 s apart is a wait of about 20 s until the server answers.
           for _ in $(seq 100); do "$bin" --url "$server" info >/dev/null 2>&1 && break; sleep 0.2; done
           "$bin" --url "$server" info
           "$bin" --url "$server" sample list | grep -q cafe
+          # curl -f fails on an HTTP error, -s hides the progress, -S still shows an error. grep -i
+          # ignores the case.
           curl -fsS "$server/" | grep -qi '<!doctype html'
           "$bin" --url "$server" print --sample cafe --printer try
+          # --after 0: a receipt with a number above 0, which is the one printed above. --timeout 20: give
+          # up after 20 s with exit code 3. --id: print only its number, for scripts.
           "$bin" --url "$server" wait --after 0 --timeout 20 --id
 
       - name: Pack
@@ -198,9 +223,13 @@ jobs:
 
       - name: Checksums and installers
         run: |
+          # The brackets run in a sub-shell, so the cd stays inside. SHA256SUMS holds one "<hash>  <file>"
+          # line for each archive, which is what the installers look up.
           (cd assets && sha256sum stubprint-* > SHA256SUMS && cat SHA256SUMS)
+          # The installers in the repository carry a placeholder, which becomes the version released.
           sed "s/@VERSION@/$VERSION/" scripts/install.sh > assets/stubprint-installer.sh
           sed "s/@VERSION@/$VERSION/" scripts/install.ps1 > assets/stubprint-installer.ps1
 
+      # --clobber replaces a file of the same name, so running this job again is safe.
       - name: Attach them
         run: gh release upload "v$VERSION" assets/* --clobber --repo "$GITHUB_REPOSITORY"

@@ -8,6 +8,7 @@
 #
 # The release attaches this script with the version filled in, so it installs that version.
 $ErrorActionPreference = 'Stop'
+# The progress bar of Invoke-WebRequest makes downloads many times slower.
 $ProgressPreference = 'SilentlyContinue'
 
 $version = '@VERSION@'
@@ -50,6 +51,7 @@ finally {
 
 Write-Host "$([char]0x2713) " -ForegroundColor Green -NoNewline
 Write-Host "Installed $dir\stubprint.exe"
+# The PATH of this user only (no admin rights needed), and only for terminals opened from now on.
 $user = [Environment]::GetEnvironmentVariable('Path', 'User')
 if (($user -split ';') -notcontains $dir) {
     [Environment]::SetEnvironmentVariable('Path', "$user;$dir".TrimStart(';'), 'User')

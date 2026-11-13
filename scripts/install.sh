@@ -9,6 +9,7 @@
 # STUBPRINT_DOWNLOAD_URL   where the files of the release are, for a mirror or a test
 #
 # The release attaches this script with the version filled in, so it installs that version.
+# -e stops at the first command that fails, -u at a variable that was never set.
 set -eu
 
 version="@VERSION@"
@@ -17,6 +18,7 @@ base="${STUBPRINT_DOWNLOAD_URL:-https://github.com/${repo}/releases/download/v${
 dir="${STUBPRINT_INSTALL_DIR:-$HOME/.local/bin}"
 
 # Colours for a terminal, and none for a pipe or when NO_COLOR is set.
+# -t 1: the output is a terminal, and not a pipe or a file.
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
   bold="$(printf '\033[1m')" dim="$(printf '\033[2m')" cyan="$(printf '\033[36m')"
   green="$(printf '\033[32m')" yellow="$(printf '\033[33m')" red="$(printf '\033[31m')" reset="$(printf '\033[0m')"
@@ -75,6 +77,7 @@ if [ "$system" = unknown-linux-gnu ]; then
   case "$libc" in
     *[Mm]usl*) system=unknown-linux-musl ;;
     *)
+      # The number after the dot of the glibc version, or nothing when it cannot be read.
       minor="$(echo "$libc" | grep -o '[0-9][0-9]*\.[0-9][0-9]*$' | cut -d . -f 2)"
       [ -n "$minor" ] && [ "$minor" -lt 35 ] && system=unknown-linux-musl
       ;;
@@ -99,6 +102,7 @@ else
   fail "sha256sum or shasum is needed to check the download"
 fi
 
+# The trap deletes the folder when the script ends, whether it worked or not.
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
@@ -106,17 +110,22 @@ echo "${cyan}==>${reset} ${bold}Downloading Stubprint ${version}${reset} ${dim}f
 download "${base}/${archive}" "${work}/${archive}" || fail "cannot download ${base}/${archive}"
 download "${base}/SHA256SUMS" "${work}/SHA256SUMS" || fail "cannot download ${base}/SHA256SUMS"
 
+# Two spaces, as sha256sum writes them, and `$` for the end of the line, so "a.tar.gz" cannot
+# match a line of "a.tar.gz.sig".
 expected="$(grep "  ${archive}\$" "${work}/SHA256SUMS" | cut -d ' ' -f 1)"
 [ -n "$expected" ] || fail "SHA256SUMS has no line for ${archive}"
 [ "$(hash_of "${work}/${archive}")" = "$expected" ] || fail "the download does not match its checksum"
 
 tar -xzf "${work}/${archive}" -C "$work"
 mkdir -p "$dir"
+# Copy beside the final name and rename: a rename is one step, so a program that is running (as in
+# `stubprint update`) is never half replaced.
 cp "${work}/stubprint-${version}-${machine}-${system}/stubprint" "${dir}/stubprint.new"
 chmod 755 "${dir}/stubprint.new"
 mv "${dir}/stubprint.new" "${dir}/stubprint"
 
 echo "${green}${bold}✓${reset} ${bold}Installed${reset} ${dir}/stubprint"
+# The colons around both make the pattern match a whole entry of the PATH and not part of one.
 case ":${PATH}:" in
   *":${dir}:"*)
     echo
