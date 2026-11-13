@@ -18,6 +18,9 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      # The version that came out, or nothing when the commits did not call for a release.
+      version: ${{ steps.release.outputs.version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -31,6 +34,7 @@ jobs:
           node-version: 24
 
       - name: Release
+        id: release
         run: >
           npx --yes
           -p semantic-release@25.0.5
@@ -40,3 +44,151 @@ jobs:
           semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # The page and the samples are built once, and every program takes them from here, so they are the
+  # same in all of them and the lock of the samples is checked on the system it was made on.
+  parts:
+    name: Page and samples
+    needs: release
+    if: ${{ needs.release.outputs.version != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the release
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.release.outputs.version }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build the samples
+        run: |
+          python -m venv samples/python/.venv
+          samples/python/.venv/bin/pip install -r samples/python/requirements.txt
+          npm ci --prefix samples/node
+          samples/python/.venv/bin/python samples/python/build.py --no-previews
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Build the page
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: parts
+          path: |
+            web/dist
+            samples/out/samples.json
+          if-no-files-found: error
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: [release, parts]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: x86_64-unknown-linux-gnu, os: ubuntu-22.04 }
+          - { target: aarch64-unknown-linux-gnu, os: ubuntu-22.04-arm }
+          - { target: x86_64-apple-darwin, os: macos-15-intel }
+          - { target: aarch64-apple-darwin, os: macos-latest }
+          - { target: x86_64-pc-windows-msvc, os: windows-latest }
+    env:
+      VERSION: ${{ needs.release.outputs.version }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout the release
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.release.outputs.version }}
+
+      - name: Take the page and the samples
+        uses: actions/download-artifact@v4
+        with:
+          name: parts
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+
+      - name: Build
+        run: cargo build --release --locked --target ${{ matrix.target }} -p stubprint-server
+
+      # The program must hold its page and its samples and answer the commands, or the archive is not
+      # worth publishing.
+      - name: Try it
+        run: |
+          bin="target/${{ matrix.target }}/release/stubprint"
+          [ "$RUNNER_OS" = Windows ] && bin="$bin.exe"
+          server=http://127.0.0.1:18080
+          "$bin" --version | grep -q "$VERSION"
+          "$bin" --ephemeral --http 127.0.0.1:18080 --printer name=try,listen=127.0.0.1:0 &
+          pid=$!
+          trap 'kill $pid 2>/dev/null || true' EXIT
+          for _ in $(seq 100); do "$bin" --server "$server" info >/dev/null 2>&1 && break; sleep 0.2; done
+          "$bin" --server "$server" info
+          "$bin" --server "$server" sample list | grep -q cafe
+          curl -fsS "$server/" | grep -qi '<!doctype html'
+          "$bin" --server "$server" print --sample cafe --printer try
+          "$bin" --server "$server" wait --after 0 --timeout 20 --id
+
+      - name: Pack
+        run: bash scripts/package.sh "${{ matrix.target }}" "$VERSION"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: archive-${{ matrix.target }}
+          path: dist/stubprint-*
+          if-no-files-found: error
+
+  publish:
+    name: Attach to the release
+    needs: [release, build]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.release.outputs.version }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout the release
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.release.outputs.version }}
+
+      - name: Take the archives
+        uses: actions/download-artifact@v4
+        with:
+          pattern: archive-*
+          merge-multiple: true
+          path: assets
+
+      - name: Checksums and installers
+        run: |
+          (cd assets && sha256sum stubprint-* > SHA256SUMS && cat SHA256SUMS)
+          sed "s/@VERSION@/$VERSION/" scripts/install.sh > assets/stubprint-installer.sh
+          sed "s/@VERSION@/$VERSION/" scripts/install.ps1 > assets/stubprint-installer.ps1
+
+      - name: Attach them
+        run: gh release upload "v$VERSION" assets/* --clobber --repo "$GITHUB_REPOSITORY"

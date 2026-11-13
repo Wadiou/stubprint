@@ -26,6 +26,10 @@ export default {
         prepareCmd:
           // biome-ignore lint/suspicious/noTemplateCurlyInString: semantic-release template
           "sed -i '0,/^version = \".*\"/s//version = \"${nextRelease.version}\"/' Cargo.toml && cargo update --workspace",
+        // Tells the workflow which version came out, so it can build and attach the programs.
+        successCmd:
+          // biome-ignore lint/suspicious/noTemplateCurlyInString: semantic-release template
+          'echo "version=${nextRelease.version}" >> "$GITHUB_OUTPUT"',
       },
     ],
     [
