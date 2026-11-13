@@ -74,7 +74,7 @@ export function SampleCard({
             <div className="text-sm font-medium">Made for</div>
             <div className="truncate text-sm text-muted-foreground">{sample.profile}</div>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
+          <Button size="sm" onClick={() => setAdding(true)}>
             Add this printer
           </Button>
         </div>
