@@ -1,3 +1,13 @@
+# [0.14.0](https://github.com/Wadiou/stubprint/compare/v0.13.0...v0.14.0) (2026-11-13)
+
+
+### Features
+
+* **server:** remove the settings page, and PATCH /api/server behind it ([7cc9a06](https://github.com/Wadiou/stubprint/commit/7cc9a06824cd43bd3da039bb699ee32cf4222eee))
+* **web:** add favicons to the web page, drawn by one shared package ([7a6b9f9](https://github.com/Wadiou/stubprint/commit/7a6b9f96f8cbeaa3d1d3cedab245be431256433f))
+* **web:** fill the screen and scroll inside panels, not the whole page ([49d08c5](https://github.com/Wadiou/stubprint/commit/49d08c57bc5e2ebc59a5f709a2ba411452681034))
+* **web:** move adding a printer into the last row of the printers list ([a8e7d6f](https://github.com/Wadiou/stubprint/commit/a8e7d6fcef011282f237fe6c8c3e920fc6266f31))
+
 # [0.13.0](https://github.com/Wadiou/stubprint/compare/v0.12.0...v0.13.0) (2026-11-13)
 
 
