@@ -539,6 +539,30 @@ export type Notice = {
         printer: string;
     };
 } | {
+    type: 'printing';
+    /**
+     * A receipt grew: the printer printed more of it. Sent as the printing goes, a few times a
+     * second, so a page that shows the receipt can ask for it again.
+     */
+    value: {
+        /**
+         * How many bytes the printer's receive buffer holds.
+         */
+        buffered: number;
+        /**
+         * How many commands of it are printed.
+         */
+        commands: number;
+        /**
+         * The name of the printer.
+         */
+        printer: string;
+        /**
+         * The receipt that grew.
+         */
+        receipt: number;
+    };
+} | {
     type: 'action';
     /**
      * A command was read, while the job is still being sent. Only sent to those who ask for the
@@ -694,6 +718,10 @@ export type PrinterChange = {
  * A printer, and how it is doing.
  */
 export type PrinterInfo = {
+    /**
+     * How many bytes its receive buffer holds: what it was sent and did not print yet.
+     */
+    buffered: number;
     /**
      * How many programs are connected to it now.
      */
@@ -916,6 +944,12 @@ export type ReceiptDetail = ReceiptSummary & {
 };
 
 /**
+ * Where a receipt is in its life. It exists from the first thing the printer prints of a job, and
+ * what is printed so far is kept as it comes.
+ */
+export type ReceiptState = 'printing' | 'complete' | 'incomplete';
+
+/**
  * A receipt in a list.
  */
 export type ReceiptSummary = {
@@ -948,6 +982,10 @@ export type ReceiptSummary = {
      * The printer model it was printed on, as `GET /api/profiles` lists them.
      */
     profile: string;
+    /**
+     * Whether the printer is still printing it, it was cut, or it ended without a cut.
+     */
+    state: ReceiptState;
 };
 
 /**

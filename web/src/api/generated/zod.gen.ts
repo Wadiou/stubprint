@@ -311,6 +311,16 @@ export const zQr = z.object({
 });
 
 /**
+ * Where a receipt is in its life. It exists from the first thing the printer prints of a job, and
+ * what is printed so far is kept as it comes.
+ */
+export const zReceiptState = z.enum([
+    'printing',
+    'complete',
+    'incomplete'
+]);
+
+/**
  * A receipt in a list.
  */
 export const zReceiptSummary = z.object({
@@ -321,7 +331,8 @@ export const zReceiptSummary = z.object({
     id: z.int().gte(0),
     preview: z.array(z.string()),
     printer: z.string(),
-    profile: z.string()
+    profile: z.string(),
+    state: zReceiptState
 });
 
 /**
@@ -445,6 +456,7 @@ export const zUsage = z.object({
  * A printer, and how it is doing.
  */
 export const zPrinterInfo = z.object({
+    buffered: z.int().gte(0),
     connections: z.int().gte(0),
     dialect: zDialect,
     held: z.int().gte(0),
@@ -659,6 +671,15 @@ export const zNotice = z.union([
         value: z.object({
             held: z.int().gte(0),
             printer: z.string()
+        })
+    }),
+    z.object({
+        type: z.enum(['printing']),
+        value: z.object({
+            buffered: z.int().gte(0),
+            commands: z.int().gte(0),
+            printer: z.string(),
+            receipt: z.int().gte(0)
         })
     }),
     z.object({

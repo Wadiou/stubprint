@@ -16,6 +16,7 @@ import { CommandList, type Row } from "@/components/commands";
 import { PageLayout } from "@/components/layout/page";
 import { ModelStrip } from "@/components/model-strip";
 import { ReceiptRail } from "@/components/receipt-rail";
+import { ReceiptStateBadge } from "@/components/receipt-state";
 import { StepSlider } from "@/components/step-slider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -200,6 +201,7 @@ export function LivePage({ picked, onPick }: { picked?: number; onPick: (id?: nu
       <span className="text-sm text-muted-foreground">
         Receipt #{current.id}, {time(current)}, {current.printer}
       </span>
+      <ReceiptStateBadge state={current.state} />
       <DropdownMenu>
         <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>Download</DropdownMenuTrigger>
         <DropdownMenuContent align="end">

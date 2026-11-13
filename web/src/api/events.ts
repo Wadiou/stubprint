@@ -46,6 +46,23 @@ function putConnection(queryClient: QueryClient, change: ConnectionChange) {
   }
 }
 
+/** How long the page waits to ask again for a receipt that is growing, in milliseconds. */
+const GROW_EVERY = 200;
+
+/** The answers the page keeps about one receipt: the receipt itself, its text, picture, bytes and commands. */
+const ABOUT_A_RECEIPT = ["getReceipt", "getReceiptText", "getReceiptPicture", "getReceiptBytes", "getTrace"];
+
+/** Asks again for what the page shows of these receipts, and for the list they are in. */
+function refreshReceipts(queryClient: QueryClient, ids: number[]) {
+  queryClient.invalidateQueries({ queryKey: listReceiptsQueryKey() });
+  queryClient.invalidateQueries({
+    predicate: ({ queryKey }) => {
+      const [key] = queryKey as [{ _id?: string; path?: { id?: number } } | undefined];
+      return ABOUT_A_RECEIPT.includes(key?._id ?? "") && ids.includes(key?.path?.id ?? -1);
+    },
+  });
+}
+
 /** How long to wait before opening the stream again, after the browser gave up on it, in milliseconds. */
 const RETRY_AFTER = 2000;
 
@@ -63,6 +80,9 @@ export function useLiveEvents() {
     let retry: ReturnType<typeof setTimeout> | undefined;
     // The stream that is open now, which is a new one each time the browser gave up on the last.
     let current: EventSource | undefined;
+    // The receipts that grew since the page asked for them last, and the time it waits before it does.
+    const growing = new Set<number>();
+    let flush: ReturnType<typeof setTimeout> | undefined;
 
     const connect = () => {
       const source = new EventSource("/api/events");
@@ -89,6 +109,10 @@ export function useLiveEvents() {
         const notice = readNotice(event.data);
         if (notice?.type !== "receipt") return;
         const receipt = notice.value;
+        // Its state changed, or it began: what is shown of it is not what it is now.
+        refreshReceipts(queryClient, [receipt.id]);
+        // It is told about when it begins, and not again when it ends.
+        if (receipt.state !== "printing") return;
         toast.success(`Receipt #${receipt.id} on ${receipt.printer}`, {
           id: `receipt-${receipt.id}`,
           description: firstLine(receipt),
@@ -118,12 +142,24 @@ export function useLiveEvents() {
         if (notice?.type === "connection") putConnection(queryClient, notice.value);
         else queryClient.invalidateQueries({ queryKey: listConnectionsQueryKey() });
       });
+      // A receipt that is printing grows, so what the page shows of it is asked for again, at most a few times a second.
+      source.addEventListener("printing", (event) => {
+        const notice = readNotice(event.data);
+        if (notice?.type !== "printing") return;
+        growing.add(notice.value.receipt);
+        flush ??= setTimeout(() => {
+          flush = undefined;
+          refreshReceipts(queryClient, [...growing]);
+          growing.clear();
+        }, GROW_EVERY);
+      });
       // The server says this one was too slow and missed some events.
       source.addEventListener("lagged", () => refreshAll(queryClient));
     };
     connect();
     return () => {
       clearTimeout(retry);
+      clearTimeout(flush);
       current?.close();
     };
   }, [queryClient, navigate]);

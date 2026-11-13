@@ -1,6 +1,7 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReceiptSummary } from "@/api/generated/types.gen";
+import { ReceiptStateBadge } from "@/components/receipt-state";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -89,6 +90,7 @@ export function ReceiptRail({
                 <span className="flex gap-1.5">
                   <Badge variant="outline">{receipt.printer}</Badge>
                   <Badge variant="outline">{DIALECTS[receipt.dialect]}</Badge>
+                  <ReceiptStateBadge state={receipt.state} />
                 </span>
               </button>
             );

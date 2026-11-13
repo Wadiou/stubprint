@@ -33,10 +33,22 @@ test("text that is not JSON is not accepted either", () => {
 });
 
 test("a receipt event is read with its number, its printer and its first lines", () => {
-  const receipt = { id: 4, printer: "till", at: 5_000, bytes: 120, events: 9, dialect: "escpos", profile: "default", preview: ["", "THANK YOU"] };
+  const receipt = { id: 4, printer: "till", at: 5_000, bytes: 120, events: 9, state: "printing", dialect: "escpos", profile: "default", preview: ["", "THANK YOU"] };
   const notice = readNotice(JSON.stringify({ type: "receipt", value: receipt }));
   expect(notice?.type).toBe("receipt");
   if (notice?.type === "receipt") expect(notice.value.preview).toEqual(["", "THANK YOU"]);
+  if (notice?.type === "receipt") expect(notice.value.state).toBe("printing");
+});
+
+test("a receipt that grows says which one and how far it is", () => {
+  const notice = readNotice(JSON.stringify({ type: "printing", value: { printer: "till", receipt: 4, commands: 12, buffered: 300 } }));
+  expect(notice?.type).toBe("printing");
+  if (notice?.type === "printing") expect(notice.value.receipt).toBe(4);
+});
+
+test("a receipt in a state that is not known is not understood", () => {
+  const receipt = { id: 4, printer: "till", at: 5_000, bytes: 120, events: 9, state: "lost", dialect: "escpos", profile: "default", preview: [] };
+  expect(readNotice(JSON.stringify({ type: "receipt", value: receipt }))).toBeUndefined();
 });
 
 test("a held event is read with the printer and how many bytes it holds", () => {
