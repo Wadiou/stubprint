@@ -1,3 +1,24 @@
+# [0.3.0](https://github.com/Wadiou/stubprint/compare/v0.2.0...v0.3.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **web:** open the live events again when the browser closed them ([7343e0f](https://github.com/Wadiou/stubprint/commit/7343e0f4b7eaa904b10b764f39ed3141c92a18ab))
+
+
+### Features
+
+* **core:** answer the maintenance counters of an Epson printer ([7d63954](https://github.com/Wadiou/stubprint/commit/7d639544478d37939b0cac4f79174031ebd0f62a))
+* **core:** say which command ends each receipt and which bytes made each command ([8951876](https://github.com/Wadiou/stubprint/commit/895187685e8c5673afc70e9bca10d78edd85f00f))
+* **render:** count the paper that came out after each command ([050543c](https://github.com/Wadiou/stubprint/commit/050543cdc6f769680f983c6865d25a1714d41684))
+* **render:** tell how tall the paper is without drawing it ([7576318](https://github.com/Wadiou/stubprint/commit/7576318f9feb68774968a23c0612d5faa85fdc38))
+* **server:** give a printer a paper roll, counters and a drawer that opens when it is kicked ([f77cba4](https://github.com/Wadiou/stubprint/commit/f77cba46011729545a3761fa68ec3366a365cdff))
+* **server:** make a printer take time to print, at a speed set in millimetres a second ([08d3651](https://github.com/Wadiou/stubprint/commit/08d365197087d2897669bd874c85f80798366107))
+* **server:** print over time, so a receipt begins, grows and ends as the printer works ([66071b7](https://github.com/Wadiou/stubprint/commit/66071b7c39130382bfa17a9091d6f404b7fc5a1d))
+* **web:** follow a receipt as the printer prints it ([aca66ea](https://github.com/Wadiou/stubprint/commit/aca66ea1faccd76d82c2e38ac2bcc285018da636))
+* **web:** set the print speed of a printer ([2c31f8c](https://github.com/Wadiou/stubprint/commit/2c31f8c6e247b868b34d3aaa9249fdce0fb99709))
+* **web:** show the paper roll and the counters of a printer ([0a48cbc](https://github.com/Wadiou/stubprint/commit/0a48cbc80cb1db7b773fdeca9c7b0511e31d88ae))
+
 # [0.2.0](https://github.com/Wadiou/stubprint/compare/v0.1.0...v0.2.0) (2026-11-12)
 
 
