@@ -68,6 +68,19 @@ if [ "$system" = apple-darwin ] && [ "$machine" = x86_64 ] &&
   machine=aarch64
 fi
 
+# The static build is for systems with musl, such as Alpine, and for glibc older than the one the
+# other Linux build needs (2.35).
+if [ "$system" = unknown-linux-gnu ]; then
+  libc="$(ldd --version 2>&1 | head -n 1)"
+  case "$libc" in
+    *[Mm]usl*) system=unknown-linux-musl ;;
+    *)
+      minor="$(echo "$libc" | grep -o '[0-9][0-9]*\.[0-9][0-9]*$' | cut -d . -f 2)"
+      [ -n "$minor" ] && [ "$minor" -lt 35 ] && system=unknown-linux-musl
+      ;;
+  esac
+fi
+
 archive="stubprint-${version}-${machine}-${system}.tar.gz"
 
 if command -v curl >/dev/null 2>&1; then
