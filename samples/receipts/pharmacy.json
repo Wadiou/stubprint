@@ -1,0 +1,101 @@
+{
+  "id": "pharmacy",
+  "order": 8,
+  "title": "Pharmacy receipt",
+  "about": "An Epson TM-T88IV receipt: dated prescription rows with tax and a bold total.",
+  "profile": "TM-T88IV",
+  "tags": [
+    "80 mm"
+  ],
+  "variants": [
+    {
+      "library": "python-escpos",
+      "dialect": "escpos"
+    },
+    {
+      "library": "node-thermal-printer",
+      "dialect": "escpos"
+    }
+  ],
+  "blocks": [
+    {
+      "text": "North Street Pharmacy",
+      "align": "center",
+      "bold": true
+    },
+    {
+      "text": "14 North Street",
+      "align": "center"
+    },
+    {
+      "text": "Tel 555 0178",
+      "align": "center"
+    },
+    {
+      "text": ""
+    },
+    {
+      "row": [
+        "Rx 448120",
+        "2026-10-07"
+      ]
+    },
+    {
+      "row": [
+        "Patient",
+        "J. Moreno"
+      ]
+    },
+    {
+      "rule": "-"
+    },
+    {
+      "row": [
+        "Amoxicillin 500 mg x21",
+        "11.40"
+      ]
+    },
+    {
+      "row": [
+        "Ibuprofen 400 mg x16",
+        "4.95"
+      ]
+    },
+    {
+      "row": [
+        "Saline spray",
+        "6.20"
+      ]
+    },
+    {
+      "rule": "-"
+    },
+    {
+      "row": [
+        "Tax 5%",
+        "1.12"
+      ]
+    },
+    {
+      "row": [
+        "TOTAL",
+        "23.67"
+      ],
+      "bold": true,
+      "size": [
+        1,
+        2
+      ]
+    },
+    {
+      "text": ""
+    },
+    {
+      "text": "Keep out of reach of children",
+      "align": "center"
+    },
+    {
+      "cut": true
+    }
+  ]
+}

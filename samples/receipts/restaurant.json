@@ -1,0 +1,114 @@
+{
+  "id": "restaurant",
+  "order": 9,
+  "title": "Restaurant bill",
+  "about": "An Epson TM-m30III bill with an inverted table number, quantities, a service charge and a double size total.",
+  "profile": "TM-m30III",
+  "tags": [
+    "80 mm",
+    "styles"
+  ],
+  "variants": [
+    {
+      "library": "python-escpos",
+      "dialect": "escpos"
+    },
+    {
+      "library": "node-thermal-printer",
+      "dialect": "escpos"
+    }
+  ],
+  "blocks": [
+    {
+      "text": "The Olive Table",
+      "align": "center",
+      "bold": true,
+      "size": [
+        2,
+        2
+      ]
+    },
+    {
+      "text": "Table service",
+      "align": "center"
+    },
+    {
+      "text": ""
+    },
+    {
+      "text": " TABLE 12 ",
+      "align": "center",
+      "invert": true,
+      "bold": true
+    },
+    {
+      "row": [
+        "Server: Maya",
+        "2026-10-07 20:41"
+      ]
+    },
+    {
+      "rule": "-"
+    },
+    {
+      "row": [
+        "2 x Margherita",
+        "21.00"
+      ]
+    },
+    {
+      "row": [
+        "1 x Penne arrabbiata",
+        "11.50"
+      ]
+    },
+    {
+      "row": [
+        "1 x Tiramisu",
+        "6.50"
+      ]
+    },
+    {
+      "row": [
+        "3 x Sparkling water",
+        "7.50"
+      ]
+    },
+    {
+      "rule": "-"
+    },
+    {
+      "row": [
+        "Subtotal",
+        "46.50"
+      ]
+    },
+    {
+      "row": [
+        "Service 10%",
+        "4.65"
+      ]
+    },
+    {
+      "row": [
+        "TOTAL",
+        "51.15"
+      ],
+      "bold": true,
+      "size": [
+        2,
+        2
+      ]
+    },
+    {
+      "text": ""
+    },
+    {
+      "text": "Tips are shared with the kitchen",
+      "align": "center"
+    },
+    {
+      "cut": true
+    }
+  ]
+}

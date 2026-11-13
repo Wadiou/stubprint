@@ -1,0 +1,61 @@
+{
+  "id": "queue",
+  "order": 13,
+  "title": "Queue ticket",
+  "about": "A queue ticket from a Sunmi V2, the printer built into a handheld: a number in big type and the people ahead.",
+  "profile": "Sunmi-V2",
+  "tags": [
+    "58 mm",
+    "styles"
+  ],
+  "variants": [
+    {
+      "library": "python-escpos",
+      "dialect": "escpos"
+    },
+    {
+      "library": "node-thermal-printer",
+      "dialect": "escpos"
+    }
+  ],
+  "blocks": [
+    {
+      "text": "A-042",
+      "align": "center",
+      "bold": true,
+      "size": [
+        3,
+        3
+      ]
+    },
+    {
+      "text": ""
+    },
+    {
+      "text": "Counter 3 will call you",
+      "align": "center"
+    },
+    {
+      "row": [
+        "People ahead",
+        "7"
+      ]
+    },
+    {
+      "row": [
+        "Wait",
+        "about 12 min"
+      ]
+    },
+    {
+      "text": ""
+    },
+    {
+      "text": "City Service Office",
+      "align": "center"
+    },
+    {
+      "cut": true
+    }
+  ]
+}

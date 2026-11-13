@@ -1,0 +1,80 @@
+{
+  "id": "parcel",
+  "order": 14,
+  "title": "Shipping slip",
+  "about": "A shipping slip for a Star SP2000 in Star Line mode: the sender, the address and the service.",
+  "profile": "SP2000",
+  "tags": [
+    "star"
+  ],
+  "variants": [
+    {
+      "library": "node-thermal-printer",
+      "dialect": "starline"
+    }
+  ],
+  "blocks": [
+    {
+      "text": "SHIPPING SLIP",
+      "align": "center",
+      "bold": true,
+      "size": [
+        2,
+        1
+      ]
+    },
+    {
+      "row": [
+        "Order 88213",
+        "2026-10-07"
+      ]
+    },
+    {
+      "rule": "-"
+    },
+    {
+      "text": "From",
+      "bold": true
+    },
+    {
+      "text": "Harbour Books, Quay Street 8"
+    },
+    {
+      "text": ""
+    },
+    {
+      "text": "To",
+      "bold": true
+    },
+    {
+      "text": "M. Okafor"
+    },
+    {
+      "text": "221 Elm Road"
+    },
+    {
+      "text": "Leeds LS1 4AP"
+    },
+    {
+      "rule": "-"
+    },
+    {
+      "row": [
+        "Service",
+        "Tracked 48"
+      ]
+    },
+    {
+      "row": [
+        "Weight",
+        "1.1 kg"
+      ]
+    },
+    {
+      "text": ""
+    },
+    {
+      "cut": true
+    }
+  ]
+}

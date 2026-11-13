@@ -1,0 +1,76 @@
+{
+  "id": "parking",
+  "order": 12,
+  "title": "Parking ticket",
+  "about": "A narrow ticket for a cheap 58 mm printer, the ZJ-5870: the plate, the time in and the fee.",
+  "profile": "ZJ-5870",
+  "tags": [
+    "58 mm"
+  ],
+  "variants": [
+    {
+      "library": "python-escpos",
+      "dialect": "escpos"
+    },
+    {
+      "library": "node-thermal-printer",
+      "dialect": "escpos"
+    }
+  ],
+  "blocks": [
+    {
+      "text": "CITY PARKING",
+      "align": "center",
+      "bold": true,
+      "size": [
+        2,
+        2
+      ]
+    },
+    {
+      "text": "Level 2, bay 31",
+      "align": "center"
+    },
+    {
+      "text": ""
+    },
+    {
+      "row": [
+        "Plate",
+        "AB 123 CD"
+      ]
+    },
+    {
+      "row": [
+        "In",
+        "2026-10-07 08:55"
+      ]
+    },
+    {
+      "row": [
+        "Paid until",
+        "2026-10-07 12:55"
+      ]
+    },
+    {
+      "rule": "-"
+    },
+    {
+      "row": [
+        "FEE",
+        "6.00"
+      ],
+      "bold": true
+    },
+    {
+      "text": ""
+    },
+    {
+      "text": "Keep this ticket",
+      "align": "center"
+    },
+    {
+      "cut": true
+    }
+  ]
+}

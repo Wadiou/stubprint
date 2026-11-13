@@ -1,0 +1,92 @@
+{
+  "id": "delivery",
+  "order": 11,
+  "title": "Delivery note",
+  "about": "A Rongta RP326 delivery note: the address, the parcels and an underlined line to sign.",
+  "profile": "RP326",
+  "tags": [
+    "80 mm",
+    "styles"
+  ],
+  "variants": [
+    {
+      "library": "python-escpos",
+      "dialect": "escpos"
+    },
+    {
+      "library": "node-thermal-printer",
+      "dialect": "escpos"
+    }
+  ],
+  "blocks": [
+    {
+      "text": "DELIVERY NOTE",
+      "align": "center",
+      "bold": true,
+      "size": [
+        2,
+        1
+      ]
+    },
+    {
+      "row": [
+        "No. 20418",
+        "2026-10-07"
+      ]
+    },
+    {
+      "rule": "-"
+    },
+    {
+      "text": "Deliver to",
+      "bold": true
+    },
+    {
+      "text": "Ana Ribeiro"
+    },
+    {
+      "text": "Rua das Flores 22, 3 Esq"
+    },
+    {
+      "text": "4000-123 Porto"
+    },
+    {
+      "rule": "-"
+    },
+    {
+      "row": [
+        "Parcels",
+        "2"
+      ]
+    },
+    {
+      "row": [
+        "Weight",
+        "3.4 kg"
+      ]
+    },
+    {
+      "row": [
+        "Fragile",
+        "yes"
+      ]
+    },
+    {
+      "text": ""
+    },
+    {
+      "text": "Signature",
+      "bold": true
+    },
+    {
+      "text": "                                          ",
+      "underline": 1
+    },
+    {
+      "text": ""
+    },
+    {
+      "cut": true
+    }
+  ]
+}

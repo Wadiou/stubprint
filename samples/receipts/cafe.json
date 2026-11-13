@@ -1,0 +1,105 @@
+{
+  "id": "cafe",
+  "order": 0,
+  "title": "Café receipt",
+  "about": "A café receipt written for the default printer: the shop, the date, the items and a big bold total.",
+  "profile": "default",
+  "tags": [
+    "80 mm"
+  ],
+  "variants": [
+    {
+      "library": "python-escpos",
+      "dialect": "escpos"
+    },
+    {
+      "library": "node-thermal-printer",
+      "dialect": "escpos"
+    }
+  ],
+  "blocks": [
+    {
+      "text": "Corner Cafe",
+      "align": "center",
+      "bold": true,
+      "size": [
+        2,
+        2
+      ]
+    },
+    {
+      "text": "12 Harbour Street",
+      "align": "center"
+    },
+    {
+      "text": "Tel 555 0166",
+      "align": "center"
+    },
+    {
+      "text": ""
+    },
+    {
+      "row": [
+        "Order 142",
+        "2026-10-07 09:14"
+      ]
+    },
+    {
+      "rule": "-"
+    },
+    {
+      "row": [
+        "2 x Flat white",
+        "7.60"
+      ]
+    },
+    {
+      "row": [
+        "1 x Croissant",
+        "3.50"
+      ]
+    },
+    {
+      "row": [
+        "1 x Orange juice",
+        "4.20"
+      ]
+    },
+    {
+      "rule": "-"
+    },
+    {
+      "row": [
+        "Subtotal",
+        "15.30"
+      ]
+    },
+    {
+      "row": [
+        "Tax 8%",
+        "1.22"
+      ]
+    },
+    {
+      "row": [
+        "TOTAL",
+        "16.52"
+      ],
+      "bold": true,
+      "size": [
+        1,
+        2
+      ]
+    },
+    {
+      "text": ""
+    },
+    {
+      "text": "Thank you, see you tomorrow",
+      "align": "center"
+    },
+    {
+      "cut": true
+    }
+  ]
+}
