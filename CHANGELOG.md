@@ -1,3 +1,10 @@
+# [0.6.0](https://github.com/Wadiou/stubprint/compare/v0.5.0...v0.6.0) (2026-11-13)
+
+
+### Features
+
+* **repo:** answer the install addresses of the landing page with a middleware ([eb5053b](https://github.com/Wadiou/stubprint/commit/eb5053baa91b64df3fa13bb5db966034f735d94a))
+
 # [0.5.0](https://github.com/Wadiou/stubprint/compare/v0.4.0...v0.5.0) (2026-11-13)
 
 
