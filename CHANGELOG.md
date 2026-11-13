@@ -1,3 +1,10 @@
+## [0.15.1](https://github.com/Wadiou/stubprint/compare/v0.15.0...v0.15.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **repo:** make stubprint runnable in the terminal that ran the Windows installer ([7db9c31](https://github.com/Wadiou/stubprint/commit/7db9c3119dfc23c31dc354abf7b7db9626a50b28))
+
 # [0.15.0](https://github.com/Wadiou/stubprint/compare/v0.14.1...v0.15.0) (2026-11-13)
 
 
