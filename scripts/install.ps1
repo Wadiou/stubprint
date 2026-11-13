@@ -51,13 +51,15 @@ finally {
 
 Write-Host "$([char]0x2713) " -ForegroundColor Green -NoNewline
 Write-Host "Installed $dir\stubprint.exe"
-# The PATH of this user only (no admin rights needed), and only for terminals opened from now on.
+# The PATH of this user only (no admin rights needed). This terminal gets it too, so stubprint
+# runs at once here; terminals that are already open need to be reopened.
 $user = [Environment]::GetEnvironmentVariable('Path', 'User')
 if (($user -split ';') -notcontains $dir) {
     [Environment]::SetEnvironmentVariable('Path', "$user;$dir".TrimStart(';'), 'User')
     Write-Host "! " -ForegroundColor Yellow -NoNewline
-    Write-Host "Added $dir to your PATH: open a new terminal to use stubprint."
+    Write-Host "Added $dir to your PATH: other terminals that are open need to be reopened."
 }
+if (($env:Path -split ';') -notcontains $dir) { $env:Path = "$env:Path;$dir" }
 Write-Host ""
 Write-Host "Next, run " -NoNewline
 Write-Host "stubprint" -ForegroundColor Cyan
