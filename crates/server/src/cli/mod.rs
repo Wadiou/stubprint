@@ -3,6 +3,7 @@
 
 mod client;
 mod show;
+mod update;
 
 use std::io::{BufRead, IsTerminal, Read, Write};
 use std::path::PathBuf;
@@ -61,6 +62,8 @@ pub enum Command {
     Info,
     /// Follow what happens as it happens, one event a line
     Events,
+    /// Install the latest release over this program, or the version of `--to`
+    Update(update::UpdateArgs),
 }
 
 #[derive(Args, Debug)]
@@ -304,6 +307,7 @@ fn execute(client: &Client, json: bool, command: Command) -> Result<u8, Failure>
         Command::Connection(command) => connection(client, json, command)?,
         Command::Info => info(client, json)?,
         Command::Events => events(client, json)?,
+        Command::Update(args) => update::update(&args)?,
     }
     Ok(0)
 }

@@ -382,3 +382,18 @@ async fn an_option_that_starts_a_server_does_not_go_with_a_command() {
     assert!(String::from_utf8_lossy(&run.stderr).contains("running server"));
     server.running.stop().await;
 }
+
+#[tokio::test]
+async fn a_program_that_was_built_from_the_source_does_not_update_itself() {
+    // The test runs the program from `target/`, where cargo put it, so it is not an installed one.
+    let run = stubprint_at("http://127.0.0.1:1", &["update"], b"").await;
+    assert_eq!(run.code, 1, "{}", run.err);
+    assert!(run.err.contains("built from the source"), "{}", run.err);
+}
+
+#[tokio::test]
+async fn update_takes_a_version_and_nothing_else_for_the_one_to_install() {
+    let run = stubprint_at("http://127.0.0.1:1", &["update", "--to", "1.0;rm"], b"").await;
+    assert_eq!(run.code, 2, "{}", run.err);
+    assert!(run.err.contains("is not a version"), "{}", run.err);
+}
