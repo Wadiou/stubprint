@@ -31,6 +31,8 @@ pub(crate) struct SavedPrinter {
     paper_roll: usize,
     paper_left: f64,
     print_speed: usize,
+    max_connections: usize,
+    idle_timeout: usize,
     usage: Usage,
 }
 
@@ -47,6 +49,8 @@ impl SavedPrinter {
             paper_roll: printer.paper_roll(),
             paper_left: printer.paper_left(),
             print_speed: printer.print_speed(),
+            max_connections: printer.max_connections(),
+            idle_timeout: printer.idle_timeout(),
             usage: printer.usage(),
         }
     }
@@ -85,6 +89,8 @@ impl SavedPrinter {
             network_buffer: self.network_buffer,
             paper_roll: self.paper_roll,
             print_speed: self.print_speed,
+            max_connections: self.max_connections,
+            idle_timeout: self.idle_timeout,
         })
     }
 }
@@ -258,7 +264,8 @@ fn load(db: &Db) -> rusqlite::Result<Loaded> {
     let mut printers = Vec::new();
     let mut statement = db.prepare(
         "SELECT name, listen, dialect, profile, printer_buffer, network_buffer, status,
-                paper_roll, paper_left, receipts, cuts, line_feeds, paper_used, print_speed
+                paper_roll, paper_left, receipts, cuts, line_feeds, paper_used, print_speed,
+                max_connections, idle_timeout
          FROM printers ORDER BY position",
     )?;
     let rows = statement.query_map([], |row| {
@@ -274,6 +281,8 @@ fn load(db: &Db) -> rusqlite::Result<Loaded> {
             paper_roll: size(row.get(7)?),
             paper_left: row.get(8)?,
             print_speed: size(row.get(13)?),
+            max_connections: size(row.get(14)?),
+            idle_timeout: size(row.get(15)?),
             usage: Usage {
                 receipts: unsigned(row.get(9)?),
                 cuts: unsigned(row.get(10)?),
@@ -354,8 +363,9 @@ fn write(db: &Db, command: Command) -> rusqlite::Result<()> {
                 transaction.execute(
                     "INSERT INTO printers
                      (position, name, listen, dialect, profile, printer_buffer, network_buffer, status,
-                      paper_roll, paper_left, receipts, cuts, line_feeds, paper_used, print_speed)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+                      paper_roll, paper_left, receipts, cuts, line_feeds, paper_used, print_speed,
+                      max_connections, idle_timeout)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
                     params![
                         int(count(position)),
                         printer.name,
@@ -373,6 +383,8 @@ fn write(db: &Db, command: Command) -> rusqlite::Result<()> {
                         int(printer.usage.line_feeds),
                         printer.usage.paper_used,
                         int(count(printer.print_speed)),
+                        int(count(printer.max_connections)),
+                        int(count(printer.idle_timeout)),
                     ],
                 )?;
             }

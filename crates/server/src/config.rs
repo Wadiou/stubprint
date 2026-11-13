@@ -50,7 +50,16 @@ pub struct PrinterConfig {
     /// How fast it prints, in millimetres of paper a second. A receipt keeps it busy for as long as
     /// its paper takes to come out, and 0 prints without taking any time.
     pub print_speed: usize,
+    /// How many programs can be connected at once. The next one is refused. 0 is no limit of its
+    /// own, up to [`MAX_SOCKETS`].
+    pub max_connections: usize,
+    /// How many seconds a connection can send nothing before the printer closes it. 0 never.
+    pub idle_timeout: usize,
 }
+
+/// The most programs that can be connected to one printer, whatever its settings say, so that a
+/// program that opens connections without end cannot fill the memory.
+pub const MAX_SOCKETS: usize = 64;
 
 /// The `printer_buffer` of a printer when none is set, in bytes.
 pub const DEFAULT_PRINTER_BUFFER: usize = 4096;
@@ -83,6 +92,8 @@ impl Default for PrinterConfig {
             network_buffer: 0,
             paper_roll: 0,
             print_speed: 0,
+            max_connections: 0,
+            idle_timeout: 0,
         }
     }
 }
@@ -133,6 +144,18 @@ pub struct PrinterSettings {
     #[schema(example = 150)]
     #[serde(default, deserialize_with = "number")]
     pub print_speed: Option<usize>,
+    /// How many programs can be connected to it at once, as a real printer takes one or a few. The
+    /// next one that connects is closed at once, and one that was refused can try again when a
+    /// connection has closed. The default is 0, no limit of its own: up to 64.
+    #[schema(example = 1)]
+    #[serde(default, deserialize_with = "number")]
+    pub max_connections: Option<usize>,
+    /// How many seconds a connection can send nothing before the printer closes it, as one does
+    /// that is tired of waiting. What it was sent still prints. Time spent waiting for the printer
+    /// to print does not count. The default is 0, which never closes one.
+    #[schema(example = 30)]
+    #[serde(default, deserialize_with = "number")]
+    pub idle_timeout: Option<usize>,
 }
 
 /// Reads a whole number, written either as a number or as text such as `"4096"`.
@@ -196,6 +219,12 @@ impl PrinterSettings {
         }
         if let Some(speed) = self.print_speed {
             printer.print_speed = speed;
+        }
+        if let Some(limit) = self.max_connections {
+            printer.max_connections = limit;
+        }
+        if let Some(seconds) = self.idle_timeout {
+            printer.idle_timeout = seconds;
         }
         Ok(printer)
     }

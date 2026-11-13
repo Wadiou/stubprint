@@ -58,6 +58,10 @@ struct Options {
     ///   print_speed     how fast it prints, in millimetres of paper a second. A receipt keeps it
     ///                   busy while its paper comes out, and a program that sends more waits.
     ///                   0 takes no time [default: 0]
+    ///   max_connections how many programs it takes at once. The next one is closed at once.
+    ///                   0 is no limit of its own, up to 64 [default: 0]
+    ///   idle_timeout    how many seconds a connection can send nothing before it is closed.
+    ///                   0 never [default: 0]
     ///
     /// For example: name=front,listen=0.0.0.0:9100,dialect=escpos,profile=TM-T88IV
     #[arg(long, verbatim_doc_comment, value_name = "SETTINGS")]

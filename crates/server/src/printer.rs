@@ -9,7 +9,7 @@ use tokio::sync::{watch, Notify};
 use tokio::task::JoinHandle;
 use utoipa::ToSchema;
 
-use crate::config::PrinterConfig;
+use crate::config::{PrinterConfig, MAX_SOCKETS};
 use crate::engine::{Engine, Work};
 
 /// The roll reports near end when this share of it is left, or less.
@@ -91,6 +91,12 @@ pub struct VirtualPrinter {
     roll: Mutex<Roll>,
     /// How fast it prints, in millimetres of paper a second. 0 takes no time.
     print_speed: AtomicUsize,
+    /// How many programs it takes at once. 0 is as many as it can.
+    max_connections: AtomicUsize,
+    /// How many seconds a connection can send nothing before it is closed. 0 never.
+    idle_timeout: AtomicUsize,
+    /// How many connections of its port are open now.
+    sockets: AtomicUsize,
     /// What it has read and is printing: the receive buffer, the work, and the paper.
     engine: Mutex<Engine>,
     /// Wakes what drives the engine when there is work for it.
@@ -116,6 +122,8 @@ impl VirtualPrinter {
             network_buffer,
             paper_roll,
             print_speed,
+            max_connections,
+            idle_timeout,
             ..
         } = settings;
         Self {
@@ -135,6 +143,9 @@ impl VirtualPrinter {
                 usage: Usage::default(),
             }),
             print_speed: AtomicUsize::new(print_speed),
+            max_connections: AtomicUsize::new(max_connections),
+            idle_timeout: AtomicUsize::new(idle_timeout),
+            sockets: AtomicUsize::new(0),
             engine: Mutex::new(Engine::default()),
             wake: Notify::new(),
             connections: AtomicUsize::new(0),
@@ -279,6 +290,46 @@ impl VirtualPrinter {
     pub fn set_print_speed(&self, speed: usize) {
         self.print_speed.store(speed, Ordering::Relaxed);
         self.wake.notify_one();
+    }
+
+    /// How many programs it takes at once. 0 is as many as it can.
+    pub fn max_connections(&self) -> usize {
+        self.max_connections.load(Ordering::Relaxed)
+    }
+
+    /// Changes how many programs it takes at once. Those that are connected stay, even if there
+    /// are more than the new limit.
+    pub fn set_max_connections(&self, limit: usize) {
+        self.max_connections.store(limit, Ordering::Relaxed);
+    }
+
+    /// How many seconds a connection can send nothing before it is closed. 0 never.
+    pub fn idle_timeout(&self) -> usize {
+        self.idle_timeout.load(Ordering::Relaxed)
+    }
+
+    /// Changes how long a connection can send nothing. It applies to the ones that are open too.
+    pub fn set_idle_timeout(&self, seconds: usize) {
+        self.idle_timeout.store(seconds, Ordering::Relaxed);
+    }
+
+    /// Takes a place for a connection of its port, unless they are all taken: then it says no, and
+    /// the connection is to be refused.
+    pub(crate) fn take_socket(&self) -> bool {
+        let limit = match self.max_connections() {
+            0 => MAX_SOCKETS,
+            limit => limit.min(MAX_SOCKETS),
+        };
+        self.sockets
+            .try_update(Ordering::AcqRel, Ordering::Acquire, |open| {
+                (open < limit).then_some(open + 1)
+            })
+            .is_ok()
+    }
+
+    /// A connection of its port closed, so its place is free.
+    pub(crate) fn free_socket(&self) {
+        self.sockets.fetch_sub(1, Ordering::AcqRel);
     }
 
     fn engine(&self) -> std::sync::MutexGuard<'_, Engine> {

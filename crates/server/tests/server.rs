@@ -3160,3 +3160,161 @@ async fn a_receipt_that_ended_without_a_cut_is_still_incomplete_after_a_restart(
     second.running.stop().await;
     remove_database(&file);
 }
+
+/// How long it takes the printer to close a connection, or none if it did not within `within`.
+async fn closed_after(stream: &mut TcpStream, within: Duration) -> Option<Duration> {
+    let started = std::time::Instant::now();
+    let mut byte = [0u8; 1];
+    match timeout(within, stream.read(&mut byte)).await {
+        Ok(Ok(0) | Err(_)) => Some(started.elapsed()),
+        Ok(Ok(_)) | Err(_) => None,
+    }
+}
+
+/// Waits until a printer says this many programs are connected to it.
+async fn until_connected(server: &Harness, name: &str, count: u64) {
+    let path = format!("/api/printers/{name}");
+    for _ in 0..100 {
+        if server.json(&path).await["connections"] == count {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(30)).await;
+    }
+    panic!("{name} never had {count} connections");
+}
+
+async fn patch(server: &Harness, name: &str, body: Value) -> Value {
+    let answer = server
+        .client
+        .patch(format!("{}/api/printers/{name}", server.base))
+        .json(&body)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(answer.status(), 200);
+    answer.json().await.unwrap()
+}
+
+#[tokio::test]
+async fn a_printer_takes_as_many_programs_as_it_is_set_to_and_closes_the_next_at_once() {
+    let server = Harness::start(&["name=till,max_connections=2"]).await;
+    assert_eq!(
+        server.json("/api/printers/till").await["max_connections"],
+        2
+    );
+    let first = TcpStream::connect(server.printer("till")).await.unwrap();
+    let mut second = TcpStream::connect(server.printer("till")).await.unwrap();
+    until_connected(&server, "till", 2).await;
+
+    // The third is closed as soon as it is taken, and is not counted.
+    let mut third = TcpStream::connect(server.printer("till")).await.unwrap();
+    let after = closed_after(&mut third, Duration::from_secs(2)).await;
+    assert!(
+        after.is_some_and(|time| time < Duration::from_secs(1)),
+        "{after:?}"
+    );
+    assert!(closed_after(&mut second, Duration::from_millis(200))
+        .await
+        .is_none());
+    assert_eq!(server.json("/api/printers/till").await["connections"], 2);
+
+    // When one closes there is a place again, and the next one prints.
+    drop(first);
+    until_connected(&server, "till", 1).await;
+    server.print("till", &receipt_bytes("Again"), 100).await;
+    assert_eq!(server.after(0).await["texts"], json!(["Again"]));
+}
+
+#[tokio::test]
+async fn the_limit_can_be_changed_while_programs_are_connected_and_zero_takes_it_away() {
+    let server = Harness::start(&["name=till"]).await;
+    let _one = TcpStream::connect(server.printer("till")).await.unwrap();
+    let _two = TcpStream::connect(server.printer("till")).await.unwrap();
+    until_connected(&server, "till", 2).await;
+
+    // A limit lower than what is connected leaves them alone and turns the next ones away.
+    let printer = patch(&server, "till", json!({"max_connections": 1})).await;
+    assert_eq!(printer["max_connections"], 1);
+    let mut refused = TcpStream::connect(server.printer("till")).await.unwrap();
+    assert!(closed_after(&mut refused, Duration::from_secs(2))
+        .await
+        .is_some());
+    assert_eq!(server.json("/api/printers/till").await["connections"], 2);
+
+    // 0 is no limit of its own.
+    patch(&server, "till", json!({"max_connections": 0})).await;
+    let mut taken = TcpStream::connect(server.printer("till")).await.unwrap();
+    assert!(closed_after(&mut taken, Duration::from_millis(300))
+        .await
+        .is_none());
+    until_connected(&server, "till", 3).await;
+}
+
+#[tokio::test]
+async fn a_connection_that_sends_nothing_for_too_long_is_closed_and_what_it_sent_is_printed() {
+    let server = Harness::start(&["name=till,idle_timeout=1"]).await;
+    let mut quiet = TcpStream::connect(server.printer("till")).await.unwrap();
+    quiet.write_all(b"half a receipt\n").await.unwrap();
+    let after = closed_after(&mut quiet, Duration::from_secs(4)).await;
+    assert!(
+        after.is_some_and(
+            |time| time >= Duration::from_millis(800) && time < Duration::from_millis(2500)
+        ),
+        "{after:?}"
+    );
+    // It had no cut, and it printed what it was sent.
+    let (lines, state) = until_printed(&server, 1).await;
+    assert_eq!(state, "incomplete");
+    assert_eq!(lines, 0);
+    assert_eq!(
+        server.json("/api/receipts/1").await["preview"],
+        json!(["half a receipt"])
+    );
+
+    // One that keeps sending is not closed, however long it takes.
+    let mut busy = TcpStream::connect(server.printer("till")).await.unwrap();
+    for _ in 0..6 {
+        busy.write_all(b".").await.unwrap();
+        tokio::time::sleep(Duration::from_millis(400)).await;
+    }
+    assert!(closed_after(&mut busy, Duration::from_millis(100))
+        .await
+        .is_none());
+}
+
+#[tokio::test]
+async fn waiting_for_the_printer_to_print_is_not_being_idle() {
+    // 40 lines take 2 seconds at 75 mm/s and the buffer is smaller than what is sent, so the
+    // program waits for the printer for longer than the idle time.
+    let server =
+        Harness::start(&["name=till,print_speed=75,printer_buffer=256,idle_timeout=1"]).await;
+    let mut stream = TcpStream::connect(server.printer("till")).await.unwrap();
+    stream.write_all(&long_receipt(40)).await.unwrap();
+    // It is not closed while it waits to be read, and the receipt is whole.
+    assert!(closed_after(&mut stream, Duration::from_millis(1500))
+        .await
+        .is_none());
+    let receipt = server.after(0).await;
+    assert_eq!(receipt["state"], "complete");
+    assert_eq!(receipt["texts"].as_array().unwrap().len(), 40);
+}
+
+#[tokio::test]
+async fn the_limit_and_the_idle_time_are_there_again_after_a_restart() {
+    let file = state_file("limits");
+    let first = Harness::start_keeping_state(
+        &["name=till,max_connections=3,idle_timeout=45"],
+        &file,
+        false,
+    )
+    .await;
+    patch(&first, "till", json!({"idle_timeout": 50})).await;
+    first.running.stop().await;
+
+    let second = Harness::start_keeping_state(&[], &file, false).await;
+    let printer = second.json("/api/printers/till").await;
+    assert_eq!(printer["max_connections"], 3);
+    assert_eq!(printer["idle_timeout"], 50);
+    second.running.stop().await;
+    remove_database(&file);
+}

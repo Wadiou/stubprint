@@ -62,7 +62,7 @@ mod tests {
         apply(&db).unwrap();
         assert_eq!(version(&db), i64::from(MIGRATIONS.last().unwrap().0));
         // The columns the last change added are there.
-        db.prepare("SELECT paper_roll, paper_used, print_speed FROM printers")
+        db.prepare("SELECT paper_roll, paper_used, print_speed, max_connections, idle_timeout FROM printers")
             .unwrap();
     }
 

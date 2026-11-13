@@ -7,15 +7,13 @@ use std::time::Duration;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpSocket, TcpStream};
-use tokio::sync::{watch, Semaphore};
-use tokio::time::timeout;
+use tokio::sync::watch;
+use tokio::time::{sleep_until, timeout, Instant};
 
 use crate::hub::Hub;
 use crate::printer::VirtualPrinter;
 use crate::session::Session;
 
-/// How many programs can be connected to one printer. More are turned away.
-const MAX_CONNECTIONS: usize = 64;
 /// How many bytes one connection can send before it is closed, so a program that never stops
 /// cannot fill the memory.
 const MAX_CONNECTION_BYTES: usize = 256 * 1024 * 1024;
@@ -63,23 +61,26 @@ async fn stopped(mut stop: watch::Receiver<bool>) {
 /// Takes the connections of one printer until told to stop.
 pub async fn listen(hub: Arc<Hub>, printer: Arc<VirtualPrinter>, listener: TcpListener) {
     let stop = printer.stopped();
-    let room = Arc::new(Semaphore::new(MAX_CONNECTIONS));
     loop {
         tokio::select! {
             _ = stopped(stop.clone()) => return,
             accepted = listener.accept() => match accepted {
                 Ok((stream, peer)) => {
-                    let Ok(permit) = room.clone().try_acquire_owned() else {
+                    // All its places are taken: it takes the connection and closes it at once,
+                    // as a printer that is busy does, and the program can try again later.
+                    if !printer.take_socket() {
+                        drop(stream);
                         continue;
-                    };
+                    }
                     limit_network_buffer(&stream, printer.network_buffer());
                     let session =
                         Session::open(hub.clone(), printer.clone(), peer.to_string()).paced();
                     let stop = stop.clone();
                     let status = printer.watch_status();
+                    let place = printer.clone();
                     tokio::spawn(async move {
                         serve(stream, session, status, stop).await;
-                        drop(permit);
+                        place.free_socket();
                     });
                 }
                 // Too many open files and the like: wait a little instead of spinning.
@@ -98,14 +99,25 @@ async fn serve(
 ) {
     let mut buffer = vec![0u8; 16 * 1024];
     let mut total = 0usize;
+    // When the program last sent something, for the printer that tires of one that sends nothing.
+    let mut last = Instant::now();
     loop {
         // A printer that holds what it receives and has no room left does not read, so the program
         // that sends has to wait, as it would for a real printer.
         let room = session
             .room()
             .map_or(buffer.len(), |room| room.min(buffer.len()));
+        // A program that waits for the printer to print is not idle, and the printer is not
+        // waiting for it.
+        if room == 0 {
+            last = Instant::now();
+        }
+        let tired_at = session.idle_timeout().map(|idle| last + idle);
         let replies = tokio::select! {
             _ = stopped(stop.clone()) => break,
+            // It sent nothing for too long: the printer closes the connection. What it sent is
+            // printed when the session ends below.
+            () = sleep_until(tired_at.unwrap_or(last)), if tired_at.is_some() => break,
             // With no room the printer reads nothing until the printing frees some, so what a
             // program sends waits in the network's buffer, and the program waits when it is full.
             () = tokio::time::sleep(ROOM_RECHECK), if room == 0 => Vec::new(),
@@ -119,6 +131,7 @@ async fn serve(
             read = stream.read(&mut buffer[..room]), if room > 0 => match read {
                 Ok(0) | Err(_) => break,
                 Ok(count) => {
+                    last = Instant::now();
                     total += count;
                     if total > MAX_CONNECTION_BYTES {
                         break;

@@ -105,6 +105,10 @@ pub struct PrinterInfo {
     pub paper_left: f64,
     /// How fast it prints, in millimetres of paper a second. 0 prints without taking any time.
     pub print_speed: usize,
+    /// How many programs it takes at once. 0 is no limit of its own, up to 64.
+    pub max_connections: usize,
+    /// How many seconds a connection can send nothing before it is closed. 0 never.
+    pub idle_timeout: usize,
     /// What it has done since it was made.
     pub usage: Usage,
 }
@@ -125,6 +129,8 @@ impl PrinterInfo {
             paper_roll: printer.paper_roll(),
             paper_left: printer.paper_left(),
             print_speed: printer.print_speed(),
+            max_connections: printer.max_connections(),
+            idle_timeout: printer.idle_timeout(),
             usage: printer.usage(),
         }
     }

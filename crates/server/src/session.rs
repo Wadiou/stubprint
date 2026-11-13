@@ -78,6 +78,14 @@ impl Session {
         self.take(pushed)
     }
 
+    /// How long a connection can send nothing before the printer closes it, or `None` for ever.
+    pub fn idle_timeout(&self) -> Option<std::time::Duration> {
+        match self.virtual_printer.idle_timeout() {
+            0 => None,
+            seconds => Some(std::time::Duration::from_secs(seconds as u64)),
+        }
+    }
+
     /// How many more bytes the printer takes now. A program that sends more has to wait: when the
     /// printer holds what it receives because it cannot print, and when its receive buffer is full of
     /// what it did not print yet. `None` when there is no limit.

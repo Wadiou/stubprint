@@ -392,6 +392,12 @@ struct PrinterChange {
     /// How fast it prints, in millimetres of paper a second. 0 prints without taking any time. A
     /// receipt that is printing now keeps the printer busy as long as it was set to.
     print_speed: Option<usize>,
+    /// How many programs it takes at once. The next one is closed at once. 0 is no limit of its own.
+    /// Programs that are connected stay, even if there are more than the new limit.
+    max_connections: Option<usize>,
+    /// How many seconds a connection can send nothing before it is closed. 0 never. It applies to
+    /// the connections that are open too.
+    idle_timeout: Option<usize>,
 }
 
 /// Sets the printer to another model, as if another printer stood on its port, or changes how much it holds while it cannot print and how much the network keeps for a program.
@@ -438,6 +444,12 @@ async fn update_printer(
     }
     if let Some(speed) = change.print_speed {
         printer.set_print_speed(speed);
+    }
+    if let Some(limit) = change.max_connections {
+        printer.set_max_connections(limit);
+    }
+    if let Some(seconds) = change.idle_timeout {
+        printer.set_idle_timeout(seconds);
     }
     hub.notify(Notice::PrinterChanged(PrinterInfo::of(&printer)));
     Ok(Json(PrinterInfo::of(&printer)))
