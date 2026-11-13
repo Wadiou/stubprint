@@ -38,8 +38,8 @@ function ByteSetting({ label, description, bytes, fallback, apply }: { label: st
   );
 }
 
-/** The buffers of the printer: what it holds while it cannot print, and what the network keeps for a program. */
-export function PrinterRealismSettings({ printer }: { printer: PrinterInfo }) {
+/** The buffers of the printer: what it holds while it cannot print and while it prints, and what the network keeps for a program. */
+export function PrinterBuffer({ printer }: { printer: PrinterInfo }) {
   const queryClient = useQueryClient();
   const update = useMutation({
     ...updatePrinterMutation(),
@@ -53,7 +53,7 @@ export function PrinterRealismSettings({ printer }: { printer: PrinterInfo }) {
       <ByteSetting
         key={`printer-${printer.printer_buffer}`}
         label="Printer buffer"
-        description="Bytes kept while it cannot print"
+        description="Bytes kept while it cannot print, and while it prints"
         bytes={printer.printer_buffer}
         fallback={DEFAULT_PRINTER_BUFFER}
         apply={(bytes) => change({ printer_buffer: bytes })}

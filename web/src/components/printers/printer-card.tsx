@@ -6,12 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DIALECTS, paperText } from "@/lib/profile";
 import { ModelPicker } from "./model-picker";
+import { PrinterBuffer } from "./printer-buffer";
 import { PrinterConnect } from "./printer-connect";
 import { Field, refused } from "./printer-fields";
 import { PrinterPaper } from "./printer-paper";
-import { PrinterRealismSettings } from "./printer-realism-settings";
 import { PrinterSpeed } from "./printer-speed";
-import { PrinterStatusSettings } from "./printer-status-settings";
+import { PrinterStatus } from "./printer-status";
 import { PrinterUsage } from "./printer-usage";
 
 /** What one printer is and what it pretends to be going through. Each change applies at once. */
@@ -57,11 +57,11 @@ export function PrinterCard({ printer, onRemove }: { printer: PrinterInfo; onRem
             <AlertDescription>{refused(update.error)}</AlertDescription>
           </Alert>
         )}
-        <PrinterStatusSettings printer={printer} />
+        <PrinterStatus printer={printer} />
         <PrinterPaper key={printer.paper_roll} printer={printer} />
         <PrinterUsage printer={printer} />
         <PrinterSpeed key={printer.print_speed} printer={printer} />
-        <PrinterRealismSettings key={printer.printer_buffer} printer={printer} />
+        <PrinterBuffer key={printer.printer_buffer} printer={printer} />
         <Button variant="destructive" onClick={() => onRemove(printer)}>
           Delete printer
         </Button>

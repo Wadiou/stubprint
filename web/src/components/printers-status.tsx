@@ -22,7 +22,7 @@ function Dot({ tone }: { tone: Tone }) {
 }
 
 /** The printers that are working, all of them, and how each is doing, with a way to add another. */
-export function PrinterStatus() {
+export function PrintersStatus() {
   const printers = usePrinters();
   const [open, setOpen] = useState(false);
   const states = printers.map((printer) => ({ printer, state: printerState(printer.status) }));

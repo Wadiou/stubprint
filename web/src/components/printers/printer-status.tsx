@@ -29,7 +29,7 @@ function Setting({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** What the printer pretends to be going through. Each change applies at once. */
-export function PrinterStatusSettings({ printer }: { printer: PrinterInfo }) {
+export function PrinterStatus({ printer }: { printer: PrinterInfo }) {
   const queryClient = useQueryClient();
   const status = useMutation({
     ...setPrinterStatusMutation(),

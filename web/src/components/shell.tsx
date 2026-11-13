@@ -1,7 +1,7 @@
 import { Link, Outlet, useMatches } from "@tanstack/react-router";
 import { Activity, LayoutGrid, type LucideIcon, Printer, Receipt, Settings } from "lucide-react";
 import { useLiveEvents } from "@/api/events";
-import { PrinterStatus } from "@/components/printer-status";
+import { PrintersStatus } from "@/components/printers-status";
 import { Toaster } from "@/components/ui/sonner";
 
 const GROUPS: { label: string; items: { to: string; label: string; icon: LucideIcon }[] }[] = [
@@ -50,7 +50,7 @@ export function Shell() {
           <header className="flex h-14 items-center gap-3 border-b px-5">
             <h1 className="text-base font-semibold">{title}</h1>
             <div className="flex-1" />
-            <PrinterStatus />
+            <PrintersStatus />
           </header>
           <main className="flex-1 p-6">
             <Outlet />
