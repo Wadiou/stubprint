@@ -237,6 +237,8 @@ export const zPrinted = z.object({
  * What a request changes about the printer itself. What is left out stays as it is.
  */
 export const zPrinterChange = z.object({
+    idle_timeout: z.int().gte(0).nullish(),
+    max_connections: z.int().gte(0).nullish(),
     network_buffer: z.int().gte(0).nullish(),
     paper_roll: z.int().gte(0).nullish(),
     print_speed: z.int().gte(0).nullish(),
@@ -249,7 +251,9 @@ export const zPrinterChange = z.object({
  */
 export const zPrinterSettings = z.object({
     dialect: z.string().nullish(),
+    idle_timeout: z.int().gte(0).nullish(),
     listen: z.string().nullish(),
+    max_connections: z.int().gte(0).nullish(),
     name: z.string().nullish(),
     network_buffer: z.int().gte(0).nullish(),
     paper_roll: z.int().gte(0).nullish(),
@@ -460,7 +464,9 @@ export const zPrinterInfo = z.object({
     connections: z.int().gte(0),
     dialect: zDialect,
     held: z.int().gte(0),
+    idle_timeout: z.int().gte(0),
     listen: z.string(),
+    max_connections: z.int().gte(0),
     name: z.string(),
     network_buffer: z.int().gte(0),
     paper_left: z.number(),

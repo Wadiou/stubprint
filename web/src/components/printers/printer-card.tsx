@@ -9,6 +9,7 @@ import { ModelPicker } from "./model-picker";
 import { PrinterBuffer } from "./printer-buffer";
 import { PrinterConnect } from "./printer-connect";
 import { Field, refused } from "./printer-fields";
+import { PrinterLimits } from "./printer-limits";
 import { PrinterPaper } from "./printer-paper";
 import { PrinterSpeed } from "./printer-speed";
 import { PrinterStatus } from "./printer-status";
@@ -62,6 +63,7 @@ export function PrinterCard({ printer, onRemove }: { printer: PrinterInfo; onRem
         <PrinterUsage printer={printer} />
         <PrinterSpeed key={printer.print_speed} printer={printer} />
         <PrinterBuffer key={printer.printer_buffer} printer={printer} />
+        <PrinterLimits printer={printer} />
         <Button variant="destructive" onClick={() => onRemove(printer)}>
           Delete printer
         </Button>

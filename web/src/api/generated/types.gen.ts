@@ -668,6 +668,16 @@ export type Printed = {
  */
 export type PrinterChange = {
     /**
+     * How many seconds a connection can send nothing before it is closed. 0 never. It applies to
+     * the connections that are open too.
+     */
+    idle_timeout?: number | null;
+    /**
+     * How many programs it takes at once. The next one is closed at once. 0 is no limit of its own.
+     * Programs that are connected stay, even if there are more than the new limit.
+     */
+    max_connections?: number | null;
+    /**
      * How many bytes the network keeps for what a program sends before the printer reads it, as
      * the network chip of a real printer does. 0 leaves it to the system, which keeps a lot. It
      * applies to connections that open from now on.
@@ -715,9 +725,17 @@ export type PrinterInfo = {
      */
     held: number;
     /**
+     * How many seconds a connection can send nothing before it is closed. 0 never.
+     */
+    idle_timeout: number;
+    /**
      * The address of its TCP port.
      */
     listen: string;
+    /**
+     * How many programs it takes at once. 0 is no limit of its own, up to 64.
+     */
+    max_connections: number;
     /**
      * What the API calls the printer.
      */
@@ -765,9 +783,21 @@ export type PrinterSettings = {
      */
     dialect?: string | null;
     /**
+     * How many seconds a connection can send nothing before the printer closes it, as one does
+     * that is tired of waiting. What it was sent still prints. Time spent waiting for the printer
+     * to print does not count. The default is 0, which never closes one.
+     */
+    idle_timeout?: number | null;
+    /**
      * The address of its TCP port, such as `127.0.0.1:9100`. Port 0 picks a free one.
      */
     listen?: string | null;
+    /**
+     * How many programs can be connected to it at once, as a real printer takes one or a few. The
+     * next one that connects is closed at once, and one that was refused can try again when a
+     * connection has closed. The default is 0, no limit of its own: up to 64.
+     */
+    max_connections?: number | null;
     /**
      * What the API calls it: letters, digits, `-` and `_`. `printer` when left out.
      */

@@ -1,42 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 import { listPrintersQueryKey, updatePrinterMutation } from "@/api/generated/@tanstack/react-query.gen";
 import type { PrinterInfo } from "@/api/generated/types.gen";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { byteSize, DEFAULT_PRINTER_BUFFER, DEFAULT_NETWORK_BUFFER, MAX_BYTES } from "@/lib/printer";
+import { byteSize, DEFAULT_NETWORK_BUFFER, DEFAULT_PRINTER_BUFFER, MAX_BYTES } from "@/lib/printer";
+import { NumberSetting, SettingRows } from "./number-setting";
 
-/** A setting that is a number of bytes and is off at 0: the size, and a switch. A size typed while it is on applies when the field is left. */
-function ByteSetting({ label, description, bytes, fallback, apply }: { label: string; description: string; bytes: number; fallback: number; apply: (bytes: number) => void }) {
-  const [text, setText] = useState(String(bytes || fallback));
-  const size = byteSize(text);
-  const on = bytes > 0;
-
-  return (
-    <div className="flex flex-col gap-2 border-t pt-3 first:border-t-0 first:pt-0">
-      <div className="flex items-center gap-3">
-        <div className="flex flex-1 flex-col">
-          <span className="font-medium">{label}</span>
-          <span className="text-sm text-muted-foreground">{description}</span>
-        </div>
-        <Input
-          aria-label={`Bytes: ${label}`}
-          aria-invalid={size === undefined}
-          inputMode="numeric"
-          className="h-8 w-24 text-right"
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          onBlur={() => {
-            if (on && size !== undefined && size !== bytes) apply(size);
-          }}
-        />
-        <span className="w-10 text-sm text-muted-foreground">bytes</span>
-        <Switch aria-label={label} checked={on} disabled={!on && size === undefined} onCheckedChange={(next) => apply(next ? (size ?? fallback) : 0)} />
-      </div>
-      {size === undefined && <p className="text-sm text-destructive">Use a whole number of bytes from 1 to {MAX_BYTES.toLocaleString("en-US")}.</p>}
-    </div>
-  );
-}
+const ERROR = `Use a whole number of bytes from 1 to ${MAX_BYTES.toLocaleString("en-US")}.`;
 
 /** The buffers of the printer: what it holds while it cannot print and while it prints, and what the network keeps for a program. */
 export function PrinterBuffer({ printer }: { printer: PrinterInfo }) {
@@ -50,22 +18,30 @@ export function PrinterBuffer({ printer }: { printer: PrinterInfo }) {
   return (
     <section className="flex flex-col gap-3">
       <h3 className="font-semibold">Buffers</h3>
-      <ByteSetting
-        key={`printer-${printer.printer_buffer}`}
-        label="Printer buffer"
-        description="Bytes kept while it cannot print, and while it prints"
-        bytes={printer.printer_buffer}
-        fallback={DEFAULT_PRINTER_BUFFER}
-        apply={(bytes) => change({ printer_buffer: bytes })}
-      />
-      <ByteSetting
-        key={`network-${printer.network_buffer}`}
-        label="Network buffer"
-        description="Bytes the network keeps for a program"
-        bytes={printer.network_buffer}
-        fallback={DEFAULT_NETWORK_BUFFER}
-        apply={(bytes) => change({ network_buffer: bytes })}
-      />
+      <SettingRows>
+        <NumberSetting
+          key={`printer-${printer.printer_buffer}`}
+          label="Printer buffer"
+          description="Bytes kept while it cannot print, and while it prints"
+          unit="bytes"
+          value={printer.printer_buffer}
+          fallback={DEFAULT_PRINTER_BUFFER}
+          parse={byteSize}
+          error={ERROR}
+          apply={(bytes) => change({ printer_buffer: bytes })}
+        />
+        <NumberSetting
+          key={`network-${printer.network_buffer}`}
+          label="Network buffer"
+          description="Bytes the network keeps for a program"
+          unit="bytes"
+          value={printer.network_buffer}
+          fallback={DEFAULT_NETWORK_BUFFER}
+          parse={byteSize}
+          error={ERROR}
+          apply={(bytes) => change({ network_buffer: bytes })}
+        />
+      </SettingRows>
     </section>
   );
 }

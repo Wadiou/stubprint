@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { byteSize, connectTo, DEFAULT_LISTEN, freeName, heldText, leftText, MAX_ROLL, MAX_SPEED, metresText, port, printerState, printSpeed, resolveListen, rollLength, rollShare, stuckText } from "./printer";
+import { byteSize, connectionLimit, connectTo, DEFAULT_LISTEN, freeName, heldText, idleTimeout, leftText, MAX_CONNECTION_LIMIT, MAX_IDLE_TIMEOUT, MAX_ROLL, MAX_SPEED, metresText, port, printerState, printSpeed, resolveListen, rollLength, rollShare, stuckText } from "./printer";
 
 const fine = { online: true, cover_open: false, drawer_open: false, feed_button: false, paper: "adequate" } as const;
 
@@ -43,7 +43,8 @@ test("the size a printer holds is a whole number of bytes from 1 to the most", (
   expect(byteSize("4096")).toBe(4096);
   expect(byteSize("1")).toBe(1);
   expect(byteSize("1048576")).toBe(1_048_576);
-  for (const bad of ["", "0", "-5", "12.5", "1e3", "abc", "1048577", " 10"]) expect(byteSize(bad)).toBeUndefined();
+  for (const bad of ["", "0", "-5", "12.5", "1e3", "abc", "1048577"]) expect(byteSize(bad)).toBeUndefined();
+  expect(byteSize(" 10 ")).toBe(10);
 });
 
 test("how full the buffer is says the bytes held and the size, with thousands separated", () => {
@@ -84,4 +85,22 @@ test("a speed is typed in millimetres a second, from 1 to the most", () => {
   expect(printSpeed("fast")).toBeUndefined();
   expect(printSpeed("")).toBeUndefined();
   expect(printSpeed(String(MAX_SPEED + 1))).toBeUndefined();
+});
+
+test("a connection limit is typed as a whole number from 1 to the most", () => {
+  expect(connectionLimit("1")).toBe(1);
+  expect(connectionLimit(" 12 ")).toBe(12);
+  expect(connectionLimit("0")).toBeUndefined();
+  expect(connectionLimit("2.5")).toBeUndefined();
+  expect(connectionLimit("many")).toBeUndefined();
+  expect(connectionLimit(String(MAX_CONNECTION_LIMIT + 1))).toBeUndefined();
+});
+
+test("an idle time is typed in seconds from 1 to a day", () => {
+  expect(idleTimeout("30")).toBe(30);
+  expect(idleTimeout("0")).toBeUndefined();
+  expect(idleTimeout("-5")).toBeUndefined();
+  expect(idleTimeout("1.5")).toBeUndefined();
+  expect(idleTimeout(String(MAX_IDLE_TIMEOUT))).toBe(MAX_IDLE_TIMEOUT);
+  expect(idleTimeout(String(MAX_IDLE_TIMEOUT + 1))).toBeUndefined();
 });

@@ -17,16 +17,19 @@ export const DEFAULT_NETWORK_BUFFER = 8192;
 /** The most that can be asked, so a typing slip does not ask for gigabytes of memory. */
 export const MAX_BYTES = 1_048_576;
 
-/** A size as typed, in bytes: digits only, from 1 to the most. Nothing when it is not one. */
-export function byteSize(text: string) {
-  const size = z
+/** A whole number as typed: digits only, from 1 to `max`. Nothing when it is not one. */
+export const wholeNumber = (max: number) => (text: string) => {
+  const number = z
     .string()
     .regex(/^\d+$/)
     .transform(Number)
-    .pipe(z.number().int().min(1).max(MAX_BYTES))
-    .safeParse(text);
-  return size.success ? size.data : undefined;
-}
+    .pipe(z.number().int().min(1).max(max))
+    .safeParse(text.trim());
+  return number.success ? number.data : undefined;
+};
+
+/** A size as typed, in bytes, from 1 to the most. */
+export const byteSize = wholeNumber(MAX_BYTES);
 
 /** How fast a printer prints when it is turned on and no speed is chosen, in millimetres a second: a common receipt printer. */
 export const DEFAULT_SPEED = 150;
@@ -34,16 +37,26 @@ export const DEFAULT_SPEED = 150;
 /** The fastest that can be asked for, in millimetres a second. */
 export const MAX_SPEED = 1000;
 
-/** A speed as typed, in millimetres a second: digits only, from 1 to the most. Nothing when it is not one. */
-export function printSpeed(text: string) {
-  const speed = z
-    .string()
-    .regex(/^\d+$/)
-    .transform(Number)
-    .pipe(z.number().int().min(1).max(MAX_SPEED))
-    .safeParse(text.trim());
-  return speed.success ? speed.data : undefined;
-}
+/** A speed as typed, in millimetres a second, from 1 to the most. */
+export const printSpeed = wholeNumber(MAX_SPEED);
+
+/** How many programs a printer takes at once when a limit is turned on and none is chosen: one, as a classic receipt printer does. */
+export const DEFAULT_CONNECTION_LIMIT = 1;
+
+/** The most programs a printer takes at once, whatever it is set to. */
+export const MAX_CONNECTION_LIMIT = 64;
+
+/** A number of connections as typed, from 1 to the most. */
+export const connectionLimit = wholeNumber(MAX_CONNECTION_LIMIT);
+
+/** How long a connection can send nothing, when a time is turned on and none is chosen, in seconds. */
+export const DEFAULT_IDLE_TIMEOUT = 30;
+
+/** The longest idle time that can be asked for, in seconds: a day. */
+export const MAX_IDLE_TIMEOUT = 86_400;
+
+/** An idle time as typed, in seconds, from 1 to the most. */
+export const idleTimeout = wholeNumber(MAX_IDLE_TIMEOUT);
 
 /** How long a roll is when one is put in without a length chosen, in millimetres: 80 m, a common roll. */
 export const DEFAULT_ROLL = 80_000;
