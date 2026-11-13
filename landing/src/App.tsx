@@ -9,6 +9,19 @@ import { cn } from "@/lib/utils";
 
 const DOCS = `${REPO}/tree/main/docs`;
 
+/** Turns the `**word**` marks of a brand.ts string into highlighted text. */
+function highlight(text: string) {
+  return text.split(/(\*\*.+?\*\*)/g).map((part, index) =>
+    part.startsWith("**") ? (
+      <strong key={index} className="font-semibold text-foreground">
+        {part.slice(2, -2)}
+      </strong>
+    ) : (
+      part
+    ),
+  );
+}
+
 const FEATURES = [
   { title: "Reads real printer bytes", body: "ESC/POS, Star Line and StarPRNT, with 50 printer models." },
   { title: "Shows what came out", body: "The paper as a picture, as text, or command by command." },
@@ -69,7 +82,7 @@ export function App() {
           <Frame className="flex flex-col items-center gap-6 px-6 pt-20 pb-24 text-center">
             <Badge variant="outline">{`v${__VERSION__}`}</Badge>
             <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-balance sm:text-6xl sm:leading-[1.05]">{HEADLINE}</h1>
-            <p className="max-w-xl text-lg text-pretty text-muted-foreground">{TAGLINE}</p>
+            <p className="max-w-xl text-lg text-pretty text-muted-foreground">{highlight(TAGLINE)}</p>
             <InstallCommand />
 
             <div className="mt-12 flex w-full flex-col items-center gap-3">

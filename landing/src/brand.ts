@@ -9,8 +9,9 @@ export const DOMAIN = "stubprint.dev";
 export const REPO = "https://github.com/Wadiou/stubprint";
 
 export const HEADLINE = "A thermal printer simulator for development and testing";
+/** `**word**` marks what the page highlights when it shows this, as markdown bold does in the README. */
 export const TAGLINE =
-  "Print to it like a real network thermal printer, in ESC/POS or Star, and see exactly what would have come out: no printer, no paper, no trip to the shop.";
+  "A thermal printer simulator for development and testing, built in **Rust**. It reads what a program would send to a real printer and shows exactly what would have come out, through a **web app** or a **CLI**, on any of **50 real printer models**.";
 
 /** The colours of the page, which are the ones of the web page of the program. */
 export const COLORS = {
