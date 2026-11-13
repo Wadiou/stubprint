@@ -1,3 +1,11 @@
+# [0.4.0](https://github.com/Wadiou/stubprint/compare/v0.3.0...v0.4.0) (2026-11-13)
+
+
+### Features
+
+* **server:** limit how many programs a printer takes and close the ones that go quiet ([829029c](https://github.com/Wadiou/stubprint/commit/829029c77a3be4ca1f2e00e53304651db40e8990))
+* **web:** set the connection limit and the idle time of a printer ([05c46d6](https://github.com/Wadiou/stubprint/commit/05c46d6232f726ed9e5eab93e500a119207bde7d))
+
 # [0.3.0](https://github.com/Wadiou/stubprint/compare/v0.2.0...v0.3.0) (2026-11-13)
 
 
