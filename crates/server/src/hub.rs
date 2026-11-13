@@ -1,15 +1,12 @@
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::io;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use axum::body::Bytes;
 use serde::{Deserialize, Serialize};
-use stubprint_core::{
-    Dialect, Event, FeedAmount, Printer, PrinterStatus, Profile, Receipt, Snapshot,
-};
+use stubprint_core::{Dialect, Event, FeedAmount, Printer, PrinterStatus, Profile, Receipt};
 use tokio::sync::broadcast;
 use tokio::time::Instant;
 use utoipa::ToSchema;
@@ -205,19 +202,6 @@ pub enum Notice {
         /// How many bytes the printer's receive buffer holds.
         buffered: usize,
     },
-    /// A command was read, while the job is still being sent. Only sent to those who ask for the
-    /// actions, since a long job makes thousands.
-    Action {
-        connection: u64,
-        printer: String,
-        /// Where its bytes start and end in what the connection sent.
-        start: usize,
-        end: usize,
-        #[schema(value_type = Event)]
-        event: Arc<Event>,
-        #[schema(value_type = Snapshot)]
-        state: Arc<Snapshot>,
-    },
 }
 
 impl Notice {
@@ -229,7 +213,6 @@ impl Notice {
             Notice::ReceiptRemoved { .. } => "receipt_removed",
             Notice::Status { .. } => "status",
             Notice::Connection(_) => "connection",
-            Notice::Action { .. } => "action",
             Notice::PrinterAdded(_) => "printer_added",
             Notice::PrinterChanged(_) => "printer_changed",
             Notice::PrinterRemoved { .. } => "printer_removed",
@@ -262,8 +245,6 @@ pub struct Hub {
     shelf: Mutex<Shelf>,
     log: Mutex<Log>,
     notices: broadcast::Sender<Notice>,
-    /// How many watchers want every action, so they are only made when someone looks.
-    action_watchers: AtomicUsize,
     /// The database that everything is also written to, when it is kept.
     store: OnceLock<Store>,
     /// The jobs that are being printed, by the connection that sent them.
@@ -291,7 +272,6 @@ impl Hub {
                 next_id: 1,
             }),
             notices: broadcast::channel(4096).0,
-            action_watchers: AtomicUsize::new(0),
             store: OnceLock::new(),
             open: Mutex::new(HashMap::new()),
         }
@@ -538,17 +518,6 @@ impl Hub {
         self.shelf
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
-    }
-
-    /// Starts watching actions. They stop being made when the watcher is dropped.
-    pub fn watch_actions(self: &Arc<Self>) -> ActionWatch {
-        self.action_watchers.fetch_add(1, Ordering::Relaxed);
-        ActionWatch(self.clone())
-    }
-
-    /// Whether anyone wants the actions, so a job that nobody watches costs nothing.
-    pub fn actions_wanted(&self) -> bool {
-        self.action_watchers.load(Ordering::Relaxed) > 0
     }
 
     fn log(&self) -> MutexGuard<'_, Log> {
@@ -1117,13 +1086,4 @@ fn now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |since| since.as_millis() as u64)
-}
-
-/// Keeps the actions being made while it is held.
-pub struct ActionWatch(Arc<Hub>);
-
-impl Drop for ActionWatch {
-    fn drop(&mut self) {
-        self.0.action_watchers.fetch_sub(1, Ordering::Relaxed);
-    }
 }

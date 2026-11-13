@@ -276,25 +276,10 @@ Each event is `event: <name>` and `data: {"type":"<name>","value":{...}}`.
 | `printer_added`, `printer_changed`, `printer_removed` | a printer was added, changed (also after each receipt, for its counters), removed | the printer; `name` for removed |
 | `held` | the bytes a printer holds while it cannot print changed | `printer`, `held` |
 | `connection` | a connection opens, sends, is answered, gets a receipt or closes | the connection as it is now, and `chunk` for the piece that just came in |
-| `action` | **only with `?detail=actions`**: the printer read one command | `connection`, `printer`, `start`, `end`, `event`, `state` |
 | `lagged` | the client was too slow and missed events. Not wrapped in `type`/`value` | `missed` |
 
 **There is no past.** A client gets only what happens after it connects, so it first asks
 `GET /api/receipts`, `/api/printers` and `/api/connections`. After `lagged` it asks them again.
-
-**`action`** is for debugging. It is one event for each command the printer reads, when it reads
-it, which is before it prints it. For `ESC @`, `Hello`, a line feed and a cut (12 bytes):
-
-| `event` | `start`–`end` |
-|---|---|
-| `initialize` | 0–2 |
-| `text` "Hello" | 2–8 |
-| `line_feed` | 8–8 |
-| `cut` | 8–12 |
-
-`start` and `end` count the bytes the connection sent. `state` is what the printer believed after
-the command, as in `/api/receipts/{id}/trace`. Thousands come for a long job, so they are only
-made for clients that ask.
 
 **One receipt sends:** `connection` (opened, bytes), `receipt` `printing`, `printing` (as it
 grows), `receipt` `complete`/`incomplete`, `status` (if the roll ran down), `printer_changed`,
@@ -327,7 +312,7 @@ the code and is served at `/api/openapi.json`, with every route, parameter and f
 | `DELETE /api/printers/{name}` | removes a printer: its port and its connections close, and the receipts it printed stay |
 | `POST /api/printers/{name}` | changes what the printer pretends: `online`, `cover_open`, `paper` (`adequate`, `near_end`, `end`), `drawer_open`, `feed_button`, `fault` (`cutter`, `unrecoverable`, `recoverable` or `null`) |
 | `PATCH /api/printers/{name}` | sets the printer to another model, `{"profile": "TM-T20III"}`, as if another printer stood on its port. Receipts printed from then on are read and drawn as that model, and each receipt keeps the one it was printed on (`profile` in the receipt). It also sets how much the printer holds while it cannot print, `{"printer_buffer": 4096}`, how much the network keeps for a program, `{"network_buffer": 8192}`, puts in a new full roll of paper, `{"paper_roll": 80000}`, and sets how fast it prints, `{"print_speed": 150}` |
-| `GET /api/events` | the live events, as server sent events, with `?detail=actions` for every command as it is read. Every event, when it is sent and what it carries are in [Live events](#live-events) |
+| `GET /api/events` | the live events, as server sent events. Every event, when it is sent and what it carries are in [Live events](#live-events) |
 | `GET /api/connections`, `GET /api/connections/{id}` | the programs that connected: when, in what pieces and at what times the bytes came, how many bytes the printer answered, and which receipts they printed |
 | `POST /api/decode` | reads the body as a printer would, in `?dialect=` and `?profile=`, and says every command, the answers and how many receipts. Nothing is kept. It shows what the same bytes mean to another language or model |
 | `GET /api/profiles` | the models a printer can be set to, with their maker, columns, paper width in millimetres and dots, dpi, code pages, features and links to manuals |

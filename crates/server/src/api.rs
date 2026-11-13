@@ -981,33 +981,18 @@ async fn print_sample(
     Ok(Json(send(&hub, printer, &variant.bytes)?))
 }
 
-#[derive(Debug, Deserialize, utoipa::IntoParams)]
-#[into_params(parameter_in = Query)]
-struct EventsQuery {
-    /// `actions` also sends every command as it is read, which a long job makes thousands of.
-    detail: Option<String>,
-}
-
-/// The live events, as server sent events: receipt, receipt_removed, cleared, status, connection and lagged, and
-/// with `detail=actions` also action, one for each command as it is read.
-#[utoipa::path(get, path = "/api/events", operation_id = "stream_events", tag = "live", params(EventsQuery), responses((status = 200, description = "A stream of events", content_type = "text/event-stream")))]
+/// The live events, as server sent events: receipt, printing, receipt_removed, cleared, status,
+/// connection, the printers, held and lagged.
+#[utoipa::path(get, path = "/api/events", operation_id = "stream_events", tag = "live", responses((status = 200, description = "A stream of events", content_type = "text/event-stream")))]
 async fn events(
     State(hub): State<Arc<Hub>>,
-    Query(query): Query<EventsQuery>,
 ) -> SseResponse<impl Stream<Item = Result<Sse, Infallible>>> {
-    let actions = query.detail.as_deref() == Some("actions");
-    // Commands are only made for the ones who ask, and for as long as the stream is open.
-    let watch = actions.then(|| hub.watch_actions());
-    let stream = BroadcastStream::new(hub.subscribe()).filter_map(move |notice| {
-        let _watching = &watch;
-        match notice {
-            Ok(Notice::Action { .. }) if !actions => None,
-            Ok(notice) => Some(Ok(named(&notice))),
-            // The watcher was too slow and missed some. It should ask for the list again.
-            Err(BroadcastStreamRecvError::Lagged(missed)) => Some(Ok(Sse::default()
-                .event("lagged")
-                .data(json!({ "missed": missed }).to_string()))),
-        }
+    let stream = BroadcastStream::new(hub.subscribe()).map(|notice| match notice {
+        Ok(notice) => Ok(named(&notice)),
+        // The watcher was too slow and missed some. It should ask for the lists again.
+        Err(BroadcastStreamRecvError::Lagged(missed)) => Ok(Sse::default()
+            .event("lagged")
+            .data(json!({ "missed": missed }).to_string())),
     });
     SseResponse::new(stream).keep_alive(KeepAlive::default())
 }

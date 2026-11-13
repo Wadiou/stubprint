@@ -3,7 +3,7 @@ use std::sync::Arc;
 use stubprint_core::{Printer, PrinterStatus, Profile, Pushed};
 
 use crate::engine::{Planner, Work};
-use crate::hub::{Hub, Notice};
+use crate::hub::Hub;
 use crate::printer::{Held, VirtualPrinter};
 
 /// One program talking to a virtual printer, over a socket or in one request. It has its own
@@ -19,8 +19,6 @@ pub struct Session {
     profile: Arc<Profile>,
     printer: Printer,
     id: u64,
-    /// Where the last command ended, which is where the next starts.
-    last_end: usize,
     stored: Vec<u64>,
     /// How many bytes it holds, as the printer was last told.
     held: usize,
@@ -47,7 +45,6 @@ impl Session {
             profile,
             printer,
             id,
-            last_end: 0,
             stored: Vec::new(),
             held: 0,
             planner: Planner::default(),
@@ -126,24 +123,9 @@ impl Session {
         replies
     }
 
-    /// Passes on what some bytes made: each command to those who watch the actions, and the work
-    /// the printer has to do for them to its engine. Returns what the printer answered.
+    /// Passes on what some bytes made: the work the printer has to do for them goes to its engine.
+    /// Returns what the printer answered.
     fn take(&mut self, pushed: Pushed) -> Vec<u8> {
-        if self.hub.actions_wanted() {
-            for item in &pushed.traced {
-                self.hub.notify(Notice::Action {
-                    connection: self.id,
-                    printer: self.virtual_printer.name.clone(),
-                    start: self.last_end,
-                    end: item.end,
-                    event: Arc::new(item.event.clone()),
-                    state: item.state.clone(),
-                });
-                self.last_end = item.end;
-            }
-        } else if let Some(item) = pushed.traced.last() {
-            self.last_end = item.end;
-        }
         let work = self.planner.plan(
             self.id,
             pushed,

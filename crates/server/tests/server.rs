@@ -1115,57 +1115,6 @@ async fn a_status_answer_is_counted_in_the_bytes_the_printer_sent() {
 }
 
 #[tokio::test]
-async fn each_command_is_told_as_it_is_read_to_those_who_ask_and_costs_nothing_to_the_rest() {
-    let server = Harness::start(&["name=till"]).await;
-    let hub = server.running.hub().clone();
-    assert!(!hub.actions_wanted());
-
-    let plain = server.get("/api/events").await;
-    assert!(
-        !hub.actions_wanted(),
-        "a plain watcher does not ask for commands"
-    );
-    let mut plain = Live {
-        response: plain,
-        seen: String::new(),
-    };
-
-    let response = server.get("/api/events?detail=actions").await;
-    let mut actions = Live {
-        response,
-        seen: String::new(),
-    };
-    assert!(hub.actions_wanted());
-
-    // Half of a line: nothing is told until its line feed arrives.
-    let mut stream = TcpStream::connect(server.printer("till")).await.unwrap();
-    stream.write_all(b"half").await.unwrap();
-    tokio::time::sleep(Duration::from_millis(150)).await;
-    stream.write_all(b" a line\n").await.unwrap();
-    let before = actions.until("event: action").await;
-    assert!(before.contains("event: connection"));
-    let told = actions.until("\"end\":").await;
-    let _ = told;
-    actions.until("\"half a line\"").await;
-
-    // The one who did not ask has the receipt and the connection, and no commands.
-    stream.write_all(&CUT).await.unwrap();
-    let seen = plain.until("event: receipt").await;
-    assert!(!seen.contains("event: action"), "{seen}");
-    actions.until("event: receipt").await;
-
-    // When the watcher goes away the commands stop being made.
-    drop(actions);
-    for _ in 0..50 {
-        if !hub.actions_wanted() {
-            return;
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-    panic!("commands are still made for nobody");
-}
-
-#[tokio::test]
 async fn the_page_in_the_program_is_served_when_it_was_built_in() {
     let server = Harness::start(&["name=till"]).await;
     assert_eq!(server.get("/api/health").await.status(), 200);

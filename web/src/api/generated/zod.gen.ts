@@ -473,6 +473,69 @@ export const zPrinterInfo = z.object({
 });
 
 /**
+ * What happened, for the ones who watch the live events.
+ */
+export const zNotice = z.union([
+    z.object({
+        type: z.enum(['receipt']),
+        value: zReceiptSummary
+    }),
+    z.object({
+        type: z.enum(['cleared']),
+        value: z.object({
+            printer: z.string().nullish()
+        })
+    }),
+    z.object({
+        type: z.enum(['receipt_removed']),
+        value: z.object({
+            id: z.int().gte(0)
+        })
+    }),
+    z.object({
+        type: z.enum(['status']),
+        value: z.object({
+            printer: z.string(),
+            status: zPrinterStatus
+        })
+    }),
+    z.object({
+        type: z.enum(['connection']),
+        value: zConnectionChange
+    }),
+    z.object({
+        type: z.enum(['printer_added']),
+        value: zPrinterInfo
+    }),
+    z.object({
+        type: z.enum(['printer_changed']),
+        value: zPrinterInfo
+    }),
+    z.object({
+        type: z.enum(['printer_removed']),
+        value: z.object({
+            name: z.string()
+        })
+    }),
+    z.object({
+        type: z.enum(['held']),
+        value: z.object({
+            held: z.int().gte(0),
+            printer: z.string()
+        })
+    }),
+    z.object({
+        type: z.enum(['printing']),
+        value: z.object({
+            buffered: z.int().gte(0),
+            commands: z.int().gte(0),
+            printer: z.string(),
+            receipt: z.int().gte(0)
+        })
+    })
+]);
+
+/**
  * A character that was drawn by the program that sent it, with `ESC &`.
  */
 export const zUserCharacter = z.object({
@@ -622,80 +685,6 @@ export const zEvent = z.union([
 ]);
 
 /**
- * What happened, for the ones who watch the live events.
- */
-export const zNotice = z.union([
-    z.object({
-        type: z.enum(['receipt']),
-        value: zReceiptSummary
-    }),
-    z.object({
-        type: z.enum(['cleared']),
-        value: z.object({
-            printer: z.string().nullish()
-        })
-    }),
-    z.object({
-        type: z.enum(['receipt_removed']),
-        value: z.object({
-            id: z.int().gte(0)
-        })
-    }),
-    z.object({
-        type: z.enum(['status']),
-        value: z.object({
-            printer: z.string(),
-            status: zPrinterStatus
-        })
-    }),
-    z.object({
-        type: z.enum(['connection']),
-        value: zConnectionChange
-    }),
-    z.object({
-        type: z.enum(['printer_added']),
-        value: zPrinterInfo
-    }),
-    z.object({
-        type: z.enum(['printer_changed']),
-        value: zPrinterInfo
-    }),
-    z.object({
-        type: z.enum(['printer_removed']),
-        value: z.object({
-            name: z.string()
-        })
-    }),
-    z.object({
-        type: z.enum(['held']),
-        value: z.object({
-            held: z.int().gte(0),
-            printer: z.string()
-        })
-    }),
-    z.object({
-        type: z.enum(['printing']),
-        value: z.object({
-            buffered: z.int().gte(0),
-            commands: z.int().gte(0),
-            printer: z.string(),
-            receipt: z.int().gte(0)
-        })
-    }),
-    z.object({
-        type: z.enum(['action']),
-        value: z.object({
-            connection: z.int().gte(0),
-            end: z.int().gte(0),
-            event: zEvent,
-            printer: z.string(),
-            start: z.int().gte(0),
-            state: zSnapshot
-        })
-    })
-]);
-
-/**
  * A whole receipt: what it says and everything the printer was asked to do.
  */
 export const zReceiptDetail = zReceiptSummary.and(z.object({
@@ -782,10 +771,6 @@ export const zDecodeBytesQuery = z.object({
  * What the bytes asked for
  */
 export const zDecodeBytesResponse = zDecoded;
-
-export const zStreamEventsQuery = z.object({
-    detail: z.string().optional()
-});
 
 /**
  * The addresses of this computer on its networks

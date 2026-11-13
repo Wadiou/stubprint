@@ -562,23 +562,6 @@ export type Notice = {
          */
         receipt: number;
     };
-} | {
-    type: 'action';
-    /**
-     * A command was read, while the job is still being sent. Only sent to those who ask for the
-     * actions, since a long job makes thousands.
-     */
-    value: {
-        connection: number;
-        end: number;
-        event: Event;
-        printer: string;
-        /**
-         * Where its bytes start and end in what the connection sent.
-         */
-        start: number;
-        state: Snapshot;
-    };
 };
 
 /**
@@ -1404,12 +1387,7 @@ export type DecodeBytesResponse = DecodeBytesResponses[keyof DecodeBytesResponse
 export type StreamEventsData = {
     body?: never;
     path?: never;
-    query?: {
-        /**
-         * `actions` also sends every command as it is read, which a long job makes thousands of.
-         */
-        detail?: string;
-    };
+    query?: never;
     url: '/api/events';
 };
 
