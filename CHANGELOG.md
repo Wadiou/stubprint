@@ -1,3 +1,24 @@
+# [0.5.0](https://github.com/Wadiou/stubprint/compare/v0.4.0...v0.5.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **fixtures:** print the totals of the new samples in bold at normal size ([f09bf34](https://github.com/Wadiou/stubprint/commit/f09bf34144e7a51b5119b6fed728b03fd2eaa273))
+* **repo:** show the receipt of the landing page at half size ([a3edc79](https://github.com/Wadiou/stubprint/commit/a3edc797467492af9cf843c803fd4aed1f127410))
+
+
+### Features
+
+* **fixtures:** add samples for eight more printer models ([a41ba91](https://github.com/Wadiou/stubprint/commit/a41ba9180a8f329ec3e751a86bf37069e511aafd))
+* **repo:** add the landing page of stubprint.dev ([d5ba259](https://github.com/Wadiou/stubprint/commit/d5ba259a44ed3a04807ef6ba233870db1a00d8b1))
+* **repo:** show a real receipt on the landing page ([0ddc029](https://github.com/Wadiou/stubprint/commit/0ddc0292818c368257dd686b9118dd4610214804))
+* **server:** add a command that updates the program ([7b451ce](https://github.com/Wadiou/stubprint/commit/7b451ce6b34719fbe56c14b0544f0fe438f46dfa))
+* **server:** add commands that ask a running server through its API ([1d0f060](https://github.com/Wadiou/stubprint/commit/1d0f060ad4e83fcd83c48089cd10f0997b1654d5))
+* **server:** say how the server runs and save the address of the API ([39e708e](https://github.com/Wadiou/stubprint/commit/39e708e96787c633a2ee1b626d82314c496ea315))
+* **web:** add the settings page and show the version in the side menu ([e163e6a](https://github.com/Wadiou/stubprint/commit/e163e6a25edfdc445bbb2c5c081182f11261d7d7))
+* **web:** fill the width on the dashboard and keep the card of a row in reach ([e6b575e](https://github.com/Wadiou/stubprint/commit/e6b575e5aeaf5f27ed05278e44fa4e000a3b6d23))
+* **web:** replace the side menu with pages in the header ([7d21a59](https://github.com/Wadiou/stubprint/commit/7d21a59a4f8cf1799305858e68fb751a83b9a98e))
+
 # [0.4.0](https://github.com/Wadiou/stubprint/compare/v0.3.0...v0.4.0) (2026-11-13)
 
 
