@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
 import { useMemo } from "react";
 import { listConnectionsOptions, listReceiptsOptions } from "@/api/generated/@tanstack/react-query.gen";
 import { PageLayout } from "@/components/layout/page";
 import { SplitLayout } from "@/components/layout/split-layout";
-import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { isOpen } from "@/lib/connection";
 import { usePrinters } from "@/lib/use-printers";
@@ -41,9 +41,6 @@ export function PrintersPage({ search, onSearchChange }: { search: PrintersSearc
 
   return (
     <PageLayout width="full">
-      <div className="flex justify-end">
-        <Button onClick={() => onSearchChange({ ...search, add: true })}>Add printer</Button>
-      </div>
       <SplitLayout
         list={
           <>
@@ -54,6 +51,16 @@ export function PrintersPage({ search, onSearchChange }: { search: PrintersSearc
               selected={chosen?.name}
               onSelect={(name) => onSearchChange({ printer: name })}
               empty="There is no printer. Add one to print to."
+              footer={
+                <button
+                  type="button"
+                  onClick={() => onSearchChange({ ...search, add: true })}
+                  className="flex w-full items-center gap-2 px-2 py-2.5 text-left text-sm text-muted-foreground hover:text-foreground"
+                >
+                  <Plus className="size-4" />
+                  Add printer
+                </button>
+              }
             />
             {chosen && <PrinterConnections key={chosen.name} printer={chosen} />}
           </>
