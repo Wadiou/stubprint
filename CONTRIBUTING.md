@@ -19,6 +19,11 @@ Stubprint should behave like the printers it copies. That is the rule everything
 
 ## Working on it
 
+Develop in Docker: `docker compose up -d --build` (or `make up`) starts the server and the web app, which
+reload as the code changes, and `docker compose exec backend` or `docker compose exec web` runs a
+command in them. `make down` stops them and `make logs` follows them. The commands below are what
+they run.
+
 ```bash
 cd fixtures/generate && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt fonttools
 .venv/bin/python generate.py && .venv/bin/python check_glyphs.py && cd ../..
@@ -35,21 +40,9 @@ in `fixtures/out/previews`, and when the change is right, accept it with
 are generated from the API description (Hey API), so after changing the server, rebuild it and run
 `pnpm api`. The names follow the `operation_id` of each route.
 
-```bash
-cargo build -p stubprint-server
-cd web && pnpm install
-pnpm dev                                  # with a stubprint running on 127.0.0.1:8080
-                                          # or STUBPRINT_SERVER=http://127.0.0.1:41233 pnpm dev
-pnpm build && cargo build -p stubprint-server   # the program carries the build
-../target/debug/stubprint                  # and serves it
-pnpm typecheck && pnpm test
-```
-
-To keep the server open while working on the page, `make up` (`docker compose up -d --build`) starts it in one
-container and the page in another (compose.yaml, for development only). The page is at
-http://127.0.0.1:5173 and reloads as it is edited. The server is built and started again whenever
-the Rust code changes, which empties its receipts. `make down` stops both and `make logs` follows
-them.
+The web app is at http://127.0.0.1:5173 in the containers and reloads as it is edited. The server is
+built and started again whenever the Rust code changes, which empties its receipts. `pnpm build` in
+`web/` and then `cargo build -p stubprint-server` gives the one file that carries the app.
 
 ## Printer profiles
 
