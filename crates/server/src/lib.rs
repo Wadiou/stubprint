@@ -118,6 +118,12 @@ pub async fn serve(config: Config) -> io::Result<Running> {
     let http = web.local_addr()?;
 
     let hub = Arc::new(Hub::new());
+    hub.started_as(wire::ServerInfo {
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        http: http.to_string(),
+        next_http: None,
+        kept: config.database.is_some(),
+    });
     let store::Loaded {
         printers: saved,
         receipts,

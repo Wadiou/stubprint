@@ -18,7 +18,7 @@ use crate::pictures::{PictureKey, Pictures};
 use crate::printer::{Usage, VirtualPrinter};
 use crate::settings::{Settings, SettingsChange};
 use crate::store::{Command, Loaded, SavedPrinter, SavedReceipt, Store};
-use crate::wire::{PrinterInfo, ReceiptSummary};
+use crate::wire::{PrinterInfo, ReceiptSummary, ServerInfo};
 
 /// A receipt the server keeps, and where it came from.
 #[derive(Debug)]
@@ -248,6 +248,10 @@ pub struct Hub {
     notices: broadcast::Sender<Notice>,
     /// The database that everything is also written to, when it is kept.
     store: OnceLock<Store>,
+    /// How the server was started, once it was.
+    server: OnceLock<ServerInfo>,
+    /// The address of the API that the database has, which the next start listens on.
+    saved_http: Mutex<Option<std::net::SocketAddr>>,
     /// The jobs that are being printed, by the connection that sent them.
     open: Mutex<HashMap<u64, Open>>,
 }
@@ -274,8 +278,41 @@ impl Hub {
             }),
             notices: broadcast::channel(4096).0,
             store: OnceLock::new(),
+            server: OnceLock::new(),
+            saved_http: Mutex::new(None),
             open: Mutex::new(HashMap::new()),
         }
+    }
+
+    /// Remembers how the server was started, for `GET /api/server`.
+    pub(crate) fn started_as(&self, info: ServerInfo) {
+        let _ = self.server.set(info);
+    }
+
+    /// How the server was started, or `None` for a hub that no server runs.
+    pub fn server(&self) -> Option<ServerInfo> {
+        let mut info = self.server.get()?.clone();
+        let saved = *self
+            .saved_http
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        info.next_http = saved
+            .map(|address| address.to_string())
+            .filter(|address| *address != info.http);
+        Some(info)
+    }
+
+    /// Saves the address the API listens on from the next start. Says no when nothing is kept.
+    pub fn save_http(&self, http: std::net::SocketAddr) -> bool {
+        if self.store.get().is_none() {
+            return false;
+        }
+        self.write(Command::Http(http));
+        *self
+            .saved_http
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(http);
+        true
     }
 
     /// Starts writing everything that changes to the database: the address of the API now, and
@@ -284,7 +321,7 @@ impl Hub {
         if self.store.set(store).is_err() {
             return;
         }
-        self.write(Command::Http(http));
+        self.save_http(http);
         self.save_state();
     }
 

@@ -3318,3 +3318,84 @@ async fn the_limit_and_the_idle_time_are_there_again_after_a_restart() {
     second.running.stop().await;
     remove_database(&file);
 }
+
+#[tokio::test]
+async fn the_server_says_how_it_is_running() {
+    let server = Harness::start(&["name=till"]).await;
+    let info = server.json("/api/server").await;
+    assert_eq!(info["version"], env!("CARGO_PKG_VERSION"));
+    assert_eq!(info["http"], server.running.http_addr().to_string());
+    // Nothing is kept here, so there is no address saved.
+    assert_eq!(info["kept"], false);
+    assert_eq!(info["next_http"], Value::Null);
+
+    let file = state_file("server-info");
+    let kept = Harness::start_keeping_state(&["name=till"], &file, true).await;
+    assert_eq!(kept.json("/api/server").await["kept"], true);
+    kept.running.stop().await;
+    remove_database(&file);
+}
+
+#[tokio::test]
+async fn the_address_of_the_api_is_saved_for_the_next_start_and_the_server_keeps_listening_where_it_is(
+) {
+    let file = state_file("save-http");
+    let server = Harness::start_keeping_state(&["name=till"], &file, false).await;
+    let here = server.json("/api/server").await["http"].clone();
+    // The test started it on port 0, which is what is saved, and not the port it got.
+    assert_eq!(server.json("/api/server").await["next_http"], "127.0.0.1:0");
+
+    let free = {
+        let socket = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        socket.local_addr().unwrap().to_string()
+    };
+    let answer = patch_server(&server, json!({"http": free})).await;
+    assert_eq!(answer.status(), 200);
+    let info: Value = answer.json().await.unwrap();
+    assert_eq!(info["http"], here);
+    assert_eq!(info["next_http"], free);
+
+    // What is not an address, and what cannot be listened on, is refused and changes nothing.
+    assert_eq!(
+        patch_server(&server, json!({"http": "nowhere"}))
+            .await
+            .status(),
+        400
+    );
+    let taken = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let in_use = taken.local_addr().unwrap().to_string();
+    assert_eq!(
+        patch_server(&server, json!({"http": in_use}))
+            .await
+            .status(),
+        400
+    );
+    assert_eq!(
+        patch_server(&server, json!({"colour": "red"}))
+            .await
+            .status(),
+        422
+    );
+    assert_eq!(server.json("/api/server").await["next_http"], free);
+    server.running.stop().await;
+    remove_database(&file);
+
+    // With nothing kept there is nowhere to save it.
+    let ephemeral = Harness::start(&["name=till"]).await;
+    assert_eq!(
+        patch_server(&ephemeral, json!({"http": "127.0.0.1:0"}))
+            .await
+            .status(),
+        409
+    );
+}
+
+async fn patch_server(server: &Harness, body: Value) -> reqwest::Response {
+    server
+        .client
+        .patch(format!("{}/api/server", server.base))
+        .json(&body)
+        .send()
+        .await
+        .unwrap()
+}

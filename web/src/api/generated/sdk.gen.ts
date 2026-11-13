@@ -4,8 +4,8 @@ import * as z from 'zod';
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AddPrinterData, AddPrinterErrors, AddPrinterResponses, ClearReceiptsData, ClearReceiptsErrors, ClearReceiptsResponses, DecodeBytesData, DecodeBytesErrors, DecodeBytesResponses, GetConnectionData, GetConnectionErrors, GetConnectionResponses, GetHealthData, GetHealthResponses, GetIndexData, GetIndexResponses, GetNetworkData, GetNetworkResponses, GetOpenapiData, GetOpenapiResponses, GetPrinterData, GetPrinterErrors, GetPrinterResponses, GetReceiptBytesData, GetReceiptBytesErrors, GetReceiptBytesResponses, GetReceiptData, GetReceiptErrors, GetReceiptPictureData, GetReceiptPictureErrors, GetReceiptPictureResponses, GetReceiptResponses, GetReceiptTextData, GetReceiptTextErrors, GetReceiptTextResponses, GetSampleBytesData, GetSampleBytesErrors, GetSampleBytesResponses, GetSampleData, GetSampleErrors, GetSamplePictureData, GetSamplePictureErrors, GetSamplePictureResponses, GetSampleResponses, GetSampleTextData, GetSampleTextErrors, GetSampleTextResponses, GetTraceData, GetTraceErrors, GetTraceResponses, ListConnectionsData, ListConnectionsResponses, ListPrintersData, ListPrintersResponses, ListProfilesData, ListProfilesResponses, ListReceiptsData, ListReceiptsResponses, ListSamplesData, ListSamplesResponses, PrintBytesData, PrintBytesErrors, PrintBytesResponses, PrintSampleData, PrintSampleErrors, PrintSampleResponses, RemovePrinterData, RemovePrinterErrors, RemovePrinterResponses, RemoveReceiptData, RemoveReceiptErrors, RemoveReceiptResponses, SetPrinterStatusData, SetPrinterStatusErrors, SetPrinterStatusResponses, StreamEventsData, StreamEventsResponses, UpdatePrinterData, UpdatePrinterErrors, UpdatePrinterResponses, WaitForReceiptData, WaitForReceiptResponses } from './types.gen';
-import { zAddPrinterBody, zAddPrinterResponse, zClearReceiptsQuery, zDecodeBytesBody, zDecodeBytesQuery, zDecodeBytesResponse, zGetConnectionPath, zGetConnectionResponse, zGetNetworkResponse, zGetPrinterPath, zGetPrinterResponse, zGetReceiptBytesPath, zGetReceiptBytesQuery, zGetReceiptBytesResponse, zGetReceiptPath, zGetReceiptPicturePath, zGetReceiptPictureQuery, zGetReceiptPictureResponse, zGetReceiptResponse, zGetReceiptTextPath, zGetReceiptTextQuery, zGetReceiptTextResponse, zGetSampleBytesPath, zGetSampleBytesQuery, zGetSampleBytesResponse, zGetSamplePath, zGetSamplePicturePath, zGetSamplePictureQuery, zGetSamplePictureResponse, zGetSampleResponse, zGetSampleTextPath, zGetSampleTextQuery, zGetSampleTextResponse, zGetTracePath, zGetTraceResponse, zListConnectionsQuery, zListConnectionsResponse, zListPrintersResponse, zListProfilesResponse, zListReceiptsQuery, zListReceiptsResponse, zListSamplesResponse, zPrintBytesBody, zPrintBytesQuery, zPrintBytesResponse, zPrintSamplePath, zPrintSampleQuery, zPrintSampleResponse, zRemovePrinterPath, zRemovePrinterResponse, zRemoveReceiptPath, zRemoveReceiptResponse, zSetPrinterStatusBody, zSetPrinterStatusPath, zSetPrinterStatusResponse, zUpdatePrinterBody, zUpdatePrinterPath, zUpdatePrinterResponse, zWaitForReceiptQuery, zWaitForReceiptResponse } from './zod.gen';
+import type { AddPrinterData, AddPrinterErrors, AddPrinterResponses, ClearReceiptsData, ClearReceiptsErrors, ClearReceiptsResponses, DecodeBytesData, DecodeBytesErrors, DecodeBytesResponses, GetConnectionData, GetConnectionErrors, GetConnectionResponses, GetHealthData, GetHealthResponses, GetIndexData, GetIndexResponses, GetNetworkData, GetNetworkResponses, GetOpenapiData, GetOpenapiResponses, GetPrinterData, GetPrinterErrors, GetPrinterResponses, GetReceiptBytesData, GetReceiptBytesErrors, GetReceiptBytesResponses, GetReceiptData, GetReceiptErrors, GetReceiptPictureData, GetReceiptPictureErrors, GetReceiptPictureResponses, GetReceiptResponses, GetReceiptTextData, GetReceiptTextErrors, GetReceiptTextResponses, GetSampleBytesData, GetSampleBytesErrors, GetSampleBytesResponses, GetSampleData, GetSampleErrors, GetSamplePictureData, GetSamplePictureErrors, GetSamplePictureResponses, GetSampleResponses, GetSampleTextData, GetSampleTextErrors, GetSampleTextResponses, GetServerData, GetServerErrors, GetServerResponses, GetTraceData, GetTraceErrors, GetTraceResponses, ListConnectionsData, ListConnectionsResponses, ListPrintersData, ListPrintersResponses, ListProfilesData, ListProfilesResponses, ListReceiptsData, ListReceiptsResponses, ListSamplesData, ListSamplesResponses, PrintBytesData, PrintBytesErrors, PrintBytesResponses, PrintSampleData, PrintSampleErrors, PrintSampleResponses, RemovePrinterData, RemovePrinterErrors, RemovePrinterResponses, RemoveReceiptData, RemoveReceiptErrors, RemoveReceiptResponses, SetPrinterStatusData, SetPrinterStatusErrors, SetPrinterStatusResponses, StreamEventsData, StreamEventsResponses, UpdatePrinterData, UpdatePrinterErrors, UpdatePrinterResponses, UpdateServerData, UpdateServerErrors, UpdateServerResponses, WaitForReceiptData, WaitForReceiptResponses } from './types.gen';
+import { zAddPrinterBody, zAddPrinterResponse, zClearReceiptsQuery, zDecodeBytesBody, zDecodeBytesQuery, zDecodeBytesResponse, zGetConnectionPath, zGetConnectionResponse, zGetNetworkResponse, zGetPrinterPath, zGetPrinterResponse, zGetReceiptBytesPath, zGetReceiptBytesQuery, zGetReceiptBytesResponse, zGetReceiptPath, zGetReceiptPicturePath, zGetReceiptPictureQuery, zGetReceiptPictureResponse, zGetReceiptResponse, zGetReceiptTextPath, zGetReceiptTextQuery, zGetReceiptTextResponse, zGetSampleBytesPath, zGetSampleBytesQuery, zGetSampleBytesResponse, zGetSamplePath, zGetSamplePicturePath, zGetSamplePictureQuery, zGetSamplePictureResponse, zGetSampleResponse, zGetSampleTextPath, zGetSampleTextQuery, zGetSampleTextResponse, zGetServerResponse, zGetTracePath, zGetTraceResponse, zListConnectionsQuery, zListConnectionsResponse, zListPrintersResponse, zListProfilesResponse, zListReceiptsQuery, zListReceiptsResponse, zListSamplesResponse, zPrintBytesBody, zPrintBytesQuery, zPrintBytesResponse, zPrintSamplePath, zPrintSampleQuery, zPrintSampleResponse, zRemovePrinterPath, zRemovePrinterResponse, zRemoveReceiptPath, zRemoveReceiptResponse, zSetPrinterStatusBody, zSetPrinterStatusPath, zSetPrinterStatusResponse, zUpdatePrinterBody, zUpdatePrinterPath, zUpdatePrinterResponse, zUpdateServerBody, zUpdateServerResponse, zWaitForReceiptQuery, zWaitForReceiptResponse } from './zod.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -483,4 +483,36 @@ export const getSampleText = <ThrowOnError extends boolean = false>(options: Opt
     responseValidator: async (data) => await zGetSampleTextResponse.parseAsync(data),
     url: '/api/samples/{id}/text',
     ...options
+});
+
+/**
+ * How the server is running: its version, its address, and whether it keeps its state.
+ */
+export const getServer = <ThrowOnError extends boolean = false>(options?: Options<GetServerData, ThrowOnError>): RequestResult<GetServerResponses, GetServerErrors, ThrowOnError> => (options?.client ?? client).get<GetServerResponses, GetServerErrors, ThrowOnError>({
+    requestValidator: async (data) => await z.object({
+        body: z.never().optional(),
+        path: z.never().optional(),
+        query: z.never().optional()
+    }).parseAsync(data),
+    responseValidator: async (data) => await zGetServerResponse.parseAsync(data),
+    url: '/api/server',
+    ...options
+});
+
+/**
+ * Changes how the server starts next time: the address of the API and the web page.
+ */
+export const updateServer = <ThrowOnError extends boolean = false>(options: Options<UpdateServerData, ThrowOnError>): RequestResult<UpdateServerResponses, UpdateServerErrors, ThrowOnError> => (options.client ?? client).patch<UpdateServerResponses, UpdateServerErrors, ThrowOnError>({
+    requestValidator: async (data) => await z.object({
+        body: zUpdateServerBody,
+        path: z.never().optional(),
+        query: z.never().optional()
+    }).parseAsync(data),
+    responseValidator: async (data) => await zUpdateServerResponse.parseAsync(data),
+    url: '/api/server',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });

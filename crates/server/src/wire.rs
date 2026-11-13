@@ -76,6 +76,21 @@ impl<'a> ReceiptDetail<'a> {
     }
 }
 
+/// How the server is running.
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct ServerInfo {
+    /// The version of the program.
+    pub version: String,
+    /// The address the API and the web page listen on now. Port 0 is already a real port here.
+    pub http: String,
+    /// The address saved for the next start, when it is not the one it listens on now. `null` when
+    /// they are the same, or when nothing is kept.
+    pub next_http: Option<String>,
+    /// Whether the printers, the receipts and the connections are kept in a database. Without one,
+    /// a new address cannot be saved.
+    pub kept: bool,
+}
+
 /// A printer, and how it is doing.
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct PrinterInfo {
