@@ -1,3 +1,11 @@
+# [0.7.0](https://github.com/Wadiou/stubprint/compare/v0.6.1...v0.7.0) (2026-11-13)
+
+
+### Features
+
+* **repo:** colour the install scripts and say how to start the program ([616ad5e](https://github.com/Wadiou/stubprint/commit/616ad5eddf5847224df9020cf234bba0471e1a7e))
+* **server:** colour the help and shorten what the program says when it starts ([14c42de](https://github.com/Wadiou/stubprint/commit/14c42de12329d6a30c4fdc0384da0b1117fdacb1))
+
 ## [0.6.1](https://github.com/Wadiou/stubprint/compare/v0.6.0...v0.6.1) (2026-11-13)
 
 
