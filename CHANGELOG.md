@@ -1,3 +1,10 @@
+# [0.8.0](https://github.com/Wadiou/stubprint/compare/v0.7.0...v0.8.0) (2026-11-13)
+
+
+### Features
+
+* **repo:** build the program for Linux with musl too ([9e2f639](https://github.com/Wadiou/stubprint/commit/9e2f639cd10020a6a1079c8bdf976f85827683df))
+
 # [0.7.0](https://github.com/Wadiou/stubprint/compare/v0.6.1...v0.7.0) (2026-11-13)
 
 
