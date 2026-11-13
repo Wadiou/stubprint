@@ -328,6 +328,7 @@ fn installed_program() -> Result<PathBuf, Failure> {
     let program = std::env::current_exe()
         .and_then(|path| path.canonicalize())
         .map_err(|error| format!("cannot tell where this program is: {error}"))?;
+    let program = plain(program);
     if is_a_build(&program) {
         return Err(format!(
             "{} was built from the source and is not an installed program: build it again",
@@ -335,6 +336,15 @@ fn installed_program() -> Result<PathBuf, Failure> {
         ));
     }
     Ok(program)
+}
+
+/// A path without the `\\?\` that Windows puts in front of a canonical one. `cmd` cannot use it:
+/// `del` on such a path says "The specified path is invalid".
+fn plain(path: PathBuf) -> PathBuf {
+    match path.to_str().and_then(|text| text.strip_prefix(r"\\?\")) {
+        Some(rest) if !rest.starts_with("UNC\\") => PathBuf::from(rest),
+        _ => path,
+    }
 }
 
 fn execute(client: &Client, json: bool, command: Command) -> Result<u8, Failure> {

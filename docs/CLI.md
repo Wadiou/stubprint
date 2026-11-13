@@ -69,8 +69,9 @@ update itself.
 is, so installing again finds the printers and the receipts it had. `--purge` removes that too.
 
 On Windows the program cannot be deleted while it runs, so it is renamed aside and a detached command
-deletes it once this process has exited; a `stubprint.exe.old` that is still there a moment later is
-harmless and can be removed by hand. A program that was built from the source does not uninstall
+deletes it, and the folder it was in when nothing else is there, once this process has exited; a
+`stubprint.exe.old` that is still there a moment later is harmless and can be removed by hand. The
+folder is also taken out of the PATH of this user, where the installer put it. A program that was built from the source does not uninstall
 itself.
 
 ## Exit codes

@@ -76,16 +76,37 @@ fn remove(program: &Path) -> Result<(), Failure> {
     // this one. `spawn` starts `cmd` and returns at once, without waiting for it to finish, so this
     // process exits right after while `cmd` is still only pinging. By the time `cmd` reaches
     // `del`, this process is gone and nothing has the file open any more.
+    let folder = program.parent().map(Path::to_path_buf);
+    if let Some(folder) = &folder {
+        leave_path(folder);
+    }
+    // `rmdir` removes the folder only when nothing else is in it.
+    let rmdir = folder
+        .map(|folder| format!(" & rmdir \"{}\"", folder.display()))
+        .unwrap_or_default();
     let _ = Command::new("cmd")
         .args([
             "/C",
             // `ping -n 2` to localhost is a crude sleep of about a second: Windows has no plain
             // sleep command. `&` runs `del` only after it, in the same `cmd` line.
             &format!(
-                "ping -n 2 127.0.0.1 >NUL & del /F /Q \"{}\"",
+                "ping -n 2 127.0.0.1 >NUL & del /F /Q \"{}\"{rmdir}",
                 aside.display()
             ),
         ])
         .spawn();
     Ok(())
+}
+
+/// Takes the folder out of the PATH of this user, where the installer put it.
+fn leave_path(folder: &Path) {
+    let script = format!(
+        "$f = '{}'; $p = [Environment]::GetEnvironmentVariable('Path', 'User'); \
+         $k = ($p -split ';') | Where-Object {{ $_ -and $_ -ne $f }}; \
+         [Environment]::SetEnvironmentVariable('Path', ($k -join ';'), 'User')",
+        folder.display().to_string().replace('\'', "''")
+    );
+    let _ = Command::new("powershell")
+        .args(["-NoProfile", "-Command", &script])
+        .status();
 }
