@@ -1,3 +1,10 @@
+# [0.10.0](https://github.com/Wadiou/stubprint/compare/v0.9.0...v0.10.0) (2026-11-13)
+
+
+### Features
+
+* **repo:** add llms.txt to the landing page ([dc41ad8](https://github.com/Wadiou/stubprint/commit/dc41ad87ca60133ad0e2aef027b344b6d186ea0a))
+
 # [0.9.0](https://github.com/Wadiou/stubprint/compare/v0.8.0...v0.9.0) (2026-11-13)
 
 
