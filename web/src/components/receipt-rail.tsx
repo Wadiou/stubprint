@@ -50,7 +50,7 @@ export function ReceiptRail({
   }, [shown, virtual]);
 
   return (
-    <aside aria-label="Receipts" className="flex min-h-96 flex-col overflow-hidden rounded-xl border lg:h-[calc(100vh-8.5rem)]">
+    <aside aria-label="Receipts" className="flex h-[60dvh] flex-col overflow-hidden rounded-xl border lg:h-full">
       <div className="flex items-center gap-2 px-4 pt-3">
         <span className="font-semibold">Receipts</span>
         <span className="text-muted-foreground">{receipts.length}</span>

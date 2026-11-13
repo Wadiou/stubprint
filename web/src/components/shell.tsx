@@ -15,8 +15,8 @@ export function Shell() {
   }, [title]);
   return (
     <>
-      <div className="flex min-h-screen flex-col bg-background text-foreground">
-        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-4 border-b bg-background px-4 md:grid md:grid-cols-[1fr_auto_1fr] md:items-stretch">
+      <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
+        <header className="flex h-14 shrink-0 items-center gap-4 border-b bg-background px-4 md:grid md:grid-cols-[1fr_auto_1fr] md:items-stretch">
           <Link to="/" className="justify-self-start leading-tight md:self-center">
             <div className="font-semibold">Stubprint</div>
             {version && <div className="text-xs text-muted-foreground">v{version}</div>}
@@ -26,7 +26,9 @@ export function Shell() {
             <PrintersStatus />
           </div>
         </header>
-        <main className="flex-1 p-6 pb-24 md:pb-6">
+        {/* The one place the page scrolls, so a short page fills the screen and a tall one scrolls here
+            and nowhere else; most panels inside cap their own height and scroll on their own instead. */}
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6 pb-24 md:pb-6">
           <Outlet />
         </main>
       </div>

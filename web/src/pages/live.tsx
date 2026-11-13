@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { LayoutGrid, Printer, Receipt } from "lucide-react";
+import { LayoutGrid, Printer } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import {
   getReceiptPictureOptions,
@@ -49,9 +49,6 @@ function Empty() {
   return (
     <PageLayout width="full">
       <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed px-6 py-16 text-center">
-        <div className="flex size-14 items-center justify-center rounded-xl bg-muted">
-          <Receipt className="size-7 text-muted-foreground" />
-        </div>
         <div className="flex flex-col gap-1">
           <h2 className="text-xl font-semibold tracking-tight">No receipts yet</h2>
           <p className="text-sm text-muted-foreground">They appear here as your app prints.</p>
@@ -220,7 +217,7 @@ export function LivePage({ picked, onPick }: { picked?: number; onPick: (id?: nu
 
   return (
     <PageLayout width="full">
-      <div className="grid min-w-0 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
+      <div className="grid min-h-0 min-w-0 flex-1 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
         <ReceiptRail
           receipts={list}
           selected={current.id}
