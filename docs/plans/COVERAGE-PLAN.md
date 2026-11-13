@@ -3,7 +3,9 @@
 How `crates/core` grows from "what one encoder library writes" to "what real printers receive".
 
 Written after reading the eight reference projects in `tmp/` and counting the commands in 25 real
-captured streams. Nothing here is built yet.
+captured streams. Every stage in section 6 is done, so this is the record of why the decoder reads
+what it reads. What is still open is in the "Not read yet" lists of [ESCPOS.md](../reference/ESCPOS.md)
+and [STAR.md](../reference/STAR.md).
 
 ## 1. What was read
 
@@ -181,20 +183,5 @@ One branch, one commit per step, tests before or with each command. The numbers 
 | E | **Done.** Printer profiles, per printer code pages, two byte text in JIS, Shift JIS and the Chinese and Korean encodings, UTF-8, `ESC R`, drawn characters and Kanji | 13, 17, 18 |
 | F | **Done.** Replies and printer state | 19 |
 | G | **Done.** Specs built with python-escpos | section 5 |
-| H | **Done**, except drawing a page, which belongs to the renderer. Page mode events, and the Star dialects in [STAR.md](STAR.md) | 20, 21 |
+| H | **Done**, except drawing a page, which belongs to the renderer. Page mode events, and the Star dialects in [STAR.md](../reference/STAR.md) | 20, 21 |
 
-After this, the order we agreed stays: renderer (events to a picture), server crate (TCP, REST,
-events stream), web page.
-
-Each stage ends with `docs/ESCPOS.md` updated, the "Not read yet" list shrunk, and the commands to
-run (`cargo test --workspace`) given to you instead of run here.
-
-## 7. Decisions needed
-
-1. **Copy the MIT captured streams into the repo?** About 150 KB with a notice. Without them we have
-   no independent real data. Recommended: yes.
-2. **Second encoder in Python** (`python3 -m venv`, then `pip install python-escpos`)? Here `python3`
-   has `venv` but no `pip`, so it may need `sudo apt install python3-venv` first. Recommended: yes.
-3. **Copy the printer profile database** (MIT, with notice) as our profile data? Recommended: yes.
-4. **Licence for this repo.** Still undecided. MIT would match everything we copy from.
-5. **Start with stage A?** It is the one that fixes decoding of real streams.

@@ -1,7 +1,7 @@
 # The command line
 
 `stubprint` with no command starts the server ([the server](SERVER.md)). With a command it asks a
-server that is running, through its REST API, and says what it answered. A command holds no printer
+server that is running, through its API, and says what it answered. A command holds no printer
 of its own, so what it shows is what the page shows.
 
 ```bash

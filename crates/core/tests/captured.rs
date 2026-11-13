@@ -3,7 +3,7 @@
 //! No spec says what these must decode to, so the checks are the ones that need no expectation:
 //! no command is left unknown, no byte is left waiting, and the events do not depend on where the
 //! stream was cut. A command the decoder does not read yet is listed in `KNOWN_GAPS`, with the
-//! stage of `docs/COVERAGE-PLAN.md` that closes it. The list only shrinks: a command that is
+//! stage of `docs/plans/COVERAGE-PLAN.md` that closes it. The list only shrinks: a command that is
 //! listed but no longer unknown fails the test, so the entry has to be removed.
 
 use std::collections::BTreeMap;
