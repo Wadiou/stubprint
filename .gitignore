@@ -18,6 +18,9 @@
 /landing/node_modules
 /landing/dist
 
+# The shared icon drawing
+/ui/node_modules
+
 # Builds and packaged apps
 /dist
 /build
