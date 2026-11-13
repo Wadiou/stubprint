@@ -1,6 +1,6 @@
 # Stubprint
 
-A virtual receipt printer for development and testing, at [stubprint.dev](https://stubprint.dev).
+A thermal printer simulator for development and testing, at [stubprint.dev](https://stubprint.dev).
 
 Print to it the way you print to a real network printer. It reads the same command bytes (ESC/POS,
 Star Line mode and StarPRNT), answers the same status questions, and shows exactly what would have
