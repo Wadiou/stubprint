@@ -44,9 +44,21 @@ Both go anywhere on the line. The options that start a server (`--printer`, `--h
 | `connection list`, `connection show <id>` | the programs that connected |
 | `info` | the version of the server, where it listens, and whether it keeps its state |
 | `events` | follows the live events, one line each. With `--json`, `{"event": …, "data": …}` |
+| `update` | installs the latest release over this program. `--to <version>` installs that one instead. See below |
 
 `key=value` settings are the same as `--printer` and the API take. Bytes and a picture are binary:
 they go to a file with `-o`, or to a pipe, and never to a terminal.
+
+## Updating
+
+`stubprint update` downloads the installer that the latest release attaches, and runs it so that the
+new program replaces this one in the same folder. The installer checks the download against the
+`SHA256SUMS` of the release, and when it fails the program is left as it was. It needs no server, and
+`--server` and `--json` do nothing for it.
+
+It needs `curl` or `wget`, and PowerShell on Windows. A server that is running keeps the old version
+until it is started again. A program that was built from the source, in a `target/` folder, does not
+update itself.
 
 ## Exit codes
 
