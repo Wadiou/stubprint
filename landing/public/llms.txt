@@ -1,6 +1,6 @@
 # Stubprint
 
-> A thermal printer simulator for development and testing. It reads ESC/POS, Star Line and StarPRNT like a real receipt printer, and shows what came out as a picture of the paper, as text, or as the list of commands with their bytes. It comes as one program with a web app and a CLI.
+> A thermal printer simulator for development and testing, built in Rust. It reads what a program would send to a real printer and shows exactly what would have come out, through a web app or a CLI, on any of 50 real printer models.
 
 Programs print to its TCP ports (127.0.0.1:9100 by default) exactly as they would to a network printer. `stubprint wait` waits for the next receipt and exits 0 when one came, which is how a test or an agent checks what was printed. The same data is available over an HTTP API described by an OpenAPI document at `/api/openapi.json` of a running server.
 

@@ -6,8 +6,7 @@
 
 # Stubprint
 
-A thermal printer simulator for development and testing, at [stubprint.dev](https://stubprint.dev).
-It reads ESC/POS, Star Line and StarPRNT like the printers do, and shows what would have come out.
+A thermal printer simulator for development and testing, built in **Rust**. It reads what a program would send to a real printer and shows exactly what would have come out, through a **web app** or a **CLI**, on any of **50 real printer models**. It speaks ESC/POS, Star Line and StarPRNT, at [stubprint.dev](https://stubprint.dev).
 
 ## Install
 
