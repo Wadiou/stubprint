@@ -1,3 +1,16 @@
+# [0.15.0](https://github.com/Wadiou/stubprint/compare/v0.14.1...v0.15.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **web:** stop remounting a printer's number settings on every change ([e930d36](https://github.com/Wadiou/stubprint/commit/e930d36ded8c532294dd8c5f61861d8199af9894))
+
+
+### Features
+
+* **server:** print a request through the same buffer and engine as a connection ([96f656a](https://github.com/Wadiou/stubprint/commit/96f656a3f8f33a6aba6d169783c6af898bf5855e))
+* **web:** show a pending state while a sample waits to print ([5faa895](https://github.com/Wadiou/stubprint/commit/5faa89501c315a960e7ad087e28836db809b067d))
+
 ## [0.14.1](https://github.com/Wadiou/stubprint/compare/v0.14.0...v0.14.1) (2026-11-13)
 
 # [0.14.0](https://github.com/Wadiou/stubprint/compare/v0.13.0...v0.14.0) (2026-11-13)
