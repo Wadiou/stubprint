@@ -1,6 +1,7 @@
 /**
- * Draws the icons and the card that links show, from the name, the colours and the receipt of
- * src/brand.ts and from the typefaces of the page. Writes to public/.
+ * Draws the icons and the card that links show, from the name and the colours of src/brand.ts, the
+ * receipt picture and the typefaces of the page. Writes to public/, and the card also to
+ * docs/banner.png for the README.
  *
  * Run: pnpm brand
  */
@@ -13,6 +14,7 @@ import { COLORS, DOMAIN, HEADLINE, NAME } from "../src/brand.ts";
 
 const require = createRequire(import.meta.url);
 const RECEIPT_PNG = `data:image/png;base64,${(await fs.readFile(path.join(path.dirname(fileURLToPath(import.meta.url)), "../src/assets/receipt.png"))).toString("base64")}`;
+const DOCS = path.join(path.dirname(fileURLToPath(import.meta.url)), "../../docs");
 const PUBLIC = path.join(path.dirname(fileURLToPath(import.meta.url)), "../public");
 
 /** A typeface of the page as a rule that loads it into the card, so the card needs no network. */
@@ -102,7 +104,11 @@ try {
   );
 
   console.log("Card");
-  await write("og.png", await shot(card(), 1200, 630));
+  const og = await shot(card(), 1200, 630);
+  await write("og.png", og);
+  // The README shows the same card, under another name, so it is not a link into this folder.
+  await fs.writeFile(path.join(DOCS, "banner.png"), og);
+  console.log("  docs/banner.png");
 } finally {
   await browser.close();
 }
