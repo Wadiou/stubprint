@@ -11,7 +11,9 @@ pnpm brand      # redraw the icons and og.png in public/
 pnpm receipt    # redraw the receipt of the page, src/assets/receipt.png
 ```
 
-- The name, the headline and the colours are in `src/brand.ts`. The page and `pnpm brand` both
+- The colours, the fonts and the square corners are in `../ui/theme.css`, which the web page of the
+  program imports too, so the two look the same. Change them there.
+- The name, the headline and the colours of the cards are in `src/brand.ts`. The page and `pnpm brand` both
   read it, so the page and the card that links show cannot differ.
 - The receipt is a picture that Stubprint drew, not a copy typed by hand: the `cafe` sample as the
   default printer prints it, which is what the command on the page does. `pnpm receipt` draws it

@@ -27,7 +27,7 @@ export const printersColumns: ColumnDef<PrinterRow>[] = [
       const state = printerState(row.original.status);
       return (
         <span className="flex items-center gap-2">
-          <span className={`size-2 rounded-full ${DOT[state.tone]}`} />
+          <span className={`size-2 ${DOT[state.tone]}`} />
           {state.label}
         </span>
       );

@@ -15,8 +15,8 @@ const WORST: Tone[] = ["ok", "warn", "bad"];
 function Dot({ tone }: { tone: Tone }) {
   return (
     <span className="relative flex size-2 shrink-0">
-      {tone === "ok" && <span className="absolute inline-flex size-full animate-ping rounded-full bg-green-500 opacity-75" />}
-      <span className={`relative inline-flex size-2 rounded-full ${DOT[tone]}`} />
+      {tone === "ok" && <span className="absolute inline-flex size-full animate-ping bg-green-500 opacity-75" />}
+      <span className={`relative inline-flex size-2 ${DOT[tone]}`} />
     </span>
   );
 }

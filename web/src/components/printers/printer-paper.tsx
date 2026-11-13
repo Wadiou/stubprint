@@ -46,9 +46,9 @@ export function PrinterPaper({ printer }: { printer: PrinterInfo }) {
             aria-valuemin={0}
             aria-valuemax={printer.paper_roll}
             aria-valuenow={Math.round(printer.paper_left)}
-            className="h-2 overflow-hidden rounded-full bg-muted"
+            className="h-2 overflow-hidden bg-muted"
           >
-            <div className={`h-full rounded-full ${LEVEL[printer.status.paper]}`} style={{ width: `${share * 100}%` }} />
+            <div className={`h-full ${LEVEL[printer.status.paper]}`} style={{ width: `${share * 100}%` }} />
           </div>
           <Button variant="outline" size="sm" className="self-start" onClick={() => put(printer.paper_roll)}>
             New roll
