@@ -253,30 +253,37 @@ fn write_ready(path: &Path, http: SocketAddr, hub: &Hub) -> io::Result<()> {
 
 /// Serves until the process gets Ctrl+C or a termination signal.
 pub async fn run(config: Config) -> io::Result<()> {
-    let database = config.database.clone();
     let running = serve(config).await?;
-    println!(
-        "API and live events: http://{}/api/openapi.json",
-        running.http_addr()
-    );
-    if running.web {
-        println!("web page: http://{}/", running.http_addr());
-    }
-    for printer in running.hub().printers() {
+    {
+        use anstream::println;
+        use anstyle::{AnsiColor, Effects, Style};
+        let ok = AnsiColor::Green.on_default().effects(Effects::BOLD);
+        let name = Style::new().effects(Effects::BOLD);
+        let label = AnsiColor::Cyan.on_default();
+        let dim = Style::new().effects(Effects::DIMMED);
+        let row = |first: bool, what: &str| {
+            let what = if first { what } else { "" };
+            format!("  {label}{what:<8}{label:#} ")
+        };
+        println!();
         println!(
-            "printer {} reads {} on {} as {}",
-            printer.name,
-            printer.dialect.name(),
-            printer.listen,
-            printer.profile().name
+            "{ok}\u{25cf}{ok:#} {name}Stubprint {}{name:#} is running",
+            env!("CARGO_PKG_VERSION")
         );
-    }
-    match database {
-        Some(path) => println!(
-            "the printers, the receipts and the connections are kept in {}",
-            path.display()
-        ),
-        None => println!("nothing is kept: it is all gone when the server stops"),
+        println!();
+        if running.web {
+            println!("{}http://{}/", row(true, "web app"), running.http_addr());
+        }
+        for (index, printer) in running.hub().printers().iter().enumerate() {
+            println!(
+                "{}{}  {dim}{}{dim:#}",
+                row(index == 0, "printer"),
+                printer.listen,
+                printer.dialect.name()
+            );
+        }
+        println!();
+        println!("{dim}Press Ctrl+C to stop.{dim:#}");
     }
     shutdown_signal().await;
     running.stop().await;

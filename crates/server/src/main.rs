@@ -4,16 +4,28 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use clap::builder::styling::{AnsiColor, Effects, Styles};
 use clap::{CommandFactory, Parser};
 use stubprint_server::Config;
 
-/// A virtual receipt printer. Programs print to its TCP ports, and its REST API shows what was
-/// printed.
+/// The colours of the help and of the errors of the command line. They are left out when the output
+/// is not a terminal, and when NO_COLOR is set.
+const STYLES: Styles = Styles::styled()
+    .header(AnsiColor::Green.on_default().effects(Effects::BOLD))
+    .usage(AnsiColor::Green.on_default().effects(Effects::BOLD))
+    .literal(AnsiColor::Cyan.on_default().effects(Effects::BOLD))
+    .placeholder(AnsiColor::Cyan.on_default())
+    .error(AnsiColor::Red.on_default().effects(Effects::BOLD))
+    .valid(AnsiColor::Cyan.on_default())
+    .invalid(AnsiColor::Yellow.on_default());
+
+/// A thermal printer simulator. Programs print to its TCP ports, and you see what came out in the
+/// web app, in the API or in the commands below.
 ///
 /// With no command it starts the server, from the options below. With a command it asks a server
 /// that is running: say where it is with --server, or it is on 127.0.0.1:8080.
 #[derive(Parser)]
-#[command(name = "stubprint", version)]
+#[command(name = "stubprint", version, styles = STYLES)]
 struct Options {
     #[command(flatten)]
     remote: cli::Remote,
@@ -31,7 +43,7 @@ struct Options {
     #[arg(long, conflicts_with = "ephemeral")]
     reset: bool,
 
-    /// Where the REST API and the web page listen. It is saved in the database and used from then
+    /// Where the API and the web app listen. It is saved in the database and used from then
     /// on. It has no password, so keep it on this machine unless the network can be trusted.
     /// [default: 127.0.0.1:8080]
     #[arg(long)]

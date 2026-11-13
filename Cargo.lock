@@ -1380,6 +1380,8 @@ dependencies = [
 name = "stubprint-server"
 version = "0.6.1"
 dependencies = [
+ "anstream",
+ "anstyle",
  "axum",
  "base64",
  "clap",
