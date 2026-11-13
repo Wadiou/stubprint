@@ -134,7 +134,7 @@ feature is added to the server and used through the page, so each one is tested 
    and the printer's status.
 7. Added one by one, each used through the page: the realism of a real printer (offline hold, the
    paper roll, the counters, the drawer, print speed, connection limits and idle timeouts, which
-   are built, then reboots, faults and network failures), the command line, the decoder gaps (page mode,
+   are built, then network failures), the command line, the decoder gaps (page mode,
    second colour, rotated characters, a few Star commands), more printer models.
 8. Release: the page's files embedded in the program, `/api/v1`, the binaries with the install script,
    the Docker image, the npm package,
