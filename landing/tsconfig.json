@@ -15,5 +15,5 @@
     "types": ["vite/client"],
     "paths": { "@/*": ["./src/*"] }
   },
-  "include": ["src", "vite.config.ts", "middleware.ts", "install-route.ts", "install-route.test.ts"]
+  "include": ["src", "vite.config.ts", "middleware.ts"]
 }

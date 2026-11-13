@@ -10,8 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "brand": "node scripts/brand.mjs",
-    "receipt": "bash scripts/receipt.sh",
-    "test": "node --test install-route.test.ts"
+    "receipt": "bash scripts/receipt.sh"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

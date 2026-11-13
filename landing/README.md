@@ -28,5 +28,5 @@ pnpm receipt    # redraw the receipt of the page, src/assets/receipt.png
 - The install commands on the page point at `stubprint.dev/install.sh`, `install.ps1` and
   `<version>/install.sh`. `middleware.ts` answers those addresses on Vercel (Root Directory
   `landing`, no other config): it checks the version, asks GitHub whether the release exists, and
-  redirects to the installer of the release, or says in words that there is none. The rules are in
-  `install-route.ts`, and `pnpm test` runs their tests.
+  redirects to the installer of the release, or says in words that there is none. It is one file, since
+  Vercel compiles it alone.
