@@ -26,5 +26,7 @@ pnpm receipt    # redraw the receipt of the page, src/assets/receipt.png
 - `public/` holds the generated files (`favicon.ico`, `favicon-32x32.png`, `apple-touch-icon.png`,
   `og.png`) next to `robots.txt` and `sitemap.xml`. Commit them after `pnpm brand`.
 - The install commands on the page point at `stubprint.dev/install.sh`, `install.ps1` and
-  `<version>/install.sh`. They work once the release publishes the installers and the site
-  redirects those paths to them.
+  `<version>/install.sh`. `middleware.ts` answers those addresses on Vercel (Root Directory
+  `landing`, no other config): it checks the version, asks GitHub whether the release exists, and
+  redirects to the installer of the release, or says in words that there is none. The rules are in
+  `install-route.ts`, and `pnpm test` runs their tests.
