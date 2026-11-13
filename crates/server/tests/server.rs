@@ -25,7 +25,8 @@ impl Harness {
             .map(|text| PrinterConfig::parse(&format!("listen=127.0.0.1:0,{text}")).unwrap())
             .collect();
         let config = Config {
-            http: Some(([127, 0, 0, 1], 0).into()),
+            host: Some([127, 0, 0, 1].into()),
+            port: Some(0),
             printers,
             ready: None,
             database: None,
@@ -854,7 +855,8 @@ async fn an_address_that_is_taken_is_said_before_anything_runs() {
     let first = Harness::start(&["name=till"]).await;
     let taken = first.printer("till");
     let config = Config {
-        http: Some(([127, 0, 0, 1], 0).into()),
+        host: Some([127, 0, 0, 1].into()),
+        port: Some(0),
         printers: vec![PrinterConfig {
             listen: taken,
             ..PrinterConfig::default()
@@ -1726,7 +1728,8 @@ async fn the_description_puts_each_parameter_where_it_belongs() {
 async fn the_ready_file_says_where_a_server_on_port_zero_listens_and_goes_with_it() {
     let path = std::env::temp_dir().join(format!("stubprint-ready-{}.json", std::process::id()));
     let config = Config {
-        http: Some(([127, 0, 0, 1], 0).into()),
+        host: Some([127, 0, 0, 1].into()),
+        port: Some(0),
         printers: vec![PrinterConfig::parse("name=front,listen=127.0.0.1:0").unwrap()],
         ready: Some(path.clone()),
         ..Config::default()
@@ -1750,7 +1753,8 @@ async fn the_ready_file_says_where_a_server_on_port_zero_listens_and_goes_with_i
 #[tokio::test]
 async fn a_ready_file_that_cannot_be_written_stops_the_server_from_starting() {
     let config = Config {
-        http: Some(([127, 0, 0, 1], 0).into()),
+        host: Some([127, 0, 0, 1].into()),
+        port: Some(0),
         printers: vec![PrinterConfig::parse("listen=127.0.0.1:0").unwrap()],
         ready: Some("/nowhere/at/all/ready.json".into()),
         ..Config::default()
@@ -1762,7 +1766,8 @@ async fn a_ready_file_that_cannot_be_written_stops_the_server_from_starting() {
 #[tokio::test]
 async fn a_printer_that_is_stopped_right_after_it_started_stops() {
     let running = serve(Config {
-        http: Some(([127, 0, 0, 1], 0).into()),
+        host: Some([127, 0, 0, 1].into()),
+        port: Some(0),
         printers: vec![PrinterConfig::parse("listen=127.0.0.1:0").unwrap()],
         ..Config::default()
     })
@@ -2143,7 +2148,8 @@ async fn free_address() -> SocketAddr {
 /// default gives it, listening wherever there is room.
 fn keeping_in(file: &std::path::Path, http: Option<SocketAddr>) -> Config {
     Config {
-        http,
+        host: http.map(|address| address.ip()),
+        port: http.map(|address| address.port()),
         printers: vec![PrinterConfig {
             listen: ([127, 0, 0, 1], 0).into(),
             ..PrinterConfig::default()

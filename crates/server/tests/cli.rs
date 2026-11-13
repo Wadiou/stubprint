@@ -13,7 +13,8 @@ struct Server {
 
 async fn start(printers: &[&str]) -> Server {
     let config = Config {
-        http: Some(([127, 0, 0, 1], 0).into()),
+        host: Some([127, 0, 0, 1].into()),
+        port: Some(0),
         printers: printers
             .iter()
             .map(|text| PrinterConfig::parse(&format!("listen=127.0.0.1:0,{text}")).unwrap())
@@ -54,10 +55,10 @@ async fn stubprint_at(server: &str, args: &[&str], input: &[u8]) -> Run {
     let input = input.to_vec();
     tokio::task::spawn_blocking(move || {
         let mut child = Command::new(env!("CARGO_BIN_EXE_stubprint"))
-            .arg("--server")
+            .arg("--url")
             .arg(server)
             .args(args)
-            .env_remove("STUBPRINT_SERVER")
+            .env_remove("STUBPRINT_URL")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -370,8 +371,8 @@ async fn an_option_that_starts_a_server_does_not_go_with_a_command() {
         let address = server.address.clone();
         tokio::task::spawn_blocking(move || {
             Command::new(env!("CARGO_BIN_EXE_stubprint"))
-                .args(["--ephemeral", "--server", &address, "info"])
-                .env_remove("STUBPRINT_SERVER")
+                .args(["--ephemeral", "--url", &address, "info"])
+                .env_remove("STUBPRINT_URL")
                 .output()
                 .unwrap()
         })

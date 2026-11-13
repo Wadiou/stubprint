@@ -157,15 +157,15 @@ jobs:
           [ "$RUNNER_OS" = Windows ] && bin="$bin.exe"
           server=http://127.0.0.1:18080
           "$bin" --version | grep -q "$VERSION"
-          "$bin" --ephemeral --http 127.0.0.1:18080 --printer name=try,listen=127.0.0.1:0 &
+          "$bin" --ephemeral --host 127.0.0.1 --port 18080 --printer name=try,listen=127.0.0.1:0 &
           pid=$!
           trap 'kill $pid 2>/dev/null || true' EXIT
-          for _ in $(seq 100); do "$bin" --server "$server" info >/dev/null 2>&1 && break; sleep 0.2; done
-          "$bin" --server "$server" info
-          "$bin" --server "$server" sample list | grep -q cafe
+          for _ in $(seq 100); do "$bin" --url "$server" info >/dev/null 2>&1 && break; sleep 0.2; done
+          "$bin" --url "$server" info
+          "$bin" --url "$server" sample list | grep -q cafe
           curl -fsS "$server/" | grep -qi '<!doctype html'
-          "$bin" --server "$server" print --sample cafe --printer try
-          "$bin" --server "$server" wait --after 0 --timeout 20 --id
+          "$bin" --url "$server" print --sample cafe --printer try
+          "$bin" --url "$server" wait --after 0 --timeout 20 --id
 
       - name: Pack
         run: bash scripts/package.sh "${{ matrix.target }}" "$VERSION"

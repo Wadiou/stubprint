@@ -9,10 +9,10 @@ cd "$(dirname "$0")/.."
 
 bin="${STUBPRINT:-../target/debug/stubprint}"
 port=18081
-stubprint=("$bin" --server "http://127.0.0.1:$port")
+stubprint=("$bin" --url "http://127.0.0.1:$port")
 tmp="$(mktemp -d)"
 
-"$bin" --ephemeral --http "127.0.0.1:$port" --printer name=default,listen=127.0.0.1:0 >/dev/null 2>&1 &
+"$bin" --ephemeral --host 127.0.0.1 --port "$port" --printer name=default,listen=127.0.0.1:0 >/dev/null 2>&1 &
 server=$!
 trap 'kill "$server" 2>/dev/null; rm -rf "$tmp"' EXIT
 

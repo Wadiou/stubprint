@@ -27,7 +27,7 @@ services:
       dockerfile: web.dev.Dockerfile
     restart: unless-stopped
     environment:
-      STUBPRINT_SERVER: http://backend:8080
+      STUBPRINT_URL: http://backend:8080
       npm_config_store_dir: /pnpm-store
     volumes:
       - .:/work

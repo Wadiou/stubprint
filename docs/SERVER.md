@@ -17,7 +17,8 @@ Contents: [Running it](#running-it) · [Printers](#printers) · [What is kept](#
 
 | Option | Meaning | Default |
 |---|---|---|
-| `--http <address>` | where the API and the web page listen. It is saved and used from then on, until another is given. It has no password, so keep it on this machine unless the network can be trusted | what was saved, else `127.0.0.1:8080` |
+| `--host <address>` | the address the API and the web page listen on, such as `0.0.0.0` to reach them from other computers. It is saved and used from then on, until another is given. It has no password, so keep it on this machine unless the network can be trusted | what was saved, else `127.0.0.1` |
+| `--port <port>` | the port they listen on, saved in the same way | what was saved, else `8080` |
 | `--printer <settings>` | a printer, as `name=front,listen=127.0.0.1:9100`. Say it again for more printers. `--help` lists every setting. See [Printers](#printers) | one ESC/POS printer on `127.0.0.1:9100` |
 | `--ephemeral` | keep nothing: use no database, so the printers, the receipts and the connections are gone when the server stops | |
 | `--reset` | delete everything that was kept, and start again from the printers given, or the default one | |
@@ -59,7 +60,7 @@ happens, without making a printer wait. Stopping the server waits until all of i
 
 | In the database | What it is |
 |---|---|
-| the address of the API | what `--http` last gave |
+| the address of the API | what `--host` and `--port` last gave |
 | the printers | their name, port, command language, model, sizes, status, paper roll and counters, in the order they were added |
 | the receipts | the bytes each was made from, which printer read them, as which model, and when. Its lines and its picture are made again from the bytes when the server starts |
 | the connections | each one when it closed: when, the pieces its bytes came in, and the receipts it printed |
@@ -92,14 +93,14 @@ still use those names are read as before.
 **`--printer` and the database.** `--printer` is for a printer that should exist. It is added when
 the database has no printer of that name, and the database wins for one it has: change the model in
 the page and the next run keeps it, even if `--printer` writes another. To change a printer that is
-kept, change it in the page, or use `--reset`. The address works the other way: what `--http` gives
-wins over what was saved, and is saved. With `--ephemeral` there is no database, and `--printer`
+kept, change it in the page, or use `--reset`. The address works the other way: what `--host` and `--port` give
+win over what was saved, each for its part, and are saved. With `--ephemeral` there is no database, and `--printer`
 says what the printers are.
 
 - A printer that was kept is started even when the command line does not name it.
 - If the port of a printer is taken when it starts, it listens on a free one and the output says
   which.
-- The development container passes `--http 0.0.0.0:8080` and `--printer name=printer,listen=0.0.0.0:9100`,
+- The development container passes `--host 0.0.0.0` and `--printer name=printer,listen=0.0.0.0:9100`,
   so the first run makes that printer reachable from outside the container, and the database is in a
   volume after that.
 

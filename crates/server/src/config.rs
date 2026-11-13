@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 
 use serde::Deserialize;
@@ -10,9 +10,11 @@ use crate::settings::{Settings, SettingsChange, Unknown};
 /// its state.
 #[derive(Debug, Clone)]
 pub struct Config {
-    /// Where the API and the web page listen. `None` means the address saved in the database, or
-    /// [`DEFAULT_HTTP`] if there is none. An address set here is saved.
-    pub http: Option<SocketAddr>,
+    /// The address the API and the web page listen on. `None` means the one saved in the database,
+    /// or that of [`DEFAULT_HTTP`] if there is none. What is set here is saved.
+    pub host: Option<IpAddr>,
+    /// The port the API and the web page listen on, with the same rule as `host`.
+    pub port: Option<u16>,
     /// The printers from `--printer`, or just the default printer when there were none.
     pub printers: Vec<PrinterConfig>,
     /// A file to write the real addresses into once everything is listening, for a program that
@@ -50,14 +52,15 @@ pub const MAX_SOCKETS: usize = 64;
 /// The `printer_buffer` of a printer when none is set, in bytes.
 pub const DEFAULT_PRINTER_BUFFER: usize = 4096;
 
-/// Where the API listens when neither `--http` nor the database says.
+/// Where the API listens when neither `--host`, `--port` nor the database says.
 pub const DEFAULT_HTTP: SocketAddr =
     SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), 8080);
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            http: None,
+            host: None,
+            port: None,
             printers: vec![PrinterConfig::default()],
             ready: None,
             database: None,
@@ -188,13 +191,15 @@ pub fn default_database() -> Option<PathBuf> {
 impl Config {
     /// Builds the configuration of a command line: the printers given, or the default one.
     pub fn from_options(
-        http: Option<SocketAddr>,
+        host: Option<IpAddr>,
+        port: Option<u16>,
         ready: Option<PathBuf>,
         printers: &[String],
     ) -> Result<Self, String> {
         let given = !printers.is_empty();
         let config = Config {
-            http,
+            host,
+            port,
             ready,
             given,
             printers: if given {
@@ -290,16 +295,16 @@ mod tests {
 
     #[test]
     fn printers_that_are_written_are_given_and_the_default_one_is_not() {
-        let written = Config::from_options(None, None, &["name=a".to_string()]).unwrap();
+        let written = Config::from_options(None, None, None, &["name=a".to_string()]).unwrap();
         assert!(written.given);
-        let default = Config::from_options(None, None, &[]).unwrap();
+        let default = Config::from_options(None, None, None, &[]).unwrap();
         assert!(!default.given);
         assert_eq!(default.printers.len(), 1);
     }
 
     #[test]
     fn printers_must_differ_and_names_must_be_safe_in_a_path() {
-        let two = |a: &str, b: &str| Config::from_options(None, None, &[a.into(), b.into()]);
+        let two = |a: &str, b: &str| Config::from_options(None, None, None, &[a.into(), b.into()]);
         assert!(two("name=a,listen=127.0.0.1:1", "name=a,listen=127.0.0.1:2").is_err());
         assert!(two("name=a,listen=127.0.0.1:1", "name=b,listen=127.0.0.1:1").is_err());
         assert!(two("name=a,listen=127.0.0.1:0", "name=b,listen=127.0.0.1:0").is_ok());

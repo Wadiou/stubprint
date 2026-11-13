@@ -106,8 +106,12 @@ pub async fn serve(config: Config) -> io::Result<Running> {
         }
         None => (None, store::Loaded::default()),
     };
-    // The API address: the one given, else the one in the database, else the default.
-    let wanted = config.http.or(loaded.http).unwrap_or(DEFAULT_HTTP);
+    // The API address: each part given, else the one in the database, else the default.
+    let base = loaded.http.unwrap_or(DEFAULT_HTTP);
+    let wanted = SocketAddr::new(
+        config.host.unwrap_or(base.ip()),
+        config.port.unwrap_or(base.port()),
+    );
 
     let web = TcpListener::bind(wanted).await.map_err(|error| {
         io::Error::new(
@@ -249,6 +253,12 @@ fn write_ready(path: &Path, http: SocketAddr, hub: &Hub) -> io::Result<()> {
     let temporary = path.with_extension("tmp");
     std::fs::write(&temporary, text)?;
     std::fs::rename(temporary, path)
+}
+
+/// The address of the server that this computer kept in its database, which is where a command
+/// finds it when it is not told. `None` when nothing was kept.
+pub fn saved_address() -> Option<SocketAddr> {
+    store::saved_http(&default_database()?)
 }
 
 /// Serves until the process gets Ctrl+C or a termination signal.

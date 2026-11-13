@@ -59,7 +59,7 @@ impl Client {
     ) -> Result<Answer, Failure> {
         let mut response = result.map_err(|error| {
             format!(
-                "cannot reach the server at {}: {error}. Is it running? Start it with `stubprint`, or say where it is with --server.",
+                "cannot reach the server at {}: {error}. Is it running? Start it with `stubprint`, or say where it is with --url.",
                 self.base
             )
         })?;

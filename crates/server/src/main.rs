@@ -1,6 +1,6 @@
 mod cli;
 
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -23,7 +23,7 @@ const STYLES: Styles = Styles::styled()
 /// web app, in the API or in the commands below.
 ///
 /// With no command it starts the server, from the options below. With a command it asks a server
-/// that is running: say where it is with --server, or it is on 127.0.0.1:8080.
+/// that is running: say where it is with --url, or it is found where this computer saved it.
 #[derive(Parser)]
 #[command(name = "stubprint", version, styles = STYLES)]
 struct Options {
@@ -43,11 +43,16 @@ struct Options {
     #[arg(long, conflicts_with = "ephemeral")]
     reset: bool,
 
-    /// Where the API and the web app listen. It is saved in the database and used from then
-    /// on. It has no password, so keep it on this machine unless the network can be trusted.
-    /// [default: 127.0.0.1:8080]
+    /// The address the API and the web app listen on, such as 0.0.0.0 to reach it from other
+    /// machines. It is saved in the database and used from then on. It has no password, so keep
+    /// it on this machine unless the network can be trusted. [default: 127.0.0.1]
+    #[arg(long, value_parser = host, value_name = "ADDRESS")]
+    host: Option<IpAddr>,
+
+    /// The port the API and the web app listen on. It is saved in the database and used from then
+    /// on. [default: 8080]
     #[arg(long)]
-    http: Option<SocketAddr>,
+    port: Option<u16>,
 
     /// A file to write the addresses into once everything listens, as JSON with the process, the
     /// address of the API and the printers. It is removed when the server stops. With port 0 for
@@ -56,7 +61,7 @@ struct Options {
     ready_file: Option<PathBuf>,
 
     /// Print the description of the API as an OpenAPI document, and stop.
-    #[arg(long, conflicts_with_all = ["ephemeral", "reset", "http", "ready_file", "printer"])]
+    #[arg(long, conflicts_with_all = ["ephemeral", "reset", "host", "port", "ready_file", "printer"])]
     openapi: bool,
 
     /// A printer, as settings written `key=value` and separated by commas. Say it again for more
@@ -91,12 +96,27 @@ struct Options {
     printer: Vec<String>,
 }
 
+/// An address to listen on: an IP address, or `localhost`.
+fn host(text: &str) -> Result<IpAddr, String> {
+    if text.eq_ignore_ascii_case("localhost") {
+        return Ok(Ipv4Addr::LOCALHOST.into());
+    }
+    text.parse()
+        .map_err(|_| format!("`{text}` is not an IP address such as 127.0.0.1 or 0.0.0.0"))
+}
+
 fn configuration(options: Options) -> Result<Config, String> {
     let database = match options.ephemeral {
         true => None,
         false => stubprint_server::default_database(),
     };
-    Config::from_options(options.http, options.ready_file, &options.printer).map(|config| Config {
+    Config::from_options(
+        options.host,
+        options.port,
+        options.ready_file,
+        &options.printer,
+    )
+    .map(|config| Config {
         database,
         reset: options.reset,
         ..config
@@ -109,7 +129,8 @@ impl Options {
         self.ephemeral
             || self.reset
             || self.openapi
-            || self.http.is_some()
+            || self.host.is_some()
+            || self.port.is_some()
             || self.ready_file.is_some()
             || !self.printer.is_empty()
     }

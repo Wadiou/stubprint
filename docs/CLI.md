@@ -16,11 +16,13 @@ stubprint receipt show 3 --form picture -o receipt.png
 
 | Option | Meaning | Default |
 |---|---|---|
-| `--server <url>` | the address of the server to ask. It is plain HTTP | `$STUBPRINT_SERVER`, else `http://127.0.0.1:8080` |
+| `--url <url>` | the address of the server to ask. It is plain HTTP, and `http://` may be left out | `$STUBPRINT_URL`, else the address this computer saved for its server, else `http://127.0.0.1:8080` |
 | `--json` | print what the server answered as JSON, exactly as its API says it, and not as text | off |
 
-Both go anywhere on the line. The options that start a server (`--printer`, `--http`,
-`--ephemeral`, `--reset`, `--ready-file`) do not go with a command.
+Both go anywhere on the line. On the computer that runs the server, no address is needed: the one
+the server saved is found in its database. `--url` is for a server in a container, on another
+computer, or one with no database (`--ephemeral`). The options that start a server (`--printer`,
+`--host`, `--port`, `--ephemeral`, `--reset`, `--ready-file`) do not go with a command.
 
 ## Commands
 
@@ -54,7 +56,7 @@ they go to a file with `-o`, or to a pipe, and never to a terminal.
 `stubprint update` downloads the installer that the latest release attaches, and runs it so that the
 new program replaces this one in the same folder. The installer checks the download against the
 `SHA256SUMS` of the release, and when it fails the program is left as it was. It needs no server, and
-`--server` and `--json` do nothing for it.
+`--url` and `--json` do nothing for it.
 
 It needs `curl` or `wget`, and PowerShell on Windows. A server that is running keeps the old version
 until it is started again. A program that was built from the source, in a `target/` folder, does not

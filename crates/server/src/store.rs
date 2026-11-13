@@ -400,3 +400,17 @@ fn write(db: &Db, command: Command) -> rusqlite::Result<()> {
     }
     Ok(())
 }
+
+/// The address the API listens on according to a database, read without changing it. `None` when
+/// there is no such database or it has no address.
+pub(crate) fn saved_http(path: &Path) -> Option<std::net::SocketAddr> {
+    let db =
+        rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .ok()?;
+    db.query_row("SELECT value FROM settings WHERE key = 'http'", [], |row| {
+        row.get::<_, String>(0)
+    })
+    .ok()?
+    .parse()
+    .ok()
+}

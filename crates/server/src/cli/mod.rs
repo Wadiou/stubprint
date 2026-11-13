@@ -20,15 +20,10 @@ const NOTHING_CAME: u8 = 3;
 /// Where the server is, and how to say what it answered. They go with every command.
 #[derive(Args, Debug)]
 pub struct Remote {
-    /// The address of the running server that a command asks.
-    #[arg(
-        long,
-        global = true,
-        env = "STUBPRINT_SERVER",
-        default_value = "http://127.0.0.1:8080",
-        value_name = "URL"
-    )]
-    pub server: String,
+    /// The address of the running server that a command asks. Without it, the address this
+    /// computer saved for its server is used, and else http://127.0.0.1:8080.
+    #[arg(long, global = true, env = "STUBPRINT_URL", value_name = "URL")]
+    pub url: Option<String>,
 
     /// Print what the server answered as JSON, which is what its API says, and not as text.
     #[arg(long, global = true)]
@@ -221,9 +216,31 @@ pub enum ConnectionCommand {
     Show { id: u64 },
 }
 
+/// Where the server is: the address that was given, with `http://` put in front when it is left
+/// out, else the one this computer saved for its server, else the default one.
+fn server_url(given: Option<&str>) -> String {
+    if let Some(text) = given {
+        return if text.contains("://") {
+            text.to_string()
+        } else {
+            format!("http://{text}")
+        };
+    }
+    let address = stubprint_server::saved_address()
+        .filter(|address| address.port() != 0)
+        .unwrap_or(stubprint_server::DEFAULT_HTTP);
+    // A server that listens on every address is reached on the local one.
+    let ip = match address.ip() {
+        std::net::IpAddr::V4(ip) if ip.is_unspecified() => std::net::Ipv4Addr::LOCALHOST.into(),
+        std::net::IpAddr::V6(ip) if ip.is_unspecified() => std::net::Ipv6Addr::LOCALHOST.into(),
+        ip => ip,
+    };
+    format!("http://{}", std::net::SocketAddr::new(ip, address.port()))
+}
+
 /// Runs a command, and says what went wrong when something did.
 pub fn run(remote: &Remote, command: Command) -> ExitCode {
-    let client = Client::new(&remote.server);
+    let client = Client::new(&server_url(remote.url.as_deref()));
     match execute(&client, remote.json, command) {
         Ok(code) => ExitCode::from(code),
         Err(message) => {
