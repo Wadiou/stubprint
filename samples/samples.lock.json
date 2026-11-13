@@ -20,11 +20,11 @@
     "version": "4.6.1"
   },
   "cafe/node-thermal-printer/escpos": {
-    "sha256": "e581a99116694324b37d56211e7038e8890cd8e40098937771b95488f8bdf7b0",
+    "sha256": "ddaebb7486e2161b95f6133b27c3fb59a61ceb78301907959ffafd9ed8e1c0fc",
     "version": "4.6.1"
   },
   "cafe/python-escpos/escpos": {
-    "sha256": "c473585562cf2aee65922c5f84ba07614862410e044535438cd250d54a465355",
+    "sha256": "cb6cbb88b296445cd88dd8bd640f0ea6c1142914edc3876f301c6f6dd5785690",
     "version": "3.1"
   },
   "delivery/node-thermal-printer/escpos": {
@@ -64,11 +64,11 @@
     "version": "3.1"
   },
   "pharmacy/node-thermal-printer/escpos": {
-    "sha256": "d535c1ddf46a612c0bffd23860d77c91c05fb33701a9f36c3eeee9f44cb99f1d",
+    "sha256": "4b2c354b743ced8323e2364f4cccdf1ae6aafa5904e022018b84e0e324684afd",
     "version": "4.6.1"
   },
   "pharmacy/python-escpos/escpos": {
-    "sha256": "ac540c91c85d75824a8d68b529b30188a91909b9a8749f3b6646d96f4a443b25",
+    "sha256": "43300975167ef73d3137daf748fb6e6135a8d5527a98e2638413b1f2a59b6e3f",
     "version": "3.1"
   },
   "queue/node-thermal-printer/escpos": {
@@ -80,19 +80,19 @@
     "version": "3.1"
   },
   "restaurant/node-thermal-printer/escpos": {
-    "sha256": "1910b470f7b6530a6f21afbd09d089bd8363bd9754c37a4a8c6b62b92cd0533f",
+    "sha256": "1c846732471c9dcd7008f5022ff9fc23d551af9f5b39396e9127dce207cf8b9b",
     "version": "4.6.1"
   },
   "restaurant/python-escpos/escpos": {
-    "sha256": "53804dccc90a7753774955b1b77c1e56f7416b70fe5325b086fc32c9beae1cbc",
+    "sha256": "a109db3bf3ae966242e119e3d516134e64cc90862f876f6ff8671bc8a1b0f55e",
     "version": "3.1"
   },
   "retail/node-thermal-printer/escpos": {
-    "sha256": "c9121386bcfb0c56c031bec9a0a9a53c1fbe40f3ad708abcd70d4f8346eab407",
+    "sha256": "bc68a38457cc8e5d151b1d3dce0a4bb0024d25da1071ae6d95d242442add826e",
     "version": "4.6.1"
   },
   "retail/python-escpos/escpos": {
-    "sha256": "6f67071f63f197a628c8915e53aad954e003e79fb0dfe9a6314921422ef70718",
+    "sha256": "8e199f624e1dcaf96c6d9e876f7e8852860714ada86af4e31a71d38f9780743a",
     "version": "3.1"
   },
   "styles/node-thermal-printer/escpos": {

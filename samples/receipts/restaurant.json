@@ -2,7 +2,7 @@
   "id": "restaurant",
   "order": 9,
   "title": "Restaurant bill",
-  "about": "An Epson TM-m30III bill with an inverted table number, quantities, a service charge and a double size total.",
+  "about": "An Epson TM-m30III bill with an inverted table number, quantities, a service charge and a bold total.",
   "profile": "TM-m30III",
   "tags": [
     "80 mm",
@@ -94,11 +94,7 @@
         "TOTAL",
         "51.15"
       ],
-      "bold": true,
-      "size": [
-        2,
-        2
-      ]
+      "bold": true
     },
     {
       "text": ""
