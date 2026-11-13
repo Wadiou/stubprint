@@ -2860,6 +2860,43 @@ async fn a_printer_that_prints_at_a_speed_keeps_a_receipt_when_it_is_printed_and
 }
 
 #[tokio::test]
+async fn sending_bytes_without_a_socket_waits_for_them_to_print_at_the_printer_s_speed() {
+    let one = paper_of_one_receipt().await;
+    // A speed at which one receipt takes 0.6 seconds.
+    let speed = (one / 0.6).ceil();
+    let slow = Harness::start(&[&format!("name=slow,print_speed={speed}")]).await;
+    let started = std::time::Instant::now();
+    let sent = slow
+        .client
+        .post(format!("{}/api/print?printer=slow", slow.base))
+        .body(receipt_bytes("x"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(sent.status(), 200);
+    let waited = started.elapsed();
+    assert!(
+        waited >= Duration::from_millis(400),
+        "the answer came after {waited:?}"
+    );
+    assert!(waited < Duration::from_secs(3), "{waited:?}");
+    let printed: Value = sent.json().await.unwrap();
+    assert_eq!(printed["receipts"].as_array().unwrap().len(), 1);
+
+    // A printer with no speed answers at once, as it always did.
+    let quick = Harness::start(&["name=quick"]).await;
+    let started = std::time::Instant::now();
+    quick
+        .client
+        .post(format!("{}/api/print?printer=quick", quick.base))
+        .body(receipt_bytes("x"))
+        .send()
+        .await
+        .unwrap();
+    assert!(started.elapsed() < Duration::from_millis(300));
+}
+
+#[tokio::test]
 async fn the_speed_of_a_printer_can_be_changed_and_zero_prints_what_is_waiting_at_once() {
     let one = paper_of_one_receipt().await;
     // One receipt takes a minute at this speed.

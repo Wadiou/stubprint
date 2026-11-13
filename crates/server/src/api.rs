@@ -736,16 +736,17 @@ struct Printed {
     replies: String,
 }
 
-/// Sends bytes to a printer as if a program had connected and sent them.
+/// Sends bytes to a printer as if a program had connected and sent them, and waits for them to
+/// print.
 #[utoipa::path(post, path = "/api/print", operation_id = "print_bytes", tag = "printing", params(PrintQuery), request_body(content = Vec<u8>, content_type = "application/octet-stream"),
-    responses((status = 200, description = "What the bytes made", body = Printed), (status = 404, description = "There is no such printer, receipt or connection, as `error` says", body = ErrorBody), (status = 503, description = "The printer cannot print and has no room to hold the bytes, as `error` says", body = ErrorBody)))]
+    responses((status = 200, description = "What the bytes made", body = Printed), (status = 404, description = "There is no such printer, receipt or connection, as `error` says", body = ErrorBody), (status = 503, description = "The printer cannot print and has no room to hold the bytes, or did not finish printing them in time, as `error` says", body = ErrorBody)))]
 async fn print(
     State(hub): State<Arc<Hub>>,
     Query(query): Query<PrintQuery>,
     body: axum::body::Bytes,
 ) -> Reply<Json<Printed>> {
     let printer = find_printer(&hub, query.printer.as_deref())?;
-    Ok(Json(send(&hub, printer, &body)?))
+    Ok(Json(send(&hub, printer, &body).await?))
 }
 
 /// The named printer, or the first one.
@@ -763,10 +764,12 @@ fn find_printer(hub: &Hub, name: Option<&str>) -> Reply<Arc<VirtualPrinter>> {
     }
 }
 
-/// Sends bytes to a printer as a connection that sends them and closes.
+/// Sends bytes to a printer as a connection that sends them and closes, and waits for them to
+/// print, the same engine and the same pace as a connection on its port.
 /// A printer that cannot print and holds what it receives takes only so many bytes, which a request
-/// cannot wait for like a connection does, so it is refused.
-fn send(hub: &Arc<Hub>, printer: Arc<VirtualPrinter>, bytes: &[u8]) -> Reply<Printed> {
+/// cannot wait for like a connection does, so it is refused at once. Printing itself is waited for,
+/// up to `LONGEST_WAIT`; a printer that does not get there by then is refused too.
+async fn send(hub: &Arc<Hub>, printer: Arc<VirtualPrinter>, bytes: &[u8]) -> Reply<Printed> {
     let name = printer.name.clone();
     if let Some(room) = printer.room() {
         if bytes.len() > room {
@@ -780,12 +783,23 @@ fn send(hub: &Arc<Hub>, printer: Arc<VirtualPrinter>, bytes: &[u8]) -> Reply<Pri
         }
     }
     let mut session = Session::open(hub.clone(), printer, "http".into());
+    let connection = session.id();
     let mut replies = session.feed(bytes);
     replies.extend(session.finish());
+    let expected = session.finishes();
+    let receipts = hub
+        .connection_printed(connection, expected, Duration::from_secs(LONGEST_WAIT))
+        .await;
+    if receipts.len() < expected {
+        return Err(ApiError(
+            StatusCode::SERVICE_UNAVAILABLE,
+            format!("{name} did not finish printing this in time"),
+        ));
+    }
     Ok(Printed {
-        connection: session.id(),
+        connection,
         printer: name,
-        receipts: session.stored().to_vec(),
+        receipts,
         replies: hex(&replies),
     })
 }
@@ -937,15 +951,15 @@ async fn sample_text(Path(id): Path<String>, Query(query): Query<VariantQuery>) 
         .into_response())
 }
 
-/// Prints a sample to a printer, as if a program had connected and sent it. Without `dialect` it
-/// sends a variant in the command language the printer is set to, because a printer only reads
-/// its own.
+/// Prints a sample to a printer, as if a program had connected and sent it, and waits for it to
+/// print. Without `dialect` it sends a variant in the command language the printer is set to,
+/// because a printer only reads its own.
 #[utoipa::path(post, path = "/api/samples/{id}/print", operation_id = "print_sample", tag = "samples",
     params(("id" = String, Path, description = "The id of the sample"), PrintQuery, VariantQuery),
     responses(
         (status = 200, description = "What the bytes made", body = Printed),
         (status = 404, description = "There is no such sample, variant or printer, as `error` says", body = ErrorBody),
-        (status = 503, description = "The printer cannot print and has no room to hold the bytes, as `error` says", body = ErrorBody)))]
+        (status = 503, description = "The printer cannot print and has no room to hold the bytes, or did not finish printing them in time, as `error` says", body = ErrorBody)))]
 async fn print_sample(
     State(hub): State<Arc<Hub>>,
     Path(id): Path<String>,
@@ -958,7 +972,7 @@ async fn print_sample(
     let variant = found
         .variant(query.library.as_deref(), Some(dialect))
         .ok_or_else(|| no_variant(found))?;
-    Ok(Json(send(&hub, printer, &variant.bytes)?))
+    Ok(Json(send(&hub, printer, &variant.bytes).await?))
 }
 
 /// The live events, as server sent events: receipt, printing, receipt_removed, cleared, status,

@@ -1101,6 +1101,46 @@ impl Hub {
             }
         }
     }
+
+    /// Waits until a connection has finished `expected` receipts, or `timeout` runs out: the ones
+    /// it has finished by then, which is all `expected` of them unless it took too long. A receipt
+    /// is on the connection's list from its first thing printed, so it is not counted here until it
+    /// is no longer `Printing`.
+    pub async fn connection_printed(
+        &self,
+        connection: u64,
+        expected: usize,
+        timeout: Duration,
+    ) -> Vec<u64> {
+        // Listening comes first, so a receipt that is finished while we look is not missed.
+        let mut notices = self.subscribe();
+        let deadline = Instant::now() + timeout;
+        loop {
+            let finished = self.finished_receipts(connection);
+            if finished.len() >= expected {
+                return finished;
+            }
+            match tokio::time::timeout_at(deadline, notices.recv()).await {
+                Err(_) | Ok(Err(broadcast::error::RecvError::Closed)) => {
+                    return self.finished_receipts(connection)
+                }
+                Ok(_) => {}
+            }
+        }
+    }
+
+    /// The connection's receipts that are no longer printing.
+    fn finished_receipts(&self, connection: u64) -> Vec<u64> {
+        self.connection(connection)
+            .map(|connection| connection.receipts)
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|id| {
+                self.receipt(*id)
+                    .is_some_and(|stored| stored.state != ReceiptState::Printing)
+            })
+            .collect()
+    }
 }
 
 /// What printing a receipt used: the lines it fed, the cuts it made, and the paper it took, which

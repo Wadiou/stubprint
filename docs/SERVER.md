@@ -152,7 +152,8 @@ A printer here does the same, with a buffer of `printer_buffer` bytes.
 - A connection that is open follows `printer_buffer` as it changes. Turning it off prints what was
   held.
 - `held` in the printer, and the `held` event, say how many bytes it holds now.
-- A request (`POST /api/print`, a sample) cannot wait, so one that does not fit is refused with 503.
+- A request (`POST /api/print`, a sample) cannot wait for room, so one that does not fit is refused
+  with 503 at once. It does wait for its own printing; see [Print speed](#print-speed).
 - With `printer_buffer` at 0 the printer prints whatever it receives, whatever the status. That is
   what a test that does not care about the status wants.
 
@@ -216,8 +217,10 @@ What a program and the page can see:
 Notes:
 - The speed a command is planned with is the one when it was read. Changing it applies to what is
   read from then on, and setting it to 0 prints what is waiting at once.
-- What is sent without a connection (`POST /api/print`, a sample) prints at once, as the answer
-  has to say which receipts it made.
+- What is sent without a connection (`POST /api/print`, a sample) goes through the same buffer and
+  engine as a connection does, at the same speed, and the request waits for it to finish printing,
+  up to 120 seconds, since the answer has to say which receipts it made. A printer that does not
+  get there in time, or a sample too, is refused with 503, the same as one with no room for it.
 - Bytes that a printer held while it could not print, from a program that has gone, print at once
   when it can.
 
@@ -321,7 +324,7 @@ the code and is served at `/api/openapi.json`, with every route, parameter and f
 | `GET /api/receipts/{id}/trace` | the commands of a receipt one by one: where its bytes start and end, what it asked for, and what the printer believed after it (code page, style, alignment, margins, line spacing, tab stops). It answers why a line came out as it did |
 | `GET /api/receipts/next` | waits for the next receipt: `?timeout=10` seconds, `?printer=`, `?after=<id>`. Answers 204 when none came |
 | `DELETE /api/receipts` | clears them, all or `?printer=` |
-| `POST /api/print` | sends the bytes of the body to a printer (`?printer=`, the first by default) and says which receipts they made and what the printer answered. 503 when the printer cannot print and has no room to hold them |
+| `POST /api/print` | sends the bytes of the body to a printer (`?printer=`, the first by default), waits for them to print, and says which receipts they made and what the printer answered. 503 when the printer cannot print and has no room to hold them, or did not finish printing them within 120 seconds |
 | `GET /api/samples`, `GET /api/samples/{id}` | the ready made receipts (shop, kitchen, bakery, ticket, text styles, barcodes, a Star one), each in every library that can print it, with the library, its version, the command language and the size of each variant. Each says the printer model it was written for (`profile`). One sample also says what is printed, as data, and what a decoder must find on the paper. |
 | `GET /api/samples/{id}/bytes`, `/picture`, `/text` | the bytes of one variant (`?library=`, `?dialect=`), to send to any printer, and a picture and the text of what it prints on the paper of the model it was written for, without printing it |
 | `POST /api/samples/{id}/print` | prints a sample to a printer (`?printer=`, the first by default) like `POST /api/print`, with a variant in the printer's own command language unless `?dialect=` or `?library=` say otherwise |

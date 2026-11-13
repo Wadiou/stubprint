@@ -2,16 +2,15 @@ use std::sync::Arc;
 
 use stubprint_core::{Printer, PrinterStatus, Profile, Pushed};
 
-use crate::engine::{Planner, Work};
+use crate::engine::{Planner, What, Work};
 use crate::hub::Hub;
 use crate::printer::{Held, VirtualPrinter};
 
 /// One program talking to a virtual printer, over a socket or in one request. It has its own
 /// reading of the commands, as a real printer has for the one job it is printing. What it reads
-/// is planned as work for the printer's engine, which prints it over time.
-///
-/// A session that is *paced*, as one on a socket is, puts its bytes in the printer's receive buffer
-/// and waits when it is full. One that is not, as a request to the API, prints at once.
+/// goes in the printer's receive buffer and waits there when it is full, and is planned as work for
+/// the printer's engine, which prints it over time: the same buffer and the same engine for every
+/// session, a request to the API included.
 pub struct Session {
     hub: Arc<Hub>,
     virtual_printer: Arc<VirtualPrinter>,
@@ -19,13 +18,13 @@ pub struct Session {
     profile: Arc<Profile>,
     printer: Printer,
     id: u64,
-    stored: Vec<u64>,
+    /// How many receipts the bytes read so far are going to make, whether the engine has already
+    /// made them or is still working its way there.
+    finishes: usize,
     /// How many bytes it holds, as the printer was last told.
     held: usize,
     /// Turns the commands it read into work and says how long each takes.
     planner: Planner,
-    /// Whether it goes through the receive buffer and waits for the printing.
-    paced: bool,
     /// How many bytes it put in the receive buffer.
     received: usize,
 }
@@ -45,19 +44,11 @@ impl Session {
             profile,
             printer,
             id,
-            stored: Vec::new(),
+            finishes: 0,
             held: 0,
             planner: Planner::default(),
-            paced: false,
             received: 0,
         }
-    }
-
-    /// Makes the session go through the printer's receive buffer, where what it sends waits for the
-    /// printing, and the program waits when the buffer is full.
-    pub fn paced(mut self) -> Self {
-        self.paced = true;
-        self
     }
 
     pub fn id(&self) -> u64 {
@@ -70,10 +61,8 @@ impl Session {
         // What the printer has counted, which other connections may have changed.
         self.printer.set_counters(self.virtual_printer.counters());
         self.hub.received(self.id, bytes.len());
-        if self.paced {
-            self.virtual_printer.receive(bytes.len());
-            self.received += bytes.len();
-        }
+        self.virtual_printer.receive(bytes.len());
+        self.received += bytes.len();
         let pushed = self.printer.push_traced(bytes);
         self.take(pushed)
     }
@@ -91,12 +80,7 @@ impl Session {
     /// what it did not print yet. `None` when there is no limit.
     pub fn room(&mut self) -> Option<usize> {
         self.follow_hold();
-        let buffer = if self.paced {
-            self.virtual_printer.buffer_room()
-        } else {
-            None
-        };
-        match (self.printer.room(), buffer) {
+        match (self.printer.room(), self.virtual_printer.buffer_room()) {
             (Some(held), Some(buffer)) => Some(held.min(buffer)),
             (room, None) | (None, room) => room,
         }
@@ -117,9 +101,10 @@ impl Session {
         self.take(pushed)
     }
 
-    /// The ids of the receipts this session printed.
-    pub fn stored(&self) -> &[u64] {
-        &self.stored
+    /// How many receipts the bytes read so far are going to make, in all: some may already be made,
+    /// and the rest are still on their way through the engine.
+    pub fn finishes(&self) -> usize {
+        self.finishes
     }
 
     /// Ends the job. What was not cut yet is printed if it has something on it. Returns the last
@@ -140,6 +125,10 @@ impl Session {
             &self.profile,
             self.virtual_printer.settings().print_speed,
         );
+        self.finishes += work
+            .iter()
+            .filter(|item| matches!(item.what, What::Finished { .. }))
+            .count();
         self.run(work);
         self.sync_held();
         let replies = self.printer.take_replies();
@@ -147,20 +136,17 @@ impl Session {
         replies
     }
 
-    /// Prints the work now, when the printer takes no time and has nothing else to do and when the
-    /// session is not paced, and otherwise leaves it to the engine, which takes the time.
+    /// Prints the work now, when the printer takes no time and has nothing else to do, and
+    /// otherwise leaves it to the engine, which takes the time.
     fn run(&mut self, work: Vec<Work>) {
-        if self.paced && !self.virtual_printer.is_instant() {
+        if !self.virtual_printer.is_instant() {
             self.virtual_printer.enqueue(work);
             return;
         }
-        if self.paced {
-            // The bytes of the commands are printed, so they are out of the buffer.
-            self.virtual_printer
-                .give_back(work.iter().map(|work| work.freed).sum());
-        }
-        let finished = self.hub.print(&self.virtual_printer, work);
-        self.stored.extend(finished);
+        // The bytes of the commands are printed, so they are out of the buffer.
+        self.virtual_printer
+            .give_back(work.iter().map(|work| work.freed).sum());
+        self.hub.print(&self.virtual_printer, work);
     }
 
     /// Tells the printer, and those who watch, how many bytes this connection holds now.
@@ -179,10 +165,8 @@ impl Drop for Session {
         // A connection that drops without a goodbye still prints what it sent.
         self.finish();
         // What it sent after its last command, which no command will free, leaves the buffer.
-        if self.paced {
-            self.virtual_printer
-                .give_back(self.received.saturating_sub(self.planner.last_end()));
-        }
+        self.virtual_printer
+            .give_back(self.received.saturating_sub(self.planner.last_end()));
         // What the printer still holds stays in it, and prints when it can.
         let bytes = self.printer.take_held();
         // They are the printer's now, and no longer this connection's.
