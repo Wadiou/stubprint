@@ -39,7 +39,15 @@ export function NumberSetting({
   switchLabel?: string;
   apply: (value: number) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [shown, setShown] = useState(value);
   const [text, setText] = useState(format(value || fallback));
+  // The field shows its own typing, not the value: it only takes a new value when the value changes,
+  // and not while it is being typed in.
+  if (value !== shown) {
+    setShown(value);
+    if (!editing) setText(format(value || fallback));
+  }
   const typed = parse(text);
   const on = value > 0;
 
@@ -57,7 +65,9 @@ export function NumberSetting({
           className="h-8 w-24 text-right"
           value={text}
           onChange={(event) => setText(event.target.value)}
+          onFocus={() => setEditing(true)}
           onBlur={() => {
+            setEditing(false);
             if (on && typed !== undefined && typed !== value) apply(typed);
           }}
         />

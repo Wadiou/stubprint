@@ -25,7 +25,6 @@ export function PrinterLimits({ printer }: { printer: PrinterInfo }) {
       <h3 className="font-semibold">Connections</h3>
       <SettingRows>
         <NumberSetting
-          key={`limit-${printer.max_connections}`}
           label="Connection limit"
           description="Programs it takes at once. The next one is closed"
           unit="programs"
@@ -36,7 +35,6 @@ export function PrinterLimits({ printer }: { printer: PrinterInfo }) {
           apply={(value) => change({ max_connections: value })}
         />
         <NumberSetting
-          key={`idle-${printer.idle_timeout}`}
           label="Idle timeout"
           description="Seconds a connection can send nothing before it is closed"
           unit="seconds"

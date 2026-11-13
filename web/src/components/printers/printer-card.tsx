@@ -59,10 +59,10 @@ export function PrinterCard({ printer, onRemove }: { printer: PrinterInfo; onRem
           </Alert>
         )}
         <PrinterStatus printer={printer} />
-        <PrinterPaper key={printer.paper_roll} printer={printer} />
+        <PrinterPaper printer={printer} />
         <PrinterUsage printer={printer} />
-        <PrinterSpeed key={printer.print_speed} printer={printer} />
-        <PrinterBuffer key={printer.printer_buffer} printer={printer} />
+        <PrinterSpeed printer={printer} />
+        <PrinterBuffer printer={printer} />
         <PrinterLimits printer={printer} />
         <Button variant="destructive" onClick={() => onRemove(printer)}>
           Delete printer

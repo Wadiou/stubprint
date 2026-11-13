@@ -20,7 +20,6 @@ export function PrinterBuffer({ printer }: { printer: PrinterInfo }) {
       <h3 className="font-semibold">Buffers</h3>
       <SettingRows>
         <NumberSetting
-          key={`printer-${printer.printer_buffer}`}
           label="Printer buffer"
           description="Bytes kept while it cannot print, and while it prints"
           unit="bytes"
@@ -31,7 +30,6 @@ export function PrinterBuffer({ printer }: { printer: PrinterInfo }) {
           apply={(bytes) => change({ printer_buffer: bytes })}
         />
         <NumberSetting
-          key={`network-${printer.network_buffer}`}
           label="Network buffer"
           description="Bytes the network keeps for a program"
           unit="bytes"
