@@ -1,3 +1,10 @@
+## [0.15.2](https://github.com/Wadiou/stubprint/compare/v0.15.1...v0.15.2) (2026-11-13)
+
+
+### Bug Fixes
+
+* **server:** finish uninstalling on Windows and take the folder out of the PATH ([a871a07](https://github.com/Wadiou/stubprint/commit/a871a0778b9c0cc100062d6d2d171ab652c84cf9))
+
 ## [0.15.1](https://github.com/Wadiou/stubprint/compare/v0.15.0...v0.15.1) (2026-11-13)
 
 
