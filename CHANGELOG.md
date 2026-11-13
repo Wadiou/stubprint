@@ -1,3 +1,10 @@
+# [0.9.0](https://github.com/Wadiou/stubprint/compare/v0.8.0...v0.9.0) (2026-11-13)
+
+
+### Features
+
+* **repo:** end the install scripts with the command to run next ([f79a289](https://github.com/Wadiou/stubprint/commit/f79a2891141e1e289f9313ab031536da8fed5cdd))
+
 # [0.8.0](https://github.com/Wadiou/stubprint/compare/v0.7.0...v0.8.0) (2026-11-13)
 
 
