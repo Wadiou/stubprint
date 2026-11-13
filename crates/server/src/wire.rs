@@ -4,7 +4,7 @@ use serde::Serialize;
 use stubprint_core::{Dialect, Event, PrinterStatus, Profile, Receipt, Snapshot, Traced};
 use utoipa::ToSchema;
 
-use crate::hub::Stored;
+use crate::hub::{ReceiptState, Stored};
 use crate::printer::{Usage, VirtualPrinter};
 use crate::samples::{Sample, Variant};
 
@@ -27,6 +27,8 @@ pub struct ReceiptSummary {
     pub bytes: usize,
     /// How many events, which are the commands it holds.
     pub events: usize,
+    /// Whether the printer is still printing it, it was cut, or it ended without a cut.
+    pub state: ReceiptState,
     /// The first printed lines.
     pub preview: Vec<String>,
 }
@@ -41,6 +43,7 @@ impl ReceiptSummary {
             at: stored.at,
             bytes: stored.receipt.raw().len(),
             events: stored.receipt.events().len(),
+            state: stored.state,
             preview: stored
                 .receipt
                 .texts()
@@ -93,6 +96,8 @@ pub struct PrinterInfo {
     pub held: usize,
     /// How many programs are connected to it now.
     pub connections: usize,
+    /// How many bytes its receive buffer holds: what it was sent and did not print yet.
+    pub buffered: usize,
     /// How long its paper roll was when it was full, in millimetres. 0 is a roll that never runs
     /// out, and then the paper is set by hand.
     pub paper_roll: usize,
@@ -116,6 +121,7 @@ impl PrinterInfo {
             network_buffer: printer.network_buffer(),
             held: printer.held(),
             connections: printer.connections(),
+            buffered: printer.buffered(),
             paper_roll: printer.paper_roll(),
             paper_left: printer.paper_left(),
             print_speed: printer.print_speed(),

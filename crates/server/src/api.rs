@@ -21,7 +21,7 @@ use tokio_stream::{Stream, StreamExt};
 use utoipa::{OpenApi, ToSchema};
 
 use crate::config::{PrinterConfig, PrinterSettings};
-use crate::hub::{Connection, Hub, Notice, Stored};
+use crate::hub::{Connection, Hub, Notice, ReceiptState, Stored};
 use crate::network::NetworkInfo;
 use crate::page;
 use crate::printer::VirtualPrinter;
@@ -616,8 +616,14 @@ async fn receipt_picture(
 ) -> Reply<Response> {
     let scale = view.scale.unwrap_or(1);
     let key = (id, view.upto, scale);
-    if let Some(file) = hub.picture(&key) {
-        return Ok(([(header::CONTENT_TYPE, "image/png")], file).into_response());
+    // A receipt that is printing grows, so its picture is drawn each time.
+    let printing = hub
+        .receipt(id)
+        .is_some_and(|stored| stored.state == ReceiptState::Printing);
+    if !printing {
+        if let Some(file) = hub.picture(&key) {
+            return Ok(([(header::CONTENT_TYPE, "image/png")], file).into_response());
+        }
     }
     let stored = stored(&hub, id)?;
     let mut options = Options::for_profile(&stored.profile);
@@ -631,7 +637,9 @@ async fn receipt_picture(
     .map_err(|error| ApiError(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
     .map_err(|error| ApiError(StatusCode::INTERNAL_SERVER_ERROR, error))?;
     let file = Bytes::from(file);
-    hub.keep_picture(key, file.clone());
+    if !printing {
+        hub.keep_picture(key, file.clone());
+    }
     Ok(([(header::CONTENT_TYPE, "image/png")], file).into_response())
 }
 

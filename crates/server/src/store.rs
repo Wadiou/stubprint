@@ -98,6 +98,7 @@ pub(crate) struct SavedReceipt {
     pub(crate) dialect: String,
     pub(crate) profile: String,
     pub(crate) at: u64,
+    pub(crate) state: String,
     pub(crate) raw: Vec<u8>,
 }
 
@@ -286,8 +287,9 @@ fn load(db: &Db) -> rusqlite::Result<Loaded> {
     }
 
     let mut receipts = Vec::new();
-    let mut statement =
-        db.prepare("SELECT id, printer, dialect, profile, at, raw FROM receipts ORDER BY id")?;
+    let mut statement = db.prepare(
+        "SELECT id, printer, dialect, profile, at, raw, state FROM receipts ORDER BY id",
+    )?;
     let rows = statement.query_map([], |row| {
         Ok(SavedReceipt {
             id: unsigned(row.get(0)?),
@@ -296,6 +298,7 @@ fn load(db: &Db) -> rusqlite::Result<Loaded> {
             profile: row.get(3)?,
             at: unsigned(row.get(4)?),
             raw: row.get(5)?,
+            state: row.get(6)?,
         })
     })?;
     for receipt in rows {
@@ -377,8 +380,8 @@ fn write(db: &Db, command: Command) -> rusqlite::Result<()> {
         }
         Command::Receipt(receipt) => {
             db.execute(
-                "INSERT OR REPLACE INTO receipts (id, printer, dialect, profile, at, raw)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                "INSERT OR REPLACE INTO receipts (id, printer, dialect, profile, at, raw, state)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                 params![
                     int(receipt.id),
                     receipt.printer,
@@ -386,6 +389,7 @@ fn write(db: &Db, command: Command) -> rusqlite::Result<()> {
                     receipt.profile,
                     int(receipt.at),
                     receipt.raw,
+                    receipt.state,
                 ],
             )?;
         }

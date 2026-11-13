@@ -2873,8 +2873,7 @@ async fn how_much_a_printer_holds_is_told_by_the_api_and_by_a_live_event_as_it_c
     assert_eq!(server.ids().await.len(), 2);
 }
 
-/// How long a connection that sent a receipt waits for the next one it sends to be printed, when the
-/// printer prints at `speed` millimetres a second.
+/// How long a second receipt takes to be kept after it was sent, when the first one was kept before.
 async fn wait_for_the_second_receipt(server: &Harness, name: &str) -> Duration {
     let mut stream = TcpStream::connect(server.printer(name)).await.unwrap();
     stream.write_all(&receipt_bytes("first")).await.unwrap();
@@ -2886,7 +2885,8 @@ async fn wait_for_the_second_receipt(server: &Harness, name: &str) -> Duration {
 }
 
 #[tokio::test]
-async fn a_printer_that_prints_at_a_speed_reads_the_next_receipt_when_it_is_done_with_this_one() {
+async fn a_printer_that_prints_at_a_speed_keeps_a_receipt_when_it_is_printed_and_one_with_no_speed_takes_no_time(
+) {
     let one = paper_of_one_receipt().await;
     // A speed at which one receipt takes 0.6 seconds.
     let speed = (one / 0.6).ceil();
@@ -2905,7 +2905,7 @@ async fn a_printer_that_prints_at_a_speed_reads_the_next_receipt_when_it_is_done
 }
 
 #[tokio::test]
-async fn the_speed_of_a_printer_can_be_changed_while_it_prints_and_zero_ends_the_wait() {
+async fn the_speed_of_a_printer_can_be_changed_and_zero_prints_what_is_waiting_at_once() {
     let one = paper_of_one_receipt().await;
     // One receipt takes a minute at this speed.
     let speed = (one / 60.0).ceil().max(1.0) as u64;
@@ -2925,7 +2925,7 @@ async fn the_speed_of_a_printer_can_be_changed_while_it_prints_and_zero_ends_the
     stream.write_all(&receipt_bytes("first")).await.unwrap();
     let first = server.after(0).await["id"].as_u64().unwrap();
     stream.write_all(&receipt_bytes("second")).await.unwrap();
-    // It is busy, and does not read the second.
+    // It is still printing the first, and the second is not printed yet.
     let early = server
         .get(&format!("/api/receipts/next?after={first}&timeout=1"))
         .await;
@@ -2951,6 +2951,263 @@ async fn the_speed_of_a_printer_is_there_again_after_a_restart() {
 
     let second = Harness::start_keeping_state(&[], &file, false).await;
     assert_eq!(second.json("/api/printers/till").await["print_speed"], 150);
+    second.running.stop().await;
+    remove_database(&file);
+}
+
+/// The bytes of a receipt of `lines` lines, each as long as a line of the printer is tall, and its
+/// cut.
+fn long_receipt(lines: usize) -> Vec<u8> {
+    let mut bytes = long_job(lines);
+    bytes.extend([0x1d, b'V', 0x42, 0x00]);
+    bytes
+}
+
+/// The same, with no cut.
+fn long_job(lines: usize) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    for number in 0..lines {
+        bytes.extend(format!("line {number:03}\n").bytes());
+    }
+    bytes
+}
+
+/// How many lines of text a receipt has now, as the API shows it, and the state it is in.
+async fn receipt_now(server: &Harness, id: u64) -> (usize, String) {
+    let receipt = server.json(&format!("/api/receipts/{id}")).await;
+    let text = server
+        .get(&format!("/api/receipts/{id}/text"))
+        .await
+        .text()
+        .await
+        .unwrap();
+    (
+        text.lines().filter(|line| line.starts_with("line")).count(),
+        receipt["state"].as_str().unwrap().to_string(),
+    )
+}
+
+/// Waits until a receipt is not printing any more and says what it ended as.
+async fn until_printed(server: &Harness, id: u64) -> (usize, String) {
+    let started = std::time::Instant::now();
+    loop {
+        let now = receipt_now(server, id).await;
+        if now.1 != "printing" {
+            return now;
+        }
+        assert!(
+            started.elapsed() < Duration::from_secs(10),
+            "still printing: {now:?}"
+        );
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+}
+
+#[tokio::test]
+async fn a_receipt_exists_from_its_first_line_and_grows_as_it_prints_until_it_is_cut() {
+    // A line of paper is 3.75 mm, so 40 lines are 150 mm, which take 2 seconds at 75 mm/s.
+    let server = Harness::start(&["name=till,print_speed=75"]).await;
+    assert!(server.ids().await.is_empty());
+    let mut stream = TcpStream::connect(server.printer("till")).await.unwrap();
+    let started = std::time::Instant::now();
+    stream.write_all(&long_receipt(40)).await.unwrap();
+
+    // It has its number at once, and part of the way through it has some of its lines.
+    tokio::time::sleep(Duration::from_millis(700)).await;
+    assert_eq!(server.ids().await, [1]);
+    let (early, state) = receipt_now(&server, 1).await;
+    assert_eq!(state, "printing");
+    assert!(
+        (3..40).contains(&early),
+        "after 0.7 s there are {early} lines"
+    );
+    let commands = server.json("/api/receipts/1/trace").await;
+    let early_commands = commands.as_array().unwrap().len();
+    // What it has is a receipt like any other: its bytes, its picture and its commands.
+    let bytes = server
+        .get("/api/receipts/1/bytes")
+        .await
+        .bytes()
+        .await
+        .unwrap();
+    assert!(bytes.starts_with(b"line 000"));
+    assert!(bytes.len() < long_receipt(40).len());
+    let picture = server.get("/api/receipts/1/picture").await;
+    assert_eq!(picture.status(), 200);
+    // The next receipt is one that is done, so a program that waits for it does not get this one.
+    let waiting = server.get("/api/receipts/next?after=0&timeout=0").await;
+    assert_eq!(waiting.status(), 204);
+
+    // Later it has more, and it is still the same receipt.
+    tokio::time::sleep(Duration::from_millis(600)).await;
+    let (later, state) = receipt_now(&server, 1).await;
+    assert_eq!(state, "printing");
+    assert!(later > early);
+    assert!(
+        server
+            .json("/api/receipts/1/trace")
+            .await
+            .as_array()
+            .unwrap()
+            .len()
+            > early_commands
+    );
+    assert_eq!(server.ids().await, [1]);
+
+    // The cut finishes it, with every line, and nothing changes its number.
+    let receipt = server.after(0).await;
+    assert!(
+        started.elapsed() >= Duration::from_millis(1700),
+        "it was done after {:?}",
+        started.elapsed()
+    );
+    assert_eq!(receipt["id"], 1);
+    assert_eq!(receipt["state"], "complete");
+    assert_eq!(receipt["texts"].as_array().unwrap().len(), 40);
+    assert_eq!(server.ids().await, [1]);
+}
+
+#[tokio::test]
+async fn the_buffer_of_a_printer_takes_a_program_a_little_at_a_time_as_it_prints() {
+    // 120 lines are 450 mm, which take 3 seconds at 150 mm/s, and the buffer is far smaller than
+    // what is sent.
+    let server = Harness::start(&["name=till,print_speed=150,printer_buffer=256"]).await;
+    let bytes = long_receipt(120);
+    assert!(bytes.len() > 1000);
+    let mut stream = TcpStream::connect(server.printer("till")).await.unwrap();
+    stream.write_all(&bytes).await.unwrap();
+
+    let mut most = 0;
+    let mut samples = Vec::new();
+    let started = std::time::Instant::now();
+    loop {
+        let printer = server.json("/api/printers/till").await;
+        let buffered = usize::try_from(printer["buffered"].as_u64().unwrap()).unwrap();
+        most = most.max(buffered);
+        samples.push(buffered);
+        let done = !server.ids().await.is_empty() && receipt_now(&server, 1).await.1 == "complete";
+        if done {
+            break;
+        }
+        assert!(started.elapsed() < Duration::from_secs(10), "{samples:?}");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    // It never held more than its buffer, it was holding something most of the time, and nothing
+    // was lost on the way.
+    assert!(most <= 256, "it held {most}");
+    assert!(
+        samples.iter().filter(|held| **held > 0).count() * 2 > samples.len(),
+        "{samples:?}"
+    );
+    assert!(started.elapsed() >= Duration::from_millis(2000));
+    assert_eq!(receipt_now(&server, 1).await.0, 120);
+    assert_eq!(server.json("/api/printers/till").await["buffered"], 0);
+}
+
+#[tokio::test]
+async fn the_live_events_tell_that_a_receipt_began_how_far_it_is_and_that_it_ended() {
+    let server = Harness::start(&["name=till,print_speed=150"]).await;
+    let mut events = Live {
+        response: server.get("/api/events").await,
+        seen: String::new(),
+    };
+    let mut stream = TcpStream::connect(server.printer("till")).await.unwrap();
+    stream.write_all(&long_receipt(60)).await.unwrap();
+    // It begins with its number, still printing.
+    events.until("event: receipt").await;
+    events.until("\"state\":\"printing\"").await;
+    // It grows, and each event says which receipt and how many commands.
+    events.until("event: printing").await;
+    events.until("\"receipt\":1").await;
+    events.until("\"commands\":").await;
+    // It ends with the cut.
+    events.until("\"state\":\"complete\"").await;
+}
+
+#[tokio::test]
+async fn a_printer_that_cannot_print_does_not_spend_time_and_goes_on_when_it_can() {
+    let server = Harness::start(&["name=till,print_speed=75"]).await;
+    let mut stream = TcpStream::connect(server.printer("till")).await.unwrap();
+    stream.write_all(&long_receipt(40)).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    server.report("till", json!({"cover_open": true})).await;
+    let (at_stop, state) = receipt_now(&server, 1).await;
+    assert_eq!(state, "printing");
+    // Nothing more comes out while its cover is open, however long it takes.
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    assert_eq!(
+        receipt_now(&server, 1).await,
+        (at_stop, "printing".to_string())
+    );
+
+    // With the cover closed it goes on from where it was, and the receipt is whole.
+    server.report("till", json!({"cover_open": false})).await;
+    let receipt = server.after(0).await;
+    assert_eq!(receipt["state"], "complete");
+    assert_eq!(receipt["texts"].as_array().unwrap().len(), 40);
+}
+
+#[tokio::test]
+async fn a_program_that_goes_without_a_cut_leaves_a_receipt_that_ends_where_it_was_sent() {
+    let server = Harness::start(&["name=till,print_speed=75"]).await;
+    let mut stream = TcpStream::connect(server.printer("till")).await.unwrap();
+    stream.write_all(&long_job(40)).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    drop(stream);
+    // The printer prints what it was sent, and with no cut the receipt is not a complete one.
+    let (lines, state) = until_printed(&server, 1).await;
+    assert_eq!(state, "incomplete");
+    assert_eq!(lines, 40);
+    // It stays as it is.
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(
+        receipt_now(&server, 1).await,
+        (40, "incomplete".to_string())
+    );
+}
+
+#[tokio::test]
+async fn a_printer_that_is_removed_while_it_prints_leaves_its_receipt_on_the_last_thing_it_printed()
+{
+    let server = Harness::start(&["name=till"]).await;
+    let added = server
+        .post_json(
+            "/api/printers",
+            json!({"name": "slow", "listen": "127.0.0.1:0", "print_speed": 75}),
+        )
+        .await;
+    assert_eq!(added.status(), 201);
+    let mut stream = TcpStream::connect(server.printer("slow")).await.unwrap();
+    stream.write_all(&long_receipt(40)).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(600)).await;
+    let (before, state) = receipt_now(&server, 1).await;
+    assert_eq!(state, "printing");
+
+    server.delete("/api/printers/slow").await;
+    let (lines, state) = receipt_now(&server, 1).await;
+    assert_eq!(state, "incomplete");
+    assert!(lines >= before && lines < 40, "{before} then {lines}");
+    // It does not go on without its printer.
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert_eq!(
+        receipt_now(&server, 1).await,
+        (lines, "incomplete".to_string())
+    );
+}
+
+#[tokio::test]
+async fn a_receipt_that_ended_without_a_cut_is_still_incomplete_after_a_restart() {
+    let file = state_file("incomplete");
+    let first = Harness::start_keeping_state(&["name=till"], &file, false).await;
+    first.print("till", &long_job(3), 100).await;
+    first.print("till", &long_receipt(2), 100).await;
+    assert_eq!(receipt_now(&first, 1).await, (3, "incomplete".to_string()));
+    assert_eq!(receipt_now(&first, 2).await, (2, "complete".to_string()));
+    first.running.stop().await;
+
+    let second = Harness::start_keeping_state(&[], &file, false).await;
+    assert_eq!(receipt_now(&second, 1).await, (3, "incomplete".to_string()));
+    assert_eq!(receipt_now(&second, 2).await, (2, "complete".to_string()));
     second.running.stop().await;
     remove_database(&file);
 }

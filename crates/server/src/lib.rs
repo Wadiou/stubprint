@@ -7,6 +7,8 @@
 
 pub mod api;
 mod config;
+mod driver;
+mod engine;
 mod hub;
 mod listener;
 mod migrations;

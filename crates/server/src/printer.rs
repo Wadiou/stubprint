@@ -1,15 +1,16 @@
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use stubprint_core::{Counters, Dialect, Paper, PrinterStatus, Profile};
-use tokio::sync::watch;
+use tokio::sync::{watch, Notify};
 use tokio::task::JoinHandle;
 use utoipa::ToSchema;
 
 use crate::config::PrinterConfig;
+use crate::engine::{Engine, Work};
 
 /// The roll reports near end when this share of it is left, or less.
 const NEAR_END_SHARE: f64 = 0.1;
@@ -90,13 +91,17 @@ pub struct VirtualPrinter {
     roll: Mutex<Roll>,
     /// How fast it prints, in millimetres of paper a second. 0 takes no time.
     print_speed: AtomicUsize,
-    /// When it is done printing what it has printed so far.
-    busy_until: Mutex<Instant>,
+    /// What it has read and is printing: the receive buffer, the work, and the paper.
+    engine: Mutex<Engine>,
+    /// Wakes what drives the engine when there is work for it.
+    wake: Notify,
     connections: AtomicUsize,
     /// Tells its port and its connections to close.
     stop: watch::Sender<bool>,
     /// The task that takes its connections.
     task: Mutex<Option<JoinHandle<()>>>,
+    /// The task that gives its engine the time that passes.
+    driver: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl VirtualPrinter {
@@ -130,10 +135,12 @@ impl VirtualPrinter {
                 usage: Usage::default(),
             }),
             print_speed: AtomicUsize::new(print_speed),
-            busy_until: Mutex::new(Instant::now()),
+            engine: Mutex::new(Engine::default()),
+            wake: Notify::new(),
             connections: AtomicUsize::new(0),
             stop: watch::channel(false).0,
             task: Mutex::new(None),
+            driver: Mutex::new(None),
         }
     }
 
@@ -244,7 +251,6 @@ impl VirtualPrinter {
     /// Counts a receipt it printed and takes the paper it used off the roll. Returns what the
     /// sensors report now, when that is not what the printer says already.
     pub(crate) fn printed(&self, used: Usage) -> Option<Paper> {
-        self.keep_busy(used.paper_used);
         let level = {
             let mut roll = self
                 .roll
@@ -268,36 +274,86 @@ impl VirtualPrinter {
         self.print_speed.load(Ordering::Relaxed)
     }
 
-    /// Changes how fast it prints. It applies to what is printed from now on, and 0 ends the time
-    /// it was still busy.
+    /// Changes how fast it prints. It applies to what is read from now on, and 0 ends the time
+    /// what is waiting still had to take.
     pub fn set_print_speed(&self, speed: usize) {
         self.print_speed.store(speed, Ordering::Relaxed);
+        self.wake.notify_one();
     }
 
-    /// Makes it busy for as long as `paper` millimetres take to come out, after what it is
-    /// printing already.
-    fn keep_busy(&self, paper: f64) {
-        let speed = self.print_speed();
-        if speed == 0 {
-            return;
-        }
-        let taken = Duration::try_from_secs_f64(paper / millimetres(speed)).unwrap_or_default();
-        let mut until = self
-            .busy_until
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        *until = (*until).max(Instant::now()) + taken;
-    }
-
-    /// How much longer it is busy printing, during which it reads nothing more.
-    pub(crate) fn busy_for(&self) -> Duration {
-        if self.print_speed() == 0 {
-            return Duration::ZERO;
-        }
-        self.busy_until
+    fn engine(&self) -> std::sync::MutexGuard<'_, Engine> {
+        self.engine
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .saturating_duration_since(Instant::now())
+    }
+
+    /// Whether what is read can be printed at once: it takes no time, and nothing is waiting.
+    pub(crate) fn is_instant(&self) -> bool {
+        self.print_speed() == 0 && self.engine().is_idle()
+    }
+
+    /// Bytes came into the receive buffer.
+    pub(crate) fn receive(&self, bytes: usize) {
+        self.engine().receive(bytes);
+    }
+
+    /// Bytes leave the receive buffer without being printed.
+    pub(crate) fn give_back(&self, bytes: usize) {
+        self.engine().give_back(bytes);
+    }
+
+    /// How many bytes the receive buffer holds: what came in and was not printed yet.
+    pub fn buffered(&self) -> usize {
+        self.engine().buffered()
+    }
+
+    /// How many more bytes the receive buffer takes. `None` when there is no limit: the printer
+    /// holds nothing, or it takes no time and has nothing waiting, so what is read is printed and
+    /// frees itself. A buffer that is full while nothing waits to be printed is full of the start of
+    /// a command that is longer than the buffer, which can only be finished by reading on.
+    pub(crate) fn buffer_room(&self) -> Option<usize> {
+        let size = self.printer_buffer();
+        let engine = self.engine();
+        if size == 0 || (self.print_speed() == 0 && engine.is_idle()) {
+            return None;
+        }
+        let room = engine.room(size);
+        (room > 0 || !engine.is_idle()).then_some(room)
+    }
+
+    /// Puts work in line and wakes what does it.
+    pub(crate) fn enqueue(&self, work: Vec<Work>) {
+        self.engine().push(work);
+        self.wake.notify_one();
+    }
+
+    /// Waits until there is something new for the engine to do.
+    pub(crate) async fn woken(&self) {
+        self.wake.notified().await;
+    }
+
+    /// How long until the work it is on is done, or `None` when it has none or cannot print.
+    pub(crate) fn due_in(&self) -> Option<Duration> {
+        if self.halted() {
+            return None;
+        }
+        let due = self.engine().due_in()?;
+        // A printer that takes no time is done with what it has, however long it was to take.
+        Some(if self.print_speed() == 0 {
+            Duration::ZERO
+        } else {
+            due
+        })
+    }
+
+    /// Lets time pass for the engine and returns what was done in it.
+    pub(crate) fn advance(&self, elapsed: Duration) -> Vec<Work> {
+        let elapsed = if self.print_speed() == 0 {
+            Duration::MAX
+        } else {
+            elapsed
+        };
+        self.engine().advance(elapsed)
     }
 
     /// How many bytes it holds while it cannot print. 0 means it holds nothing and prints whatever
@@ -405,6 +461,13 @@ impl VirtualPrinter {
             .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(task);
     }
 
+    pub(crate) fn driving(&self, task: JoinHandle<()>) {
+        *self
+            .driver
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(task);
+    }
+
     /// Closes the port and the connections, and waits until they are done.
     pub(crate) async fn shut(&self) {
         // Not `send`, which keeps nothing when no listener is subscribed yet.
@@ -416,6 +479,14 @@ impl VirtualPrinter {
             .take();
         if let Some(task) = task {
             let _ = task.await;
+        }
+        let driver = self
+            .driver
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .take();
+        if let Some(driver) = driver {
+            let _ = driver.await;
         }
     }
 

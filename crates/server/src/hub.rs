@@ -15,6 +15,7 @@ use tokio::time::Instant;
 use utoipa::ToSchema;
 
 use crate::config::PrinterConfig;
+use crate::engine::{Job, What, Work};
 use crate::listener;
 use crate::pictures::{PictureKey, Pictures};
 use crate::printer::{Usage, VirtualPrinter};
@@ -28,9 +29,52 @@ pub struct Stored {
     pub printer: Arc<VirtualPrinter>,
     /// The model the printer was when it printed this, which draws it.
     pub profile: Arc<Profile>,
-    /// When it was cut, in milliseconds since 1970.
+    /// When it was cut, in milliseconds since 1970. While it is printing, when it began.
     pub at: u64,
+    pub state: ReceiptState,
     pub receipt: Receipt,
+}
+
+/// Where a receipt is in its life. It exists from the first thing the printer prints of a job, and
+/// what is printed so far is kept as it comes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ReceiptState {
+    /// The printer is still printing it, so it grows.
+    Printing,
+    /// It was printed and cut.
+    Complete,
+    /// It ended without a cut, because the program closed the connection or the printer was
+    /// stopped, and it stays as it was on the last thing printed.
+    Incomplete,
+}
+
+impl ReceiptState {
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            ReceiptState::Printing => "printing",
+            ReceiptState::Complete => "complete",
+            ReceiptState::Incomplete => "incomplete",
+        }
+    }
+
+    pub(crate) fn from_name(name: &str) -> Option<Self> {
+        [Self::Printing, Self::Complete, Self::Incomplete]
+            .into_iter()
+            .find(|state| state.name() == name)
+    }
+}
+
+/// A job that a connection is printing, which becomes a receipt when the first thing on it is
+/// printed.
+#[derive(Debug)]
+struct Open {
+    printer: Arc<VirtualPrinter>,
+    profile: Arc<Profile>,
+    /// What is on the paper so far.
+    job: Job,
+    /// The number of its receipt, once it has one.
+    id: Option<u64>,
 }
 
 /// One piece of a connection's bytes as it arrived.
@@ -149,6 +193,18 @@ pub enum Notice {
         /// How many bytes it holds now.
         held: usize,
     },
+    /// A receipt grew: the printer printed more of it. Sent as the printing goes, a few times a
+    /// second, so a page that shows the receipt can ask for it again.
+    Printing {
+        /// The name of the printer.
+        printer: String,
+        /// The receipt that grew.
+        receipt: u64,
+        /// How many commands of it are printed.
+        commands: usize,
+        /// How many bytes the printer's receive buffer holds.
+        buffered: usize,
+    },
     /// A command was read, while the job is still being sent. Only sent to those who ask for the
     /// actions, since a long job makes thousands.
     Action {
@@ -178,6 +234,7 @@ impl Notice {
             Notice::PrinterChanged(_) => "printer_changed",
             Notice::PrinterRemoved { .. } => "printer_removed",
             Notice::Held { .. } => "held",
+            Notice::Printing { .. } => "printing",
         }
     }
 }
@@ -209,6 +266,8 @@ pub struct Hub {
     action_watchers: AtomicUsize,
     /// The database that everything is also written to, when it is kept.
     store: OnceLock<Store>,
+    /// The jobs that are being printed, by the connection that sent them.
+    open: Mutex<HashMap<u64, Open>>,
 }
 
 impl Default for Hub {
@@ -234,6 +293,7 @@ impl Hub {
             notices: broadcast::channel(4096).0,
             action_watchers: AtomicUsize::new(0),
             store: OnceLock::new(),
+            open: Mutex::new(HashMap::new()),
         }
     }
 
@@ -320,6 +380,9 @@ impl Hub {
                 printer,
                 profile,
                 at: saved.at,
+                state: ReceiptState::from_name(&saved.state)
+                    .filter(|state| *state != ReceiptState::Printing)
+                    .unwrap_or(ReceiptState::Complete),
                 receipt,
             }));
         }
@@ -387,6 +450,10 @@ impl Hub {
             printer.clone(),
             socket,
         )));
+        printer.driving(tokio::spawn(crate::driver::run(
+            self.clone(),
+            printer.clone(),
+        )));
         self.notify(Notice::PrinterAdded(PrinterInfo::of(&printer)));
         Ok(printer)
     }
@@ -421,6 +488,7 @@ impl Hub {
             return false;
         };
         printer.shut().await;
+        self.abandon(&printer);
         self.notify(Notice::PrinterRemoved {
             name: name.to_string(),
         });
@@ -437,6 +505,7 @@ impl Hub {
         );
         for printer in printers {
             printer.shut().await;
+            self.abandon(&printer);
         }
     }
 
@@ -457,6 +526,12 @@ impl Hub {
         }
         // Nobody listening is fine.
         let _ = self.notices.send(notice);
+    }
+
+    fn open(&self) -> MutexGuard<'_, HashMap<u64, Open>> {
+        self.open
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
     fn shelf(&self) -> MutexGuard<'_, Shelf> {
@@ -645,8 +720,8 @@ impl Hub {
         }
     }
 
-    /// Keeps a receipt and tells the watchers. Returns its id. `connection` is the one that
-    /// printed it.
+    /// Keeps a whole receipt at once and tells the watchers. Returns its id. `connection` is the one
+    /// that printed it.
     pub fn store(
         &self,
         printer: &Arc<VirtualPrinter>,
@@ -654,8 +729,84 @@ impl Hub {
         connection: u64,
         receipt: Receipt,
     ) -> u64 {
-        let at = now();
-        let used = usage_of(&receipt, &profile);
+        let id = {
+            let mut shelf = self.shelf();
+            let id = shelf.next_id;
+            shelf.next_id += 1;
+            id
+        };
+        self.complete(printer, profile, connection, id, receipt, false);
+        id
+    }
+
+    /// Carries out what the engine of a printer did: kicked drawers open, the commands go on the
+    /// paper, and the first thing that prints gives the job a receipt, which grows as the printer
+    /// goes on and is finished by its cut. Returns the ids of the receipts that were finished.
+    pub(crate) fn print(&self, printer: &Arc<VirtualPrinter>, works: Vec<Work>) -> Vec<u64> {
+        let mut finished = Vec::new();
+        // The connections whose receipt grew, which are told once for all the commands.
+        let mut grew: Vec<u64> = Vec::new();
+        for work in works {
+            let connection = work.connection;
+            match work.what {
+                What::Command {
+                    event,
+                    step,
+                    bytes,
+                    profile,
+                } => {
+                    if matches!(*event, Event::Pulse(_)) {
+                        self.drawer_kicked(printer);
+                    }
+                    let begun = {
+                        let mut open = self.open();
+                        let entry = open.entry(connection).or_insert_with(|| Open {
+                            printer: printer.clone(),
+                            profile: profile.clone(),
+                            job: Job::default(),
+                            id: None,
+                        });
+                        entry.job.add(&event, &step, &bytes);
+                        (entry.id.is_none() && entry.job.has_printed()).then(|| entry.job.receipt())
+                    };
+                    if let Some(receipt) = begun {
+                        let id = self.begin(printer, profile, connection, receipt);
+                        if let Some(entry) = self.open().get_mut(&connection) {
+                            entry.id = Some(id);
+                        }
+                    }
+                    if !grew.contains(&connection) {
+                        grew.push(connection);
+                    }
+                }
+                What::Finished { receipt, profile } => {
+                    let open = self.open().remove(&connection);
+                    grew.retain(|other| *other != connection);
+                    match open.and_then(|open| open.id) {
+                        Some(id) => {
+                            self.complete(printer, profile, connection, id, receipt, true);
+                            finished.push(id);
+                        }
+                        None => finished.push(self.store(printer, profile, connection, receipt)),
+                    }
+                }
+            }
+        }
+        for connection in grew {
+            self.grow(printer, connection);
+        }
+        finished
+    }
+
+    /// A job printed its first thing: it is a receipt now, with the next number, and the watchers
+    /// are told.
+    fn begin(
+        &self,
+        printer: &Arc<VirtualPrinter>,
+        profile: Arc<Profile>,
+        connection: u64,
+        receipt: Receipt,
+    ) -> u64 {
         let stored = {
             let mut shelf = self.shelf();
             let id = shelf.next_id;
@@ -664,26 +815,115 @@ impl Hub {
                 id,
                 printer: printer.clone(),
                 profile,
-                at,
+                at: now(),
+                state: ReceiptState::Printing,
                 receipt,
             });
             shelf.receipts.push_back(stored.clone());
             stored
         };
-        self.write(Command::Receipt(SavedReceipt {
-            id: stored.id,
-            printer: stored.printer.name.clone(),
-            dialect: stored.printer.dialect.name().to_string(),
-            profile: stored.profile.name.clone(),
-            at: stored.at,
-            raw: stored.receipt.raw().to_vec(),
-        }));
         self.update(connection, |c| {
             c.receipts.push(stored.id);
             None
         });
         self.notify(Notice::Receipt(ReceiptSummary::of(&stored)));
-        // The paper it used comes off the roll, and the sensors may say it is running out.
+        stored.id
+    }
+
+    /// The receipt of a job that is printing has more on it now.
+    fn grow(&self, printer: &Arc<VirtualPrinter>, connection: u64) {
+        let grown = {
+            let open = self.open();
+            open.get(&connection)
+                .and_then(|open| open.id.map(|id| (id, open.job.receipt())))
+        };
+        let Some((id, receipt)) = grown else {
+            return;
+        };
+        let commands = receipt.events().len();
+        {
+            let mut shelf = self.shelf();
+            // A receipt that was removed while it printed is not brought back.
+            let Some(at) = shelf.receipts.iter().rposition(|stored| stored.id == id) else {
+                return;
+            };
+            let old = shelf.receipts[at].clone();
+            shelf.receipts[at] = Arc::new(Stored {
+                id,
+                printer: old.printer.clone(),
+                profile: old.profile.clone(),
+                at: old.at,
+                state: ReceiptState::Printing,
+                receipt,
+            });
+        }
+        self.notify(Notice::Printing {
+            printer: printer.name.clone(),
+            receipt: id,
+            commands,
+            buffered: printer.buffered(),
+        });
+    }
+
+    /// A receipt is done, by its cut or by the end of what was sent: it is kept as it is, written to
+    /// the database and told. `began` says it was kept as it printed, and is not kept again if it
+    /// was removed meanwhile. The paper it used comes off the roll.
+    fn complete(
+        &self,
+        printer: &Arc<VirtualPrinter>,
+        profile: Arc<Profile>,
+        connection: u64,
+        id: u64,
+        receipt: Receipt,
+        began: bool,
+    ) {
+        let state = if matches!(receipt.events().last(), Some(Event::Cut(_))) {
+            ReceiptState::Complete
+        } else {
+            ReceiptState::Incomplete
+        };
+        let used = usage_of(&receipt, &profile);
+        let stored = Arc::new(Stored {
+            id,
+            printer: printer.clone(),
+            profile,
+            at: now(),
+            state,
+            receipt,
+        });
+        let kept = {
+            let mut shelf = self.shelf();
+            match shelf.receipts.iter().rposition(|other| other.id == id) {
+                Some(at) => {
+                    shelf.receipts[at] = stored.clone();
+                    true
+                }
+                None if !began => {
+                    shelf.receipts.push_back(stored.clone());
+                    true
+                }
+                None => false,
+            }
+        };
+        if kept {
+            self.write(Command::Receipt(SavedReceipt {
+                id: stored.id,
+                printer: stored.printer.name.clone(),
+                dialect: stored.printer.dialect.name().to_string(),
+                profile: stored.profile.name.clone(),
+                at: stored.at,
+                state: stored.state.name().to_string(),
+                raw: stored.receipt.raw().to_vec(),
+            }));
+            self.update(connection, |c| {
+                if !c.receipts.contains(&stored.id) {
+                    c.receipts.push(stored.id);
+                }
+                None
+            });
+            self.notify(Notice::Receipt(ReceiptSummary::of(&stored)));
+        }
+        // The sensors may say the roll is running out.
         if let Some(paper) = printer.printed(used) {
             let mut status = printer.status();
             status.paper = paper;
@@ -694,7 +934,34 @@ impl Hub {
             });
         }
         self.notify(Notice::PrinterChanged(PrinterInfo::of(printer)));
-        stored.id
+    }
+
+    /// The printer was stopped with jobs on its paper: what is printed of them stays, and they
+    /// end there.
+    fn abandon(&self, printer: &Arc<VirtualPrinter>) {
+        let jobs: Vec<(u64, Open)> = {
+            let mut open = self.open();
+            let mine: Vec<u64> = open
+                .iter()
+                .filter(|(_, job)| Arc::ptr_eq(&job.printer, printer))
+                .map(|(connection, _)| *connection)
+                .collect();
+            mine.into_iter()
+                .filter_map(|connection| open.remove(&connection).map(|job| (connection, job)))
+                .collect()
+        };
+        for (connection, job) in jobs {
+            if let Some(id) = job.id {
+                self.complete(
+                    printer,
+                    job.profile,
+                    connection,
+                    id,
+                    job.job.receipt(),
+                    true,
+                );
+            }
+        }
     }
 
     /// The cash drawer opens when the printer kicks it, and stays open until it is shut by hand,
@@ -782,7 +1049,11 @@ impl Hub {
         self.shelf()
             .receipts
             .iter()
-            .find(|stored| stored.id > id && printer.is_none_or(|name| stored.printer.name == name))
+            .find(|stored| {
+                stored.id > id
+                    && stored.state != ReceiptState::Printing
+                    && printer.is_none_or(|name| stored.printer.name == name)
+            })
             .cloned()
     }
 
