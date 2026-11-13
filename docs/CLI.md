@@ -47,6 +47,7 @@ computer, or one with no database (`--ephemeral`). The options that start a serv
 | `info` | the version of the server, where it listens, and whether it keeps its state |
 | `events` | follows the live events, one line each. With `--json`, `{"event": …, "data": …}` |
 | `update` | installs the latest release over this program. `--to <version>` installs that one instead. See below |
+| `uninstall` | removes the installed program. `--purge` also removes the database. See below |
 
 `key=value` settings are the same as `--printer` and the API take. Bytes and a picture are binary:
 they go to a file with `-o`, or to a pipe, and never to a terminal.
@@ -61,6 +62,16 @@ new program replaces this one in the same folder. The installer checks the downl
 It needs `curl` or `wget`, and PowerShell on Windows. A server that is running keeps the old version
 until it is started again. A program that was built from the source, in a `target/` folder, does not
 update itself.
+
+## Uninstalling
+
+`stubprint uninstall` removes the program's own file. The database it kept, if any, is left where it
+is, so installing again finds the printers and the receipts it had. `--purge` removes that too.
+
+On Windows the program cannot be deleted while it runs, so it is renamed aside and a detached command
+deletes it once this process has exited; a `stubprint.exe.old` that is still there a moment later is
+harmless and can be removed by hand. A program that was built from the source does not uninstall
+itself.
 
 ## Exit codes
 

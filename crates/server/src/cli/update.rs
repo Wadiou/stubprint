@@ -46,23 +46,8 @@ fn installer_url(version: Option<&str>) -> String {
     }
 }
 
-/// Whether the program is the one that `cargo build` made, which is not installed anywhere.
-fn is_a_build(path: &Path) -> bool {
-    let names: Vec<_> = path.components().map(|part| part.as_os_str()).collect();
-    names.contains(&"target".as_ref())
-        && (names.contains(&"debug".as_ref()) || names.contains(&"release".as_ref()))
-}
-
 pub fn update(args: &UpdateArgs) -> Result<(), Failure> {
-    let program = std::env::current_exe()
-        .and_then(|path| path.canonicalize())
-        .map_err(|error| format!("cannot tell where this program is: {error}"))?;
-    if is_a_build(&program) {
-        return Err(format!(
-            "{} was built from the source and is not an installed program: build it again",
-            program.display()
-        ));
-    }
+    let program = super::installed_program()?;
     let folder = program
         .parent()
         .ok_or_else(|| format!("{} is not in a folder", program.display()))?;
@@ -206,15 +191,5 @@ mod tests {
             installer_url(Some("0.4.0")),
             format!("{REPOSITORY}/releases/download/v0.4.0/{file}")
         );
-    }
-
-    #[test]
-    fn a_program_that_cargo_built_is_not_an_installed_one() {
-        assert!(is_a_build(Path::new("/work/target/debug/stubprint")));
-        assert!(is_a_build(Path::new(
-            "/work/target/x86_64-unknown-linux-gnu/release/stubprint"
-        )));
-        assert!(!is_a_build(Path::new("/home/me/.local/bin/stubprint")));
-        assert!(!is_a_build(Path::new("/opt/target/stubprint")));
     }
 }

@@ -3,6 +3,7 @@
 
 mod client;
 mod show;
+mod uninstall;
 mod update;
 
 use std::io::{BufRead, IsTerminal, Read, Write};
@@ -59,6 +60,8 @@ pub enum Command {
     Events,
     /// Install the latest release over this program, or the version of `--to`
     Update(update::UpdateArgs),
+    /// Remove the installed program, and with `--purge` the database it kept
+    Uninstall(uninstall::UninstallArgs),
 }
 
 #[derive(Args, Debug)]
@@ -312,6 +315,28 @@ fn give_bytes(bytes: &[u8], output: Option<&PathBuf>) -> Result<(), Failure> {
     Ok(())
 }
 
+/// Whether the program is the one that `cargo build` made, which is not installed anywhere.
+fn is_a_build(path: &std::path::Path) -> bool {
+    let names: Vec<_> = path.components().map(|part| part.as_os_str()).collect();
+    names.contains(&"target".as_ref())
+        && (names.contains(&"debug".as_ref()) || names.contains(&"release".as_ref()))
+}
+
+/// The program's own file, refusing one that was built from the source and not installed anywhere.
+/// `update` and `uninstall` both start from here.
+fn installed_program() -> Result<PathBuf, Failure> {
+    let program = std::env::current_exe()
+        .and_then(|path| path.canonicalize())
+        .map_err(|error| format!("cannot tell where this program is: {error}"))?;
+    if is_a_build(&program) {
+        return Err(format!(
+            "{} was built from the source and is not an installed program: build it again",
+            program.display()
+        ));
+    }
+    Ok(program)
+}
+
 fn execute(client: &Client, json: bool, command: Command) -> Result<u8, Failure> {
     match command {
         Command::Print(args) => print(client, json, args)?,
@@ -325,6 +350,7 @@ fn execute(client: &Client, json: bool, command: Command) -> Result<u8, Failure>
         Command::Info => info(client, json)?,
         Command::Events => events(client, json)?,
         Command::Update(args) => update::update(&args)?,
+        Command::Uninstall(args) => uninstall::uninstall(&args)?,
     }
     Ok(0)
 }
@@ -856,6 +882,17 @@ fn events(client: &Client, json: bool) -> Result<(), Failure> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn a_program_that_cargo_built_is_not_an_installed_one() {
+        assert!(is_a_build(Path::new("/work/target/debug/stubprint")));
+        assert!(is_a_build(Path::new(
+            "/work/target/x86_64-unknown-linux-gnu/release/stubprint"
+        )));
+        assert!(!is_a_build(Path::new("/home/me/.local/bin/stubprint")));
+        assert!(!is_a_build(Path::new("/opt/target/stubprint")));
+    }
 
     #[test]
     fn settings_written_key_value_are_text_unless_the_type_matters() {
