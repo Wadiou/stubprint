@@ -1,7 +1,7 @@
 # Agent guidelines
 
-Project: a fake receipt printer for development. A Rust workspace (`crates/core`, `crates/server`,
-`crates/app`) with a web page in `web/`. Read `docs/PLAN.md` first.
+Project: a fake receipt printer for development. A Rust workspace (`crates/core`, `crates/render`,
+`crates/server`) with a web app in `web/`. Read `docs/plans/PLAN.md` first.
 
 ## Skills
 
