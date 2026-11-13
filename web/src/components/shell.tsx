@@ -1,5 +1,5 @@
 import { Link, Outlet, useMatches } from "@tanstack/react-router";
-import { Activity, LayoutGrid, type LucideIcon, Printer, Receipt, Settings } from "lucide-react";
+import { Activity, LayoutGrid, type LucideIcon, Printer, Settings } from "lucide-react";
 import { useLiveEvents } from "@/api/events";
 import { PrintersStatus } from "@/components/printers-status";
 import { Toaster } from "@/components/ui/sonner";
@@ -25,12 +25,9 @@ export function Shell() {
     <>
       <div className="flex min-h-screen bg-background text-foreground">
         <aside className="flex w-58 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
-          <div className="flex items-center gap-2.5 p-4">
-            <Receipt className="size-5" />
-            <div className="leading-tight">
-              <div className="font-semibold">Stubprint</div>
-              {version && <div className="text-xs text-muted-foreground">v{version}</div>}
-            </div>
+          <div className="p-4 leading-tight">
+            <div className="font-semibold">Stubprint</div>
+            {version && <div className="text-xs text-muted-foreground">v{version}</div>}
           </div>
           <nav className="flex flex-col gap-1 px-2">
             {GROUPS.map((group) => (
