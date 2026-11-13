@@ -154,22 +154,53 @@ A printer here does the same, with a buffer of `printer_buffer` bytes.
 
 ## Print speed
 
-A real printer takes time to print: a long receipt comes out over several seconds, and a program
-that sends the next one meanwhile has to wait. `print_speed` gives a printer that, in millimetres of
-paper a second (a receipt printer does 100 to 300). It is 0 by default, which takes no time.
+A real printer takes time to print: the paper comes out line by line, and a program that sends a
+long job has to wait while the printer works through it. `print_speed` gives a printer that, in
+millimetres of paper a second (a receipt printer does 100 to 300). It is 0 by default, which takes
+no time and prints at once.
 
-- Each receipt keeps the printer busy for as long as its paper takes to come out: the length from
-  [Paper and counters](#paper-and-counters) divided by the speed. A receipt that is 120 mm long at
-  150 mm/s takes 0.8 seconds.
-- While it is busy the printer reads nothing more from its connections. What a program sends
-  waits in the network's buffer, and the program waits when that is full, so a small
-  `network_buffer` shows the wait sooner. It is what a program that sends receipt after receipt
-  sees when the printer is slow.
-- The receipt itself is kept as soon as it is read, not when its paper is out. A real printer
-  shows nothing of it to a program until then either, but the page shows it at once.
-- What is sent without a connection (`POST /api/print`, a sample) does not wait, and still keeps
-  the printer busy for the connections.
-- Changing the speed applies to what prints from then on, and setting it to 0 ends the wait.
+A printer with a speed has three parts, one after the other:
+
+1. **The receive buffer** takes the bytes a program sends, as many as `printer_buffer` has room
+   for. A program that sends more waits, and the network's own buffer (`network_buffer`) is what it
+   waits in. A printer with `printer_buffer` at 0 has no limit, so a program never waits for it.
+2. **The engine** works through the commands in the order they came, from every connection. A line
+   feed, a feed, a picture or a code takes the time its paper needs to come out: its length divided
+   by the speed, with the model's dots to the inch (203 when it does not say). Text takes no time
+   until its line ends. A cut takes 0.15 seconds. When a command is done its bytes leave the
+   buffer, so the buffer empties at the speed of the printing, and the program is let go at that
+   speed.
+3. **The paper** is the receipt itself. A receipt exists from the first thing a job prints, with
+   its number, and it grows as the printer prints. The cut finishes it.
+
+**A receipt has a state**, `state` in the receipt:
+
+| State | Meaning |
+|---|---|
+| `printing` | the printer is still printing it, so it grows |
+| `complete` | it was printed and cut |
+| `incomplete` | it ended without a cut: the program closed the connection, or the printer was stopped or removed while it printed. It stays on the last thing that was printed |
+
+A receipt that is printing is a receipt like any other: `GET /api/receipts/{id}`, its `/text`,
+`/picture`, `/bytes` and `/trace` give what is printed so far, and they give more each time. A
+program that waits for the next receipt (`/api/receipts/next`) only gets one that is not printing
+any more.
+
+What a program and the page can see:
+- `buffered` in the printer is how many bytes the receive buffer holds.
+- The live event `receipt` is sent when a receipt begins (`state` is `printing`) and when it ends.
+  The live event `printing` says which receipt grew and how many commands it has, at most about 25
+  times a second, so a page that shows it can ask for it again.
+- A printer that cannot print (off line, cover open, no paper, a fault) does not spend time: it
+  stops where it is, and the receipt stays as it is until the printer can print again.
+
+Notes:
+- The speed a command is planned with is the one when it was read. Changing it applies to what is
+  read from then on, and setting it to 0 prints what is waiting at once.
+- What is sent without a connection (`POST /api/print`, a sample) prints at once, as the answer
+  has to say which receipts it made.
+- Bytes that a printer held while it could not print, from a program that has gone, print at once
+  when it can.
 
 ## Paper and counters
 
@@ -225,6 +256,50 @@ sends a lot has to wait for the printer, as it does for a real one.
   small send buffer of its own waits sooner still.
 - 0 leaves the size to the system, which grows it as data arrives.
 
+## Live events
+
+`GET /api/events` is one stream of server sent events. Everything that changes is sent on it.
+
+```bash
+curl -N http://127.0.0.1:8080/api/events
+```
+
+Each event is `event: <name>` and `data: {"type":"<name>","value":{...}}`.
+
+| Event | Sent when | `value` |
+|---|---|---|
+| `receipt` | a receipt begins (`state` `printing`) and when it ends (`complete` after a cut, `incomplete` without) | the receipt: `id`, `printer`, `state`, `bytes`, `events`, `preview`, ... |
+| `printing` | a printing receipt grew (at most about 25 a second) | `printer`, `receipt`, `commands`, `buffered` |
+| `receipt_removed` | one receipt was deleted | `id` |
+| `cleared` | receipts were deleted | `printer`, or null for all |
+| `status` | what a printer reports changed | `printer`, `status` |
+| `printer_added`, `printer_changed`, `printer_removed` | a printer was added, changed (also after each receipt, for its counters), removed | the printer; `name` for removed |
+| `held` | the bytes a printer holds while it cannot print changed | `printer`, `held` |
+| `connection` | a connection opens, sends, is answered, gets a receipt or closes | the connection as it is now, and `chunk` for the piece that just came in |
+| `action` | **only with `?detail=actions`**: the printer read one command | `connection`, `printer`, `start`, `end`, `event`, `state` |
+| `lagged` | the client was too slow and missed events. Not wrapped in `type`/`value` | `missed` |
+
+**There is no past.** A client gets only what happens after it connects, so it first asks
+`GET /api/receipts`, `/api/printers` and `/api/connections`. After `lagged` it asks them again.
+
+**`action`** is for debugging. It is one event for each command the printer reads, when it reads
+it, which is before it prints it. For `ESC @`, `Hello`, a line feed and a cut (12 bytes):
+
+| `event` | `start`–`end` |
+|---|---|
+| `initialize` | 0–2 |
+| `text` "Hello" | 2–8 |
+| `line_feed` | 8–8 |
+| `cut` | 8–12 |
+
+`start` and `end` count the bytes the connection sent. `state` is what the printer believed after
+the command, as in `/api/receipts/{id}/trace`. Thousands come for a long job, so they are only
+made for clients that ask.
+
+**One receipt sends:** `connection` (opened, bytes), `receipt` `printing`, `printing` (as it
+grows), `receipt` `complete`/`incomplete`, `status` (if the roll ran down), `printer_changed`,
+`connection` (closed). A printer with no speed sends no `printing`.
+
 ## The API
 
 `GET /api` says what this is and where the description is. The description of the API is made from
@@ -252,7 +327,7 @@ the code and is served at `/api/openapi.json`, with every route, parameter and f
 | `DELETE /api/printers/{name}` | removes a printer: its port and its connections close, and the receipts it printed stay |
 | `POST /api/printers/{name}` | changes what the printer pretends: `online`, `cover_open`, `paper` (`adequate`, `near_end`, `end`), `drawer_open`, `feed_button`, `fault` (`cutter`, `unrecoverable`, `recoverable` or `null`) |
 | `PATCH /api/printers/{name}` | sets the printer to another model, `{"profile": "TM-T20III"}`, as if another printer stood on its port. Receipts printed from then on are read and drawn as that model, and each receipt keeps the one it was printed on (`profile` in the receipt). It also sets how much the printer holds while it cannot print, `{"printer_buffer": 4096}`, how much the network keeps for a program, `{"network_buffer": 8192}`, puts in a new full roll of paper, `{"paper_roll": 80000}`, and sets how fast it prints, `{"print_speed": 150}` |
-| `GET /api/events` | live events: `receipt`, `receipt_removed`, `cleared`, `status`, `connection` (each time one opens, receives or answers bytes, prints a receipt or closes, with its state then: its bytes, how many pieces, its receipts, and in `chunk` the piece that just came in), `printer_added`, `printer_changed`, `printer_removed`, `held` (how many bytes a printer holds changed), and `lagged` when a watcher was too slow. With `?detail=actions` also `action`, one for each command as it is read, with where its bytes are and what the printer believed after it. Commands are only made while someone watches them |
+| `GET /api/events` | the live events, as server sent events, with `?detail=actions` for every command as it is read. Every event, when it is sent and what it carries are in [Live events](#live-events) |
 | `GET /api/connections`, `GET /api/connections/{id}` | the programs that connected: when, in what pieces and at what times the bytes came, how many bytes the printer answered, and which receipts they printed |
 | `POST /api/decode` | reads the body as a printer would, in `?dialect=` and `?profile=`, and says every command, the answers and how many receipts. Nothing is kept. It shows what the same bytes mean to another language or model |
 | `GET /api/profiles` | the models a printer can be set to, with their maker, columns, paper width in millimetres and dots, dpi, code pages, features and links to manuals |
