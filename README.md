@@ -15,8 +15,8 @@ would make it.
 Status: the decoders for ESC/POS, Star Line and StarPRNT, the picture and text drawing, and the
 server with its API and live events are done and tested. The web page, MCP, a Docker image and a
 desktop app come next. See [docs/PLAN.md](docs/PLAN.md) for the plan, [docs/SERVER.md](docs/SERVER.md)
-for the server and its API, and [docs/ESCPOS.md](docs/ESCPOS.md) and [docs/STAR.md](docs/STAR.md)
-for what is decoded.
+for the server and its API, [docs/CLI.md](docs/CLI.md) for the command line, and
+[docs/ESCPOS.md](docs/ESCPOS.md) and [docs/STAR.md](docs/STAR.md) for what is decoded.
 
 ## Try it
 

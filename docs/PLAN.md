@@ -41,13 +41,13 @@ Crates are local only (`publish = false`). Other projects can use the core by pa
   the browser. Other commands call the API of a running server: print bytes or a sample, wait for
   the next receipt and print it, show or download a receipt, set a printer's status, decode a
   file. Their output is plain text or JSON and their exit codes tell CI whether it worked. This is
-  how scripts and agents use it, so MCP is not planned and is added only if someone asks.
+  how scripts and agents use it, so MCP is not planned and is added only if someone asks. They are
+  written in `docs/CLI.md`.
 - The page has four screens: Live paper (the receipts, their paper and their commands), Printers,
   Samples and Settings. The connections of a printer are shown on its Printers screen, since each one
   belongs to a printer and the connection limit and idle timeout that end them are set there. Sending
   and decoding bytes have no screen: they are the command line and the API, and what was printed
-  shows on the live paper. Settings shows the server's own settings to read, the API and the
-  command line.
+  shows on the live paper. Settings has the address the server listens on, to change, and the API.
 - The API has no version in its paths while the program is unstable, and breaking changes are
   listed in a changelog. `/api/v1` is added at the first stable release.
 - Stubprint is for developers, who start the server and know its address and ports. It shows the

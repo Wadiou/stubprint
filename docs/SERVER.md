@@ -23,7 +23,8 @@ Contents: [Running it](#running-it) · [Printers](#printers) · [What is kept](#
 | `--reset` | delete everything that was kept, and start again from the printers given, or the default one | |
 | `--ready-file <file>` | write the addresses there once everything listens, and remove it on stop. With port 0 it is how a program finds out which port it got | |
 
-The web page is in the program and is served at the address of the API.
+The web page is in the program and is served at the address of the API. The same program is also a
+command line that asks a running server: see [the command line](CLI.md).
 
 The API allows no other origin (no CORS), so a web page from somewhere else cannot read the receipts
 of a printer on this machine. During development the page uses a proxy to reach it. Any path that
