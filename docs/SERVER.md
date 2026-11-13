@@ -44,6 +44,8 @@ a real printer, since the same bytes mean different things in ESC/POS and in Sta
 | `network_buffer` | how many bytes the network keeps for a program before the printer reads them. 0 leaves it to the system. See [How much a program can send before it waits](#how-much-a-program-can-send-before-it-waits) | `0` | yes, `PATCH`, for connections that open after |
 | `paper_roll` | how long its paper roll is when full, in millimetres. It runs down as receipts print. 0 never runs out. See [Paper and counters](#paper-and-counters) | `0` | yes, `PATCH`, which puts in a new roll |
 | `print_speed` | how fast it prints, in millimetres of paper a second. A receipt keeps it busy while its paper comes out. 0 takes no time. See [Print speed](#print-speed) | `0` | yes, `PATCH` |
+| `max_connections` | how many programs it takes at once. The next one is closed at once. 0 is no limit of its own, up to 64. See [Connections](#connections) | `0` | yes, `PATCH` |
+| `idle_timeout` | seconds a connection can send nothing before it is closed. 0 never. See [Connections](#connections) | `0` | yes, `PATCH` |
 | status | what it reports: `online`, `cover_open`, `paper`, `drawer_open`, `feed_button`, `fault` | online, nothing wrong | yes, `POST /api/printers/{name}` |
 
 ## What is kept
@@ -151,6 +153,21 @@ A printer here does the same, with a buffer of `printer_buffer` bytes.
 - A request (`POST /api/print`, a sample) cannot wait, so one that does not fit is refused with 503.
 - With `printer_buffer` at 0 the printer prints whatever it receives, whatever the status. That is
   what a test that does not care about the status wants.
+
+## Connections
+
+A real receipt printer takes one program at a time, or a few, and drops one that goes quiet.
+
+- **`max_connections`:** when that many programs are connected, the next one is accepted and
+  closed at once, so it sees an empty connection that ends. It can try again when one has closed. A
+  refused connection is not counted and is not in the connections list. 0 means no limit of its own,
+  up to 64 (the most for any printer, so a program that opens connections without end cannot fill
+  the memory).
+- **`idle_timeout`:** a connection that sends nothing for that many seconds is closed. What it
+  sent is still printed, and a receipt with no cut ends as `incomplete`. The time a program spends
+  waiting for the printer to print, because the buffer is full, does not count.
+- Both can be changed while it runs. A lower limit leaves the programs that are connected alone and
+  only turns away the next ones. A new idle time applies to the open connections too.
 
 ## Print speed
 
@@ -308,10 +325,10 @@ the code and is served at `/api/openapi.json`, with every route, parameter and f
 | `POST /api/samples/{id}/print` | prints a sample to a printer (`?printer=`, the first by default) like `POST /api/print`, with a variant in the printer's own command language unless `?dialect=` or `?library=` say otherwise |
 | `GET /api/network` | the addresses of this computer on its networks. They are what a program on another device connects to, and what a printer can listen on |
 | `GET /api/printers`, `GET /api/printers/{name}` | the printers, their status and how many programs are connected |
-| `POST /api/printers` | adds a printer while the server runs, from the same settings as `--printer` (`name`, `listen`, `dialect`, `profile`, `printer_buffer`, `network_buffer`, `paper_roll`, `print_speed`), and opens its port at once. Without `listen` the system picks a free port, and a name that is taken gets `_2`, `_3` and so on after it, which the answer says. 409 when the address is taken |
+| `POST /api/printers` | adds a printer while the server runs, from the same settings as `--printer` (`name`, `listen`, `dialect`, `profile`, `printer_buffer`, `network_buffer`, `paper_roll`, `print_speed`, `max_connections`, `idle_timeout`), and opens its port at once. Without `listen` the system picks a free port, and a name that is taken gets `_2`, `_3` and so on after it, which the answer says. 409 when the address is taken |
 | `DELETE /api/printers/{name}` | removes a printer: its port and its connections close, and the receipts it printed stay |
 | `POST /api/printers/{name}` | changes what the printer pretends: `online`, `cover_open`, `paper` (`adequate`, `near_end`, `end`), `drawer_open`, `feed_button`, `fault` (`cutter`, `unrecoverable`, `recoverable` or `null`) |
-| `PATCH /api/printers/{name}` | sets the printer to another model, `{"profile": "TM-T20III"}`, as if another printer stood on its port. Receipts printed from then on are read and drawn as that model, and each receipt keeps the one it was printed on (`profile` in the receipt). It also sets how much the printer holds while it cannot print, `{"printer_buffer": 4096}`, how much the network keeps for a program, `{"network_buffer": 8192}`, puts in a new full roll of paper, `{"paper_roll": 80000}`, and sets how fast it prints, `{"print_speed": 150}` |
+| `PATCH /api/printers/{name}` | sets the printer to another model, `{"profile": "TM-T20III"}`, as if another printer stood on its port. Receipts printed from then on are read and drawn as that model, and each receipt keeps the one it was printed on (`profile` in the receipt). It also sets how much the printer holds while it cannot print, `{"printer_buffer": 4096}`, how much the network keeps for a program, `{"network_buffer": 8192}`, puts in a new full roll of paper, `{"paper_roll": 80000}`, sets how fast it prints, `{"print_speed": 150}`, how many programs it takes, `{"max_connections": 2}`, and how long a quiet connection lasts, `{"idle_timeout": 30}` |
 | `GET /api/events` | the live events, as server sent events. Every event, when it is sent and what it carries are in [Live events](#live-events) |
 | `GET /api/connections`, `GET /api/connections/{id}` | the programs that connected: when, in what pieces and at what times the bytes came, how many bytes the printer answered, and which receipts they printed |
 | `POST /api/decode` | reads the body as a printer would, in `?dialect=` and `?profile=`, and says every command, the answers and how many receipts. Nothing is kept. It shows what the same bytes mean to another language or model |
