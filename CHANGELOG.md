@@ -1,3 +1,10 @@
+## [0.6.1](https://github.com/Wadiou/stubprint/compare/v0.6.0...v0.6.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **repo:** keep the install middleware in one file and drop its test ([825e33c](https://github.com/Wadiou/stubprint/commit/825e33c8bf587f1b09326fee636474c5ed430833))
+
 # [0.6.0](https://github.com/Wadiou/stubprint/compare/v0.5.0...v0.6.0) (2026-11-13)
 
 
