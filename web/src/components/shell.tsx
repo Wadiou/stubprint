@@ -3,6 +3,7 @@ import { Activity, LayoutGrid, type LucideIcon, Printer, Receipt, Settings } fro
 import { useLiveEvents } from "@/api/events";
 import { PrintersStatus } from "@/components/printers-status";
 import { Toaster } from "@/components/ui/sonner";
+import { useServer } from "@/lib/use-server";
 
 const GROUPS: { label: string; items: { to: string; label: string; icon: LucideIcon }[] }[] = [
   { label: "Watch", items: [{ to: "/", label: "Live paper", icon: Activity }] },
@@ -18,14 +19,18 @@ const GROUPS: { label: string; items: { to: string; label: string; icon: LucideI
 
 export function Shell() {
   useLiveEvents();
+  const version = useServer().data?.version;
   const title = useMatches({ select: (matches) => matches.at(-1)?.staticData.title });
   return (
     <>
       <div className="flex min-h-screen bg-background text-foreground">
         <aside className="flex w-58 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
-          <div className="flex items-center gap-2 p-4 font-semibold">
+          <div className="flex items-center gap-2.5 p-4">
             <Receipt className="size-5" />
-            Stubprint
+            <div className="leading-tight">
+              <div className="font-semibold">Stubprint</div>
+              {version && <div className="text-xs text-muted-foreground">v{version}</div>}
+            </div>
           </div>
           <nav className="flex flex-col gap-1 px-2">
             {GROUPS.map((group) => (

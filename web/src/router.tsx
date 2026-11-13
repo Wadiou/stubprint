@@ -2,9 +2,9 @@ import { createRootRoute, createRoute, createRouter } from "@tanstack/react-rout
 import { Shell } from "@/components/shell";
 import { liveSearch, printersSearch } from "@/lib/search";
 import { LivePage } from "@/pages/live";
-import { Placeholder } from "@/pages/placeholder";
 import { PrintersPage } from "@/components/printers/printers-page";
 import { SamplesPage } from "@/components/samples/samples-page";
+import { SettingsPage } from "@/components/settings/settings-page";
 
 const rootRoute = createRootRoute({ component: Shell });
 
@@ -51,7 +51,7 @@ const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/settings",
   staticData: { title: "Settings" },
-  component: Placeholder,
+  component: SettingsPage,
 });
 
 export const router = createRouter({
