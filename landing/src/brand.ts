@@ -19,18 +19,6 @@ export const COLORS = {
   border: "#27272A",
   muted: "#A1A1AA",
   foreground: "#FAFAFA",
-  /** The paper of a receipt, and its ink. */
-  paper: "#FAF8F2",
-  ink: "#1B1B1B",
+  /** The paper of a receipt. */
+  paper: "#FFFFFF",
 } as const;
-
-/** The receipt that the page and the card show: what the bytes of the example print. */
-export const RECEIPT = [
-  { text: "GREEN MARKET", style: "title" },
-  { text: "12 Main Street", style: "centre" },
-  { text: "------------------------------" },
-  { text: "2 x Coffee                7.00" },
-  { text: "1 x Croissant             3.40" },
-  { text: "------------------------------" },
-  { text: "TOTAL                    10.40", style: "bold" },
-] as const;

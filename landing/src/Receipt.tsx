@@ -1,27 +1,16 @@
-import { RECEIPT } from "./brand.ts";
-import { cn } from "@/lib/utils";
+import receipt from "./assets/receipt.png";
 
-const STYLES = {
-  title: "text-center text-[15px] font-semibold",
-  centre: "text-center",
-  bold: "font-semibold",
-} as const;
-
-/** The paper of a receipt, as the printer would put it out. */
+/** The paper of the cafe sample, as the default printer draws it: `pnpm receipt` makes the picture. */
 export function Receipt() {
   return (
-    <div
-      className="receipt relative w-[300px] max-w-full bg-paper px-[18px] pt-5 pb-5 font-mono text-xs leading-[1.8] whitespace-pre text-ink shadow-[0_16px_40px_rgb(0_0_0/0.5)]"
-      role="img"
-      aria-label="A receipt from Green Market: two coffees and a croissant, total 10.40"
-    >
-      <div aria-hidden="true">
-        {RECEIPT.map((line) => (
-          <div key={line.text} className={cn("style" in line && STYLES[line.style])}>
-            {line.text}
-          </div>
-        ))}
-      </div>
+    <div className="receipt relative w-[448px] max-w-full bg-paper px-6 pt-6 pb-4 shadow-[0_16px_40px_rgb(0_0_0/0.5)]">
+      <img
+        src={receipt}
+        width={1008}
+        height={1094}
+        alt="The receipt of Corner Cafe: the shop, an order number, three items with their prices and a total of 16.52."
+        className="block w-full"
+      />
     </div>
   );
 }

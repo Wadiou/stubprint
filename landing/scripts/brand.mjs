@@ -9,9 +9,10 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
-import { COLORS, DOMAIN, HEADLINE, NAME, RECEIPT } from "../src/brand.ts";
+import { COLORS, DOMAIN, HEADLINE, NAME } from "../src/brand.ts";
 
 const require = createRequire(import.meta.url);
+const RECEIPT_PNG = `data:image/png;base64,${(await fs.readFile(path.join(path.dirname(fileURLToPath(import.meta.url)), "../src/assets/receipt.png"))).toString("base64")}`;
 const PUBLIC = path.join(path.dirname(fileURLToPath(import.meta.url)), "../public");
 
 /** A typeface of the page as a rule that loads it into the card, so the card needs no network. */
@@ -44,15 +45,11 @@ background:${COLORS.background};color:${COLORS.foreground};font-family:Geist,san
 .name{font-size:44px;font-weight:600;letter-spacing:-0.03em}
 h1{font-size:60px;line-height:1.08;font-weight:600;letter-spacing:-0.035em}
 .domain{font:500 26px "Geist Mono",monospace;color:${COLORS.muted}}
-.receipt{flex:none;width:340px;padding:28px 24px 30px;background:${COLORS.paper};color:${COLORS.ink};
-font:13.5px/1.8 "Geist Mono",monospace;white-space:pre;transform:rotate(2deg);
-box-shadow:0 24px 60px rgb(0 0 0/.55)}
-.title{font-size:17px;font-weight:600;text-align:center}
-.centre{text-align:center}
-.bold{font-weight:600}
+.receipt{flex:none;width:280px;margin:-40px 0;padding:16px 16px 10px;box-sizing:border-box;background:${COLORS.paper};transform:rotate(2deg);box-shadow:0 24px 60px rgb(0 0 0/.55)}
+.receipt img{display:block;width:100%}
 </style><body>
 <div class="text"><div class="name">${NAME}</div><h1>${HEADLINE}</h1><div class="domain">${DOMAIN}</div></div>
-<div class="receipt">${RECEIPT.map((l) => `<div class="${"style" in l ? l.style : ""}">${l.text}</div>`).join("")}</div>
+<div class="receipt"><img src="${RECEIPT_PNG}"></div>
 </body>`;
 
 /** An .ico is a small header followed by the PNGs themselves. */

@@ -36,7 +36,14 @@ function Crosses() {
   );
 }
 
-const link = "text-muted-foreground transition-colors hover:text-foreground";
+/** The mark of GitHub: lucide has no brand icons. */
+function GithubMark() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-6 fill-current">
+      <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.76 2.69 1.25 3.35.96.1-.74.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.18-3.09-.12-.29-.51-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.62 1.59.23 2.76.11 3.05.74.81 1.18 1.83 1.18 3.09 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z" />
+    </svg>
+  );
+}
 
 export function App() {
   return (
@@ -46,23 +53,19 @@ export function App() {
           <a href="/" className="text-xl font-semibold tracking-tight">
             {NAME}
           </a>
-          <nav aria-label="Main" className="flex gap-6 text-sm">
-            <a href="#features" className={`${link} hidden sm:inline`}>
-              Features
-            </a>
-            <a href="#install" className={link}>
-              Install
-            </a>
-            <a href={REPO} className={link}>
-              GitHub
-            </a>
-          </nav>
+          <a
+            href={REPO}
+            aria-label="Stubprint on GitHub"
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <GithubMark />
+          </a>
           <Crosses />
         </Frame>
       </header>
 
       <main>
-        <section id="install" className="border-b">
+        <section className="border-b">
           <Frame className="flex flex-col items-center gap-6 px-6 pt-20 pb-24 text-center">
             <Badge variant="outline">{`v${__VERSION__}`}</Badge>
             <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-balance sm:text-6xl sm:leading-[1.05]">{HEADLINE}</h1>
@@ -71,10 +74,7 @@ export function App() {
 
             <div className="mt-12 flex w-full flex-col items-center gap-3">
               <div className="w-full max-w-sm border bg-card px-4 py-3.5 text-left font-mono text-[13px] leading-relaxed">
-                <div className="text-muted-foreground"># your program prints to the virtual printer</div>
-                <div>
-                  <span className="text-muted-foreground">$</span> my-app --printer 127.0.0.1:9100
-                </div>
+                <span className="text-muted-foreground select-none">$ </span>stubprint print --sample cafe
               </div>
               <div className="text-[13px] text-muted-foreground" aria-hidden="true">
                 ↓ what came out
@@ -85,7 +85,7 @@ export function App() {
           </Frame>
         </section>
 
-        <section id="features" className="border-b">
+        <section className="border-b">
           <Frame>
             <h2 className="px-6 py-16 text-center text-3xl font-semibold tracking-tight text-balance">It behaves like the printers it copies</h2>
             <ul className="grid gap-px border-t bg-border sm:grid-cols-2 lg:grid-cols-4">

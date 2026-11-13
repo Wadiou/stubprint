@@ -8,10 +8,15 @@ pnpm install
 pnpm dev        # the page, with reload
 pnpm build      # typecheck, then dist/
 pnpm brand      # redraw the icons and og.png in public/
+pnpm receipt    # redraw the receipt of the page, src/assets/receipt.png
 ```
 
-- The name, the headline, the colours and the receipt it shows are in `src/brand.ts`. The page
-  and `pnpm brand` both read it, so the page and the card that links show cannot differ.
+- The name, the headline and the colours are in `src/brand.ts`. The page and `pnpm brand` both
+  read it, so the page and the card that links show cannot differ.
+- The receipt is a picture that Stubprint drew, not a copy typed by hand: the `cafe` sample as the
+  default printer prints it, which is what the command on the page does. `pnpm receipt` draws it
+  again when the sample or the program's drawing changes. It needs ImageMagick, and a built
+  `stubprint` (`STUBPRINT=path`, else the debug build of the workspace).
 - The version on the page is the one in the `Cargo.toml` of the workspace.
 - `pnpm brand` draws in a headless Chromium, with the typefaces of the page. Playwright is pinned
   to the version whose browser is installed here, so run `pnpm exec playwright install chromium`

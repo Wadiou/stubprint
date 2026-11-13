@@ -21,7 +21,6 @@ function useCopy(text: string) {
 const COMMANDS = [
   { id: "unix", label: "macOS and Linux", command: "curl -fsSL https://stubprint.dev/install.sh | sh" },
   { id: "windows", label: "Windows", command: "irm https://stubprint.dev/install.ps1 | iex" },
-  { id: "version", label: `Version ${__VERSION__}`, command: `curl -fsSL https://stubprint.dev/${__VERSION__}/install.sh | sh` },
 ] as const;
 
 function Line({ command, label }: { command: string; label: string }) {
@@ -55,6 +54,10 @@ export function InstallCommand() {
           <Line command={command} label={label} />
         </TabsContent>
       ))}
+      <p className="text-sm text-muted-foreground">
+        For an exact version, put it in the address:{" "}
+        <code className="bg-muted px-1.5 py-0.5 font-mono text-[0.9em] text-foreground">stubprint.dev/{__VERSION__}/install.sh</code>
+      </p>
     </Tabs>
   );
 }

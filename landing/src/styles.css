@@ -31,7 +31,6 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-paper: var(--paper);
-  --color-ink: var(--ink);
 }
 
 /* Dark only, like the page of the program, and with no rounded corner anywhere: every radius of
@@ -56,8 +55,7 @@
   --border: #27272a;
   --input: #27272a;
   --ring: #a1a1aa;
-  --paper: #faf8f2;
-  --ink: #1b1b1b;
+  --paper: #ffffff;
   color-scheme: dark;
 }
 
