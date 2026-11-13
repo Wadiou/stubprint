@@ -1,63 +1,34 @@
 import { Link, Outlet, useMatches } from "@tanstack/react-router";
-import { Activity, LayoutGrid, type LucideIcon, Printer, Settings } from "lucide-react";
+import { useEffect } from "react";
 import { useLiveEvents } from "@/api/events";
+import { Nav } from "@/components/nav";
 import { PrintersStatus } from "@/components/printers-status";
 import { Toaster } from "@/components/ui/sonner";
 import { useServer } from "@/lib/use-server";
-
-const GROUPS: { label: string; items: { to: string; label: string; icon: LucideIcon }[] }[] = [
-  { label: "Watch", items: [{ to: "/", label: "Live paper", icon: Activity }] },
-  {
-    label: "Control",
-    items: [
-      { to: "/printers", label: "Printers", icon: Printer },
-      { to: "/samples", label: "Samples", icon: LayoutGrid },
-    ],
-  },
-  { label: "Connect", items: [{ to: "/settings", label: "Settings", icon: Settings }] },
-];
 
 export function Shell() {
   useLiveEvents();
   const version = useServer().data?.version;
   const title = useMatches({ select: (matches) => matches.at(-1)?.staticData.title });
+  useEffect(() => {
+    document.title = title ? `${title} · Stubprint` : "Stubprint";
+  }, [title]);
   return (
     <>
-      <div className="flex min-h-screen bg-background text-foreground">
-        <aside className="flex w-58 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
-          <div className="p-4 leading-tight">
+      <div className="flex min-h-screen flex-col bg-background text-foreground">
+        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-4 border-b bg-background px-4 md:grid md:grid-cols-[1fr_auto_1fr] md:items-stretch">
+          <Link to="/" className="justify-self-start leading-tight md:self-center">
             <div className="font-semibold">Stubprint</div>
             {version && <div className="text-xs text-muted-foreground">v{version}</div>}
-          </div>
-          <nav className="flex flex-col gap-1 px-2">
-            {GROUPS.map((group) => (
-              <div key={group.label} className="flex flex-col gap-1">
-                <div className="px-2 pt-4 pb-1 text-xs text-muted-foreground">{group.label}</div>
-                {group.items.map(({ to, label, icon: Icon }) => (
-                  <Link
-                    key={to}
-                    to={to}
-                    activeOptions={{ exact: true }}
-                    className="flex h-8 items-center gap-2 rounded-md px-2 text-sm hover:bg-sidebar-accent data-[status=active]:bg-sidebar-accent data-[status=active]:font-medium"
-                  >
-                    <Icon className="size-4" />
-                    {label}
-                  </Link>
-                ))}
-              </div>
-            ))}
-          </nav>
-        </aside>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-14 items-center gap-3 border-b px-5">
-            <h1 className="text-base font-semibold">{title}</h1>
-            <div className="flex-1" />
+          </Link>
+          <Nav />
+          <div className="ms-auto md:ms-0 md:self-center md:justify-self-end">
             <PrintersStatus />
-          </header>
-          <main className="flex-1 p-6">
-            <Outlet />
-          </main>
-        </div>
+          </div>
+        </header>
+        <main className="flex-1 p-6 pb-24 md:pb-6">
+          <Outlet />
+        </main>
       </div>
       <Toaster position="top-center" />
     </>
