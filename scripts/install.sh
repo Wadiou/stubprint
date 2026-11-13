@@ -120,7 +120,7 @@ echo "${green}${bold}✓${reset} ${bold}Installed${reset} ${dir}/stubprint"
 case ":${PATH}:" in
   *":${dir}:"*)
     echo
-    echo "Start it with ${cyan}${bold}stubprint${reset}, then open ${cyan}http://127.0.0.1:8080${reset}"
+    echo "Next, run ${cyan}${bold}stubprint${reset}"
     ;;
   *)
     echo "${yellow}!${reset} ${dir} is not in your PATH: add it, or run ${bold}${dir}/stubprint${reset}"

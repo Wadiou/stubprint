@@ -57,7 +57,5 @@ if (($user -split ';') -notcontains $dir) {
     Write-Host "Added $dir to your PATH: open a new terminal to use stubprint."
 }
 Write-Host ""
-Write-Host "Start it with " -NoNewline
-Write-Host "stubprint" -ForegroundColor Cyan -NoNewline
-Write-Host ", then open " -NoNewline
-Write-Host "http://127.0.0.1:8080" -ForegroundColor Cyan
+Write-Host "Next, run " -NoNewline
+Write-Host "stubprint" -ForegroundColor Cyan
