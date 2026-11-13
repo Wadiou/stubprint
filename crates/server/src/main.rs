@@ -25,13 +25,17 @@ const STYLES: Styles = Styles::styled()
 /// With no command it starts the server, from the options below. With a command it asks a server
 /// that is running: say where it is with --url, or it is found where this computer saved it.
 #[derive(Parser)]
-#[command(name = "stubprint", version, styles = STYLES)]
+#[command(name = "stubprint", version, disable_version_flag = true, styles = STYLES)]
 struct Options {
     #[command(flatten)]
     remote: cli::Remote,
 
     #[command(subcommand)]
     command: Option<cli::Command>,
+
+    /// Print version.
+    #[arg(short = 'V', short_alias = 'v', long, action = clap::ArgAction::Version)]
+    version: Option<bool>,
 
     /// Keep nothing: use no database. The printers, the receipts and the connections are gone when
     /// the server stops.
