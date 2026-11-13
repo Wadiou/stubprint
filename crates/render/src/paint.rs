@@ -363,26 +363,27 @@ pub fn height(document: &Document, options: &Options) -> u32 {
         if y > MAX_HEIGHT {
             break;
         }
-        match block {
-            Block::Line(line) => {
-                let height = line_height(line, options);
-                y += if line.ended {
-                    line.pitch.max(height)
-                } else {
-                    height
-                };
-            }
-            Block::Feed(dots) => y += dots,
-            Block::Cut => {}
-            Block::Image(bitmap, _) => y += bitmap.height(),
-            other => {
-                if let Some(strip) = code_strip(other, options) {
-                    y += strip.height;
-                }
-            }
-        }
+        y += block_height(block, options);
     }
     y.min(MAX_HEIGHT + EDGE) + EDGE
+}
+
+/// How much paper one block takes, in dots: how far the paper moves for it.
+pub fn block_height(block: &Block, options: &Options) -> u32 {
+    match block {
+        Block::Line(line) => {
+            let height = line_height(line, options);
+            if line.ended {
+                line.pitch.max(height)
+            } else {
+                height
+            }
+        }
+        Block::Feed(dots) => *dots,
+        Block::Cut => 0,
+        Block::Image(bitmap, _) => bitmap.height(),
+        other => code_strip(other, options).map_or(0, |strip| strip.height),
+    }
 }
 
 /// The picture of what the paper got, as wide as the paper.

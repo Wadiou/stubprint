@@ -346,6 +346,26 @@ impl<'a> Builder<'a> {
 }
 
 /// What a receipt draws, worked out for a paper.
+/// How much paper had come out, in dots, after each of the events, as a program that prints them
+/// one by one would see it. A line comes out when it ends, so the events of a line that is still
+/// being written add nothing until it does. It is the same as `paper_height` without the edges, and
+/// the number for an event does not depend on the events after it.
+pub fn marks<'a>(events: impl IntoIterator<Item = &'a Event>, options: &Options) -> Vec<u32> {
+    let mut builder = Builder::new(options);
+    let mut marks = Vec::new();
+    let mut dots = 0u32;
+    let mut counted = 0;
+    for event in events {
+        builder.event(event);
+        for block in &builder.document.blocks[counted..] {
+            dots = dots.saturating_add(crate::paint::block_height(block, options));
+        }
+        counted = builder.document.blocks.len();
+        marks.push(dots);
+    }
+    marks
+}
+
 pub fn document(receipt: &Receipt, options: &Options) -> Document {
     let mut builder = Builder::new(options);
     for event in receipt.events() {
@@ -391,6 +411,33 @@ mod tests {
                 Part::Move { .. } => "",
             })
             .collect()
+    }
+
+    #[test]
+    fn the_paper_that_came_out_is_counted_after_each_event_and_never_depends_on_what_follows() {
+        let whole = receipt(b"one\ntwo\n\x1bd\x03three\n\x1dV\x42\x00");
+        let options = Options::default();
+        let marks = marks(whole.events(), &options);
+        assert_eq!(marks.len(), whole.events().len());
+        // The paper only goes forward, and a line that is not ended has not come out.
+        assert!(marks.windows(2).all(|pair| pair[0] <= pair[1]));
+        assert_eq!(
+            marks[0], 0,
+            "the text of a line takes no paper until it ends"
+        );
+        // The last number is how long the paper is, which the height says with its edges.
+        let height = crate::paper_height(&whole, &options);
+        assert!(
+            height - marks.last().unwrap() <= 16,
+            "{height} and {marks:?}"
+        );
+        // Looking at the first events alone gives the same numbers as looking at all of them.
+        let few = marks_of(&whole.events()[..3], &options);
+        assert_eq!(few, marks[..3]);
+    }
+
+    fn marks_of(events: &[Event], options: &Options) -> Vec<u32> {
+        marks(events, options)
     }
 
     #[test]
