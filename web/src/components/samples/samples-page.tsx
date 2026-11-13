@@ -42,7 +42,7 @@ export function SamplesPage() {
   );
 
   return (
-    <PageLayout width="wide">
+    <PageLayout width="full">
       <SplitLayout
         list={
           <DataTable

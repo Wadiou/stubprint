@@ -47,7 +47,7 @@ const offset = (at: number) => `0x${at.toString(16).padStart(4, "0")}`;
 /** Nothing was printed yet: a way to try a sample at once, and to the printers. */
 function Empty() {
   return (
-    <PageLayout width="narrow">
+    <PageLayout width="full">
       <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed px-6 py-16 text-center">
         <div className="flex size-14 items-center justify-center rounded-xl bg-muted">
           <Receipt className="size-7 text-muted-foreground" />

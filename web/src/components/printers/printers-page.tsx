@@ -40,7 +40,7 @@ export function PrintersPage({ search, onSearchChange }: { search: PrintersSearc
   const chosen = printers.find((printer) => printer.name === search.printer) ?? printers[0];
 
   return (
-    <PageLayout width="wide">
+    <PageLayout width="full">
       <div className="flex justify-end">
         <Button onClick={() => onSearchChange({ ...search, add: true })}>Add printer</Button>
       </div>
