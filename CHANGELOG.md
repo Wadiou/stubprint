@@ -1,3 +1,11 @@
+# [0.11.0](https://github.com/Wadiou/stubprint/compare/v0.10.0...v0.11.0) (2026-11-13)
+
+
+### Features
+
+* **server:** accept -v as well as -V for the version ([2f8c7ba](https://github.com/Wadiou/stubprint/commit/2f8c7baa27141355d63c523b91274c332539a4bf))
+* **server:** name the address by host, port and url, and let commands find the saved one ([8e20515](https://github.com/Wadiou/stubprint/commit/8e2051547e2205dd0f70940f6cfed4daf13a90fe))
+
 # [0.10.0](https://github.com/Wadiou/stubprint/compare/v0.9.0...v0.10.0) (2026-11-13)
 
 
