@@ -14,6 +14,10 @@
 /web/build
 /web/.vite
 
+# Landing page
+/landing/node_modules
+/landing/dist
+
 # Builds and packaged apps
 /dist
 /build
