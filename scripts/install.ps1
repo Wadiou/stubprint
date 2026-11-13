@@ -28,7 +28,9 @@ $archive = "$name.zip"
 $work = Join-Path ([IO.Path]::GetTempPath()) ([IO.Path]::GetRandomFileName())
 New-Item -ItemType Directory -Path $work | Out-Null
 try {
-    Write-Host "Downloading Stubprint $version for x86_64-pc-windows-msvc"
+    Write-Host "==> " -ForegroundColor Cyan -NoNewline
+    Write-Host "Downloading Stubprint $version" -NoNewline
+    Write-Host " for x86_64-pc-windows-msvc" -ForegroundColor DarkGray
     Invoke-WebRequest -Uri "$base/$archive" -OutFile (Join-Path $work $archive)
     Invoke-WebRequest -Uri "$base/SHA256SUMS" -OutFile (Join-Path $work 'SHA256SUMS')
 
@@ -46,9 +48,16 @@ finally {
     Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue
 }
 
+Write-Host "$([char]0x2713) " -ForegroundColor Green -NoNewline
 Write-Host "Installed $dir\stubprint.exe"
 $user = [Environment]::GetEnvironmentVariable('Path', 'User')
 if (($user -split ';') -notcontains $dir) {
     [Environment]::SetEnvironmentVariable('Path', "$user;$dir".TrimStart(';'), 'User')
+    Write-Host "! " -ForegroundColor Yellow -NoNewline
     Write-Host "Added $dir to your PATH: open a new terminal to use stubprint."
 }
+Write-Host ""
+Write-Host "Start it with " -NoNewline
+Write-Host "stubprint" -ForegroundColor Cyan -NoNewline
+Write-Host ", then open " -NoNewline
+Write-Host "http://127.0.0.1:8080" -ForegroundColor Cyan

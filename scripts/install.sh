@@ -16,8 +16,16 @@ repo="Wadiou/stubprint"
 base="${STUBPRINT_DOWNLOAD_URL:-https://github.com/${repo}/releases/download/v${version}}"
 dir="${STUBPRINT_INSTALL_DIR:-$HOME/.local/bin}"
 
+# Colours for a terminal, and none for a pipe or when NO_COLOR is set.
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
+  bold="$(printf '\033[1m')" dim="$(printf '\033[2m')" cyan="$(printf '\033[36m')"
+  green="$(printf '\033[32m')" yellow="$(printf '\033[33m')" red="$(printf '\033[31m')" reset="$(printf '\033[0m')"
+else
+  bold="" dim="" cyan="" green="" yellow="" red="" reset=""
+fi
+
 fail() {
-  echo "error: $*" >&2
+  echo "${red}${bold}error${reset}: $*" >&2
   exit 1
 }
 
@@ -81,7 +89,7 @@ fi
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-echo "Downloading Stubprint ${version} for ${machine}-${system}"
+echo "${cyan}==>${reset} ${bold}Downloading Stubprint ${version}${reset} ${dim}for ${machine}-${system}${reset}"
 download "${base}/${archive}" "${work}/${archive}" || fail "cannot download ${base}/${archive}"
 download "${base}/SHA256SUMS" "${work}/SHA256SUMS" || fail "cannot download ${base}/SHA256SUMS"
 
@@ -95,8 +103,13 @@ cp "${work}/stubprint-${version}-${machine}-${system}/stubprint" "${dir}/stubpri
 chmod 755 "${dir}/stubprint.new"
 mv "${dir}/stubprint.new" "${dir}/stubprint"
 
-echo "Installed ${dir}/stubprint"
+echo "${green}${bold}✓${reset} ${bold}Installed${reset} ${dir}/stubprint"
 case ":${PATH}:" in
-  *":${dir}:"*) ;;
-  *) echo "${dir} is not in your PATH: add it, or run ${dir}/stubprint" ;;
+  *":${dir}:"*)
+    echo
+    echo "Start it with ${cyan}${bold}stubprint${reset}, then open ${cyan}http://127.0.0.1:8080${reset}"
+    ;;
+  *)
+    echo "${yellow}!${reset} ${dir} is not in your PATH: add it, or run ${bold}${dir}/stubprint${reset}"
+    ;;
 esac
