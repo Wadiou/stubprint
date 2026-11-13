@@ -30,6 +30,14 @@ impl Receipt {
         &self.events
     }
 
+    /// A receipt made of the commands that were printed so far, as when the paper is looked at
+    /// while the job is still printing. `raw` may be shorter than the commands it made, or empty,
+    /// when the bytes are not at hand.
+    pub fn from_parts(events: Vec<Event>, steps: Vec<Step>, raw: Vec<u8>) -> Receipt {
+        debug_assert_eq!(events.len(), steps.len(), "a step for each event");
+        Receipt { events, steps, raw }
+    }
+
     /// The bytes the printer was sent for this receipt, up to the end of the cut.
     pub fn raw(&self) -> &[u8] {
         &self.raw
@@ -90,15 +98,7 @@ impl Receipt {
 
 /// A blank line or a carriage return after a cut prints nothing, so it is not a receipt.
 fn prints_something(events: &[Event]) -> bool {
-    events.iter().any(|event| match event {
-        Event::Image(_)
-        | Event::Barcode(_)
-        | Event::Qr(_)
-        | Event::Pdf417(_)
-        | Event::Symbol(_) => true,
-        Event::Text { text, .. } => !text.trim().is_empty(),
-        _ => false,
-    })
+    events.iter().any(Event::prints)
 }
 
 /// A fake printer: feed it the bytes a printer would receive, in any number of pieces, and it hands
@@ -116,6 +116,8 @@ pub struct Printer {
     hold: Option<usize>,
     /// What it received while off line, which prints when it is back on line.
     held: Vec<u8>,
+    /// Where the last command it read ended, counted from the first byte ever pushed.
+    cursor: usize,
 }
 
 impl Printer {
@@ -139,6 +141,7 @@ impl Printer {
             before: 0,
             hold: None,
             held: Vec::new(),
+            cursor: 0,
         }
     }
 
@@ -244,6 +247,13 @@ impl Printer {
         let released = self.release();
         let traced = self.decoder.finish_traced();
         let mut pushed = self.absorb(traced);
+        // What came before the end shifts the places of the receipts the end finished.
+        let shift = released.traced.len();
+        for place in &mut pushed.finished_after {
+            *place += shift;
+        }
+        pushed.finished_after.splice(0..0, released.finished_after);
+        pushed.chunks.splice(0..0, released.chunks);
         pushed.traced.splice(0..0, released.traced);
         pushed.receipts.splice(0..0, released.receipts);
         let events = std::mem::take(&mut self.events);
@@ -252,15 +262,13 @@ impl Printer {
         self.before += raw.len();
         if prints_something(&events) {
             pushed.receipts.push(Receipt { events, steps, raw });
+            pushed.finished_after.push(pushed.traced.len());
         }
         pushed
     }
 
     fn absorb(&mut self, traced: Vec<Traced>) -> Pushed {
-        let mut pushed = Pushed {
-            traced: Vec::new(),
-            receipts: Vec::new(),
-        };
+        let mut pushed = Pushed::default();
         for item in traced {
             let is_cut = matches!(item.event, Event::Cut(_));
             // The ends are counted from the start of the receipt that is being made.
@@ -270,6 +278,15 @@ impl Printer {
             });
             self.events.push(item.event.clone());
             let end = item.end;
+            // The bytes of the command, which are still in the stream until a receipt is done.
+            let from = self.cursor.max(self.before) - self.before;
+            pushed.chunks.push(
+                self.stream
+                    .get(from..end - self.before)
+                    .unwrap_or_default()
+                    .to_vec(),
+            );
+            self.cursor = end;
             pushed.traced.push(item);
             if is_cut {
                 let events = std::mem::take(&mut self.events);
@@ -278,6 +295,7 @@ impl Printer {
                     let raw: Vec<u8> = self.stream.drain(..end - self.before).collect();
                     self.before = end;
                     pushed.receipts.push(Receipt { events, steps, raw });
+                    pushed.finished_after.push(pushed.traced.len());
                 } else {
                     // What it printed nothing of is kept with the next receipt.
                     self.events = events;
@@ -294,6 +312,12 @@ impl Printer {
 pub struct Pushed {
     pub traced: Vec<Traced>,
     pub receipts: Vec<Receipt>,
+    /// For each receipt, how many of the `traced` commands were done when it was finished: it
+    /// comes out right after the last of them. A receipt that the end of the stream finished, with
+    /// no command of its own to end it, comes after all of them.
+    pub finished_after: Vec<usize>,
+    /// For each of the `traced` commands, the bytes it was made of.
+    pub chunks: Vec<Vec<u8>>,
 }
 
 #[cfg(test)]
@@ -402,6 +426,61 @@ mod tests {
         // Bold was on after the first command, and the layout is the default.
         assert!(receipt.steps()[0].state.style.bold);
         assert_eq!(receipt.steps()[2].state.layout, crate::Layout::default());
+    }
+
+    #[test]
+    fn each_receipt_says_after_which_command_it_was_finished() {
+        let mut printer = Printer::new();
+        let mut pushed = printer.push_traced(&stream());
+        let after_two_cuts = pushed.traced.len();
+        // The cuts end the two receipts, and the stream goes on with the third.
+        assert_eq!(pushed.receipts.len(), 2);
+        let cuts: Vec<usize> = pushed
+            .traced
+            .iter()
+            .enumerate()
+            .filter(|(_, item)| matches!(item.event, Event::Cut(_)))
+            .map(|(index, _)| index + 1)
+            .collect();
+        assert_eq!(pushed.finished_after, cuts);
+        // The end of the stream finishes the last one after every command it made.
+        let end = printer.finish_traced();
+        assert_eq!(end.receipts.len(), 1);
+        assert_eq!(end.finished_after, [end.traced.len()]);
+        pushed.traced.extend(end.traced);
+        assert!(pushed.traced.len() >= after_two_cuts);
+    }
+
+    #[test]
+    fn each_command_comes_with_its_bytes_and_together_they_are_the_receipts() {
+        let mut printer = Printer::new();
+        let pushed = printer.push_traced(&stream());
+        assert_eq!(pushed.chunks.len(), pushed.traced.len());
+        let joined: Vec<u8> = pushed.chunks.concat();
+        let receipts: Vec<u8> = pushed
+            .receipts
+            .iter()
+            .flat_map(|receipt| receipt.raw().to_vec())
+            .collect();
+        assert_eq!(joined, receipts);
+        // Each chunk is as long as its command: from where the one before ended.
+        let mut end = 0;
+        for (item, chunk) in pushed.traced.iter().zip(&pushed.chunks) {
+            assert_eq!(chunk.len(), item.end - end);
+            end = item.end;
+        }
+    }
+
+    #[test]
+    fn a_receipt_can_be_made_of_what_was_printed_so_far() {
+        let receipt = receipts(1000).remove(0);
+        let part = Receipt::from_parts(
+            receipt.events()[..2].to_vec(),
+            receipt.steps()[..2].to_vec(),
+            Vec::new(),
+        );
+        assert_eq!(part.events(), &receipt.events()[..2]);
+        assert_eq!(part.until(1).events().len(), 1);
     }
 
     #[test]

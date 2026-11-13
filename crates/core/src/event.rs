@@ -546,6 +546,22 @@ pub enum Event {
     },
 }
 
+impl Event {
+    /// Whether this puts something on the paper: text that is not blank, a picture or a code. A
+    /// job that has none of these has printed nothing, so it is not a receipt.
+    pub fn prints(&self) -> bool {
+        match self {
+            Event::Image(_)
+            | Event::Barcode(_)
+            | Event::Qr(_)
+            | Event::Pdf417(_)
+            | Event::Symbol(_) => true,
+            Event::Text { text, .. } => !text.trim().is_empty(),
+            _ => false,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
