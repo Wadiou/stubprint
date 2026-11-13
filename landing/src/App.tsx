@@ -33,18 +33,42 @@ const FEATURES = [
   { title: "One program", body: "One binary, with its web page inside." },
 ];
 
-/** The column of the page: its two vertical lines run from the top to the bottom, and each section's line crosses them. */
-function Frame({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("relative mx-auto w-full max-w-5xl border-x", className)}>{children}</div>;
+/**
+ * Every row of the page sits in this one grid, which draws every line of the column and of a row
+ * as one of its own gaps, the way the feature cards below already draw theirs. Two rows that each
+ * drew their own border could not be relied on to agree on the same pixel; a gap of the same grid
+ * always does.
+ */
+function Page({ children }: { children: ReactNode }) {
+  return <div className="grid grid-cols-[1fr_minmax(0,64rem)_1fr] gap-px bg-border">{children}</div>;
 }
 
-/** A mark where a line of a section meets the two lines of the column. */
-function Crosses() {
-  const mark = "absolute z-10 size-[17px] bg-background text-muted-foreground";
+/** The empty column on either side of a row, which only exists so the row's line spans full width. */
+function Gutter() {
+  return <div aria-hidden="true" className="bg-background" />;
+}
+
+/** One row of the page, in the centre column, with the gutters that give its line full width. */
+function Row({ as: As = "div", className, crossed, children }: { as?: "header" | "section" | "footer" | "div"; className?: string; crossed?: boolean; children: ReactNode }) {
   return (
     <>
-      <PlusIcon aria-hidden="true" strokeWidth={1} className={cn(mark, "-bottom-[9px] -left-[9px]")} />
-      <PlusIcon aria-hidden="true" strokeWidth={1} className={cn(mark, "-right-[9px] -bottom-[9px]")} />
+      <Gutter />
+      <As className={cn("relative bg-background", className)}>
+        {children}
+        {crossed && <Crosses />}
+      </As>
+      <Gutter />
+    </>
+  );
+}
+
+/** A mark where this row's line meets the line of the column, for a row that is not the last one. */
+function Crosses() {
+  const mark = "absolute z-10 size-4 bg-background text-muted-foreground";
+  return (
+    <>
+      <PlusIcon aria-hidden="true" strokeWidth={1} className={cn(mark, "-bottom-2 -left-2")} />
+      <PlusIcon aria-hidden="true" strokeWidth={1} className={cn(mark, "-right-2 -bottom-2")} />
     </>
   );
 }
@@ -60,85 +84,71 @@ function GithubMark() {
 
 export function App() {
   return (
-    <>
-      <header className="border-b">
-        <Frame className="flex h-16 items-center justify-between px-6">
-          <a href="/" className="text-xl font-semibold tracking-tight">
-            {NAME}
-          </a>
-          <a
-            href={REPO}
-            aria-label="Stubprint on GitHub"
-            className="text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <GithubMark />
-          </a>
-          <Crosses />
-        </Frame>
-      </header>
+    <Page>
+      <Row as="header" crossed className="flex h-16 items-center justify-between px-6">
+        <a href="/" className="text-xl font-semibold tracking-tight">
+          {NAME}
+        </a>
+        <a href={REPO} aria-label="Stubprint on GitHub" className="text-muted-foreground transition-colors hover:text-foreground">
+          <GithubMark />
+        </a>
+      </Row>
 
-      <main>
-        <section className="border-b">
-          <Frame className="flex flex-col items-center gap-6 px-6 pt-20 pb-24 text-center">
-            <Badge variant="outline">{`v${__VERSION__}`}</Badge>
-            <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-balance sm:text-6xl sm:leading-[1.05]">{HEADLINE}</h1>
-            <p className="max-w-xl text-lg text-pretty text-muted-foreground">{highlight(TAGLINE)}</p>
-            <InstallCommand />
+      {/* display: contents takes main out of the boxes grid lays out, so these two rows still sit
+          directly in it, while the landmark it gives the primary content stays for a screen reader. */}
+      <main className="contents">
+        <Row as="section" crossed className="flex flex-col items-center gap-6 px-6 pt-20 pb-24 text-center">
+          <Badge variant="outline">{`v${__VERSION__}`}</Badge>
+          <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-balance sm:text-6xl sm:leading-[1.05]">{HEADLINE}</h1>
+          <p className="max-w-xl text-lg text-pretty text-muted-foreground">{highlight(TAGLINE)}</p>
+          <InstallCommand />
 
-            <div className="mt-12 flex w-full flex-col items-center gap-3">
-              <div className="w-full max-w-sm border bg-card px-4 py-3.5 text-left font-mono text-[13px] leading-relaxed">
-                <span className="text-muted-foreground select-none">$ </span>stubprint print --sample cafe
-              </div>
-              <div className="text-[13px] text-muted-foreground" aria-hidden="true">
-                ↓ what came out
-              </div>
-              <Receipt />
+          <div className="mt-12 flex w-full flex-col items-center gap-3">
+            <div className="w-full max-w-sm border bg-card px-4 py-3.5 text-left font-mono text-[13px] leading-relaxed">
+              <span className="text-muted-foreground select-none">$ </span>stubprint print --sample cafe
             </div>
-            <Crosses />
-          </Frame>
-        </section>
+            <div className="text-[13px] text-muted-foreground" aria-hidden="true">
+              ↓ what came out
+            </div>
+            <Receipt />
+          </div>
+        </Row>
 
-        <section className="border-b">
-          <Frame>
-            <h2 className="px-6 py-16 text-center text-3xl font-semibold tracking-tight text-balance">It behaves like the printers it copies</h2>
-            <ul className="grid gap-px border-t bg-border sm:grid-cols-2 lg:grid-cols-4">
-              {FEATURES.map((feature) => (
-                <li key={feature.title} className="bg-background">
-                  <Card className="h-full bg-transparent ring-0">
-                    <CardHeader>
-                      <CardTitle>
-                        <h3>{feature.title}</h3>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="text-muted-foreground">{feature.body}</CardContent>
-                  </Card>
-                </li>
-              ))}
-            </ul>
-            <Crosses />
-          </Frame>
-        </section>
-
+        <Row as="section" crossed>
+          <h2 className="px-6 py-16 text-center text-3xl font-semibold tracking-tight text-balance">It behaves like the printers it copies</h2>
+          <ul className="grid gap-px border-t bg-border sm:grid-cols-2 lg:grid-cols-4">
+            {FEATURES.map((feature) => (
+              <li key={feature.title} className="bg-background">
+                <Card className="h-full bg-transparent ring-0">
+                  <CardHeader>
+                    <CardTitle>
+                      <h3>{feature.title}</h3>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-muted-foreground">{feature.body}</CardContent>
+                </Card>
+              </li>
+            ))}
+          </ul>
+        </Row>
       </main>
 
-      <footer className="text-sm text-muted-foreground">
-        <Frame className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-6 py-8">
-          <span>
-            {NAME} {__VERSION__}. MIT licence.
-          </span>
-          <nav aria-label="Footer" className="flex gap-6">
-            <a href={REPO} className="hover:text-foreground">
-              GitHub
-            </a>
-            <a href={DOCS} className="hover:text-foreground">
-              Docs
-            </a>
-            <a href={`${REPO}/releases`} className="hover:text-foreground">
-              Releases
-            </a>
-          </nav>
-        </Frame>
-      </footer>
-    </>
+      <Row as="footer" className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-6 py-8 text-sm text-muted-foreground">
+        <span>
+          {NAME} {__VERSION__}. MIT licence.
+        </span>
+        <nav aria-label="Footer" className="flex gap-6">
+          <a href={REPO} className="hover:text-foreground">
+            GitHub
+          </a>
+          <a href={DOCS} className="hover:text-foreground">
+            Docs
+          </a>
+          <a href={`${REPO}/releases`} className="hover:text-foreground">
+            Releases
+          </a>
+        </nav>
+      </Row>
+    </Page>
   );
 }
