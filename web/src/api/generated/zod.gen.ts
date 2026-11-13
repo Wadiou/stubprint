@@ -234,35 +234,6 @@ export const zPrinted = z.object({
 });
 
 /**
- * What a request changes about the printer itself. What is left out stays as it is.
- */
-export const zPrinterChange = z.object({
-    idle_timeout: z.int().gte(0).nullish(),
-    max_connections: z.int().gte(0).nullish(),
-    network_buffer: z.int().gte(0).nullish(),
-    paper_roll: z.int().gte(0).nullish(),
-    print_speed: z.int().gte(0).nullish(),
-    printer_buffer: z.int().gte(0).nullish(),
-    profile: z.string().nullish()
-});
-
-/**
- * A printer as written in `--printer` or in an API request. Anything left out gets its default.
- */
-export const zPrinterSettings = z.object({
-    dialect: z.string().nullish(),
-    idle_timeout: z.int().gte(0).nullish(),
-    listen: z.string().nullish(),
-    max_connections: z.int().gte(0).nullish(),
-    name: z.string().nullish(),
-    network_buffer: z.int().gte(0).nullish(),
-    paper_roll: z.int().gte(0).nullish(),
-    print_speed: z.int().gte(0).nullish(),
-    printer_buffer: z.int().gte(0).nullish(),
-    profile: z.string().nullish()
-});
-
-/**
  * What a printer would say about itself when it is asked. A program that talks to a printer
  * reads these answers, and sets this to see how the program behaves when the paper runs out.
  */
@@ -338,6 +309,47 @@ export const zReceiptSummary = z.object({
     profile: z.string(),
     state: zReceiptState
 });
+
+/**
+ * What a printer is set to.
+ */
+export const zSettings = z.object({
+    idle_timeout: z.int().gte(0),
+    max_connections: z.int().gte(0),
+    network_buffer: z.int().gte(0),
+    paper_roll: z.int().gte(0),
+    print_speed: z.int().gte(0),
+    printer_buffer: z.int().gte(0)
+});
+
+/**
+ * A change to the settings: the ones it names are set, and the others are left as they are.
+ */
+export const zSettingsChange = z.object({
+    idle_timeout: z.int().gte(0).nullish(),
+    max_connections: z.int().gte(0).nullish(),
+    network_buffer: z.int().gte(0).nullish(),
+    paper_roll: z.int().gte(0).nullish(),
+    print_speed: z.int().gte(0).nullish(),
+    printer_buffer: z.int().gte(0).nullish()
+});
+
+/**
+ * What a request changes about the printer itself. What is left out stays as it is.
+ */
+export const zPrinterChange = zSettingsChange.and(z.object({
+    profile: z.string().nullish()
+}));
+
+/**
+ * A printer as written in `--printer` or in an API request. Anything left out gets its default.
+ */
+export const zPrinterSettings = zSettingsChange.and(z.object({
+    dialect: z.string().nullish(),
+    listen: z.string().nullish(),
+    name: z.string().nullish(),
+    profile: z.string().nullish()
+}));
 
 /**
  * What a request changes about the state of a printer. What is left out stays as it is, and a
@@ -459,24 +471,18 @@ export const zUsage = z.object({
 /**
  * A printer, and how it is doing.
  */
-export const zPrinterInfo = z.object({
+export const zPrinterInfo = zSettings.and(z.object({
     buffered: z.int().gte(0),
     connections: z.int().gte(0),
     dialect: zDialect,
     held: z.int().gte(0),
-    idle_timeout: z.int().gte(0),
     listen: z.string(),
-    max_connections: z.int().gte(0),
     name: z.string(),
-    network_buffer: z.int().gte(0),
     paper_left: z.number(),
-    paper_roll: z.int().gte(0),
-    print_speed: z.int().gte(0),
-    printer_buffer: z.int().gte(0),
     profile: z.string(),
     status: zPrinterStatus,
     usage: zUsage
-});
+}));
 
 /**
  * What happened, for the ones who watch the live events.

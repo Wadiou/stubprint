@@ -17,6 +17,7 @@ use crate::config::PrinterConfig;
 use crate::hub::Connection;
 use crate::migrations;
 use crate::printer::{Usage, VirtualPrinter};
+use crate::settings::{Settings, SettingsChange};
 
 /// One printer as it is saved: its settings, what it reports, and its paper.
 #[derive(Debug)]
@@ -25,14 +26,9 @@ pub(crate) struct SavedPrinter {
     listen: String,
     dialect: String,
     profile: String,
-    printer_buffer: usize,
-    network_buffer: usize,
+    settings: Settings,
     status: PrinterStatus,
-    paper_roll: usize,
     paper_left: f64,
-    print_speed: usize,
-    max_connections: usize,
-    idle_timeout: usize,
     usage: Usage,
 }
 
@@ -43,14 +39,9 @@ impl SavedPrinter {
             listen: printer.listen.to_string(),
             dialect: printer.dialect.name().to_string(),
             profile: printer.profile().name.clone(),
-            printer_buffer: printer.printer_buffer(),
-            network_buffer: printer.network_buffer(),
+            settings: printer.settings(),
             status: printer.status(),
-            paper_roll: printer.paper_roll(),
             paper_left: printer.paper_left(),
-            print_speed: printer.print_speed(),
-            max_connections: printer.max_connections(),
-            idle_timeout: printer.idle_timeout(),
             usage: printer.usage(),
         }
     }
@@ -85,12 +76,7 @@ impl SavedPrinter {
             dialect: Dialect::from_name(&self.dialect)
                 .ok_or_else(|| format!("`{}` is not a dialect", self.dialect))?,
             profile: Profile::named(&self.profile).unwrap_or_else(Profile::generic),
-            printer_buffer: self.printer_buffer,
-            network_buffer: self.network_buffer,
-            paper_roll: self.paper_roll,
-            print_speed: self.print_speed,
-            max_connections: self.max_connections,
-            idle_timeout: self.idle_timeout,
+            settings: self.settings,
         })
     }
 }
@@ -249,10 +235,6 @@ fn unsigned(number: i64) -> u64 {
     u64::try_from(number).unwrap_or(0)
 }
 
-fn size(number: i64) -> usize {
-    usize::try_from(number).unwrap_or(0)
-}
-
 fn load(db: &Db) -> rusqlite::Result<Loaded> {
     let http = db
         .query_row("SELECT value FROM settings WHERE key = 'http'", [], |row| {
@@ -263,31 +245,30 @@ fn load(db: &Db) -> rusqlite::Result<Loaded> {
 
     let mut printers = Vec::new();
     let mut statement = db.prepare(
-        "SELECT name, listen, dialect, profile, printer_buffer, network_buffer, status,
-                paper_roll, paper_left, receipts, cuts, line_feeds, paper_used, print_speed,
-                max_connections, idle_timeout
+        "SELECT name, listen, dialect, profile, status, settings, paper_left, receipts, cuts,
+                line_feeds, paper_used
          FROM printers ORDER BY position",
     )?;
     let rows = statement.query_map([], |row| {
-        let status: String = row.get(6)?;
+        let status: String = row.get(4)?;
+        let settings: String = row.get(5)?;
         Ok(SavedPrinter {
             name: row.get(0)?,
             listen: row.get(1)?,
             dialect: row.get(2)?,
             profile: row.get(3)?,
-            printer_buffer: size(row.get(4)?),
-            network_buffer: size(row.get(5)?),
             status: serde_json::from_str(&status).unwrap_or_default(),
-            paper_roll: size(row.get(7)?),
-            paper_left: row.get(8)?,
-            print_speed: size(row.get(13)?),
-            max_connections: size(row.get(14)?),
-            idle_timeout: size(row.get(15)?),
+            // A setting the text does not have is the default, so a setting added later is no change
+            // to the database.
+            settings: serde_json::from_str::<SettingsChange>(&settings)
+                .unwrap_or_default()
+                .applied_to(Settings::default()),
+            paper_left: row.get(6)?,
             usage: Usage {
-                receipts: unsigned(row.get(9)?),
-                cuts: unsigned(row.get(10)?),
-                line_feeds: unsigned(row.get(11)?),
-                paper_used: row.get(12)?,
+                receipts: unsigned(row.get(7)?),
+                cuts: unsigned(row.get(8)?),
+                line_feeds: unsigned(row.get(9)?),
+                paper_used: row.get(10)?,
             },
         })
     })?;
@@ -362,29 +343,23 @@ fn write(db: &Db, command: Command) -> rusqlite::Result<()> {
             for (position, printer) in printers.iter().enumerate() {
                 transaction.execute(
                     "INSERT INTO printers
-                     (position, name, listen, dialect, profile, printer_buffer, network_buffer, status,
-                      paper_roll, paper_left, receipts, cuts, line_feeds, paper_used, print_speed,
-                      max_connections, idle_timeout)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
+                     (position, name, listen, dialect, profile, status, settings, paper_left,
+                      receipts, cuts, line_feeds, paper_used)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
                     params![
                         int(count(position)),
                         printer.name,
                         printer.listen,
                         printer.dialect,
                         printer.profile,
-                        int(count(printer.printer_buffer)),
-                        int(count(printer.network_buffer)),
-                        serde_json::to_string(&printer.status)
+                        serde_json::to_string(&printer.status).unwrap_or_else(|_| "{}".to_string()),
+                        serde_json::to_string(&printer.settings)
                             .unwrap_or_else(|_| "{}".to_string()),
-                        int(count(printer.paper_roll)),
                         printer.paper_left,
                         int(printer.usage.receipts),
                         int(printer.usage.cuts),
                         int(printer.usage.line_feeds),
                         printer.usage.paper_used,
-                        int(count(printer.print_speed)),
-                        int(count(printer.max_connections)),
-                        int(count(printer.idle_timeout)),
                     ],
                 )?;
             }

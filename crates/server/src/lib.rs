@@ -18,6 +18,7 @@ mod pictures;
 mod printer;
 mod samples;
 mod session;
+mod settings;
 mod store;
 mod wire;
 
@@ -34,6 +35,7 @@ use tokio::task::JoinHandle;
 pub use config::{default_database, Config, PrinterConfig, DEFAULT_HTTP};
 pub use hub::{Hub, Notice, Stored};
 pub use printer::VirtualPrinter;
+pub use settings::{Settings, SettingsChange};
 
 use wire::PrinterInfo;
 

@@ -666,40 +666,7 @@ export type Printed = {
 /**
  * What a request changes about the printer itself. What is left out stays as it is.
  */
-export type PrinterChange = {
-    /**
-     * How many seconds a connection can send nothing before it is closed. 0 never. It applies to
-     * the connections that are open too.
-     */
-    idle_timeout?: number | null;
-    /**
-     * How many programs it takes at once. The next one is closed at once. 0 is no limit of its own.
-     * Programs that are connected stay, even if there are more than the new limit.
-     */
-    max_connections?: number | null;
-    /**
-     * How many bytes the network keeps for what a program sends before the printer reads it, as
-     * the network chip of a real printer does. 0 leaves it to the system, which keeps a lot. It
-     * applies to connections that open from now on.
-     */
-    network_buffer?: number | null;
-    /**
-     * Puts in a new roll, which is full: its length in millimetres. 0 is a roll that never runs
-     * out, and then the paper is set by hand. A printer that stopped at the end of its paper
-     * prints what it held.
-     */
-    paper_roll?: number | null;
-    /**
-     * How fast it prints, in millimetres of paper a second. 0 prints without taking any time. A
-     * receipt that is printing now keeps the printer busy as long as it was set to.
-     */
-    print_speed?: number | null;
-    /**
-     * How many bytes it holds while it cannot print, as a real printer keeps them in its receive
-     * buffer. 0 holds nothing and prints whatever it receives. Connections that are open follow
-     * the change.
-     */
-    printer_buffer?: number | null;
+export type PrinterChange = SettingsChange & {
     /**
      * The printer model, as `GET /api/profiles` lists them. Receipts printed from now on are read
      * and drawn as this model. The ones already kept stay as they were printed.
@@ -710,7 +677,7 @@ export type PrinterChange = {
 /**
  * A printer, and how it is doing.
  */
-export type PrinterInfo = {
+export type PrinterInfo = Settings & {
     /**
      * How many bytes its receive buffer holds: what it was sent and did not print yet.
      */
@@ -725,44 +692,17 @@ export type PrinterInfo = {
      */
     held: number;
     /**
-     * How many seconds a connection can send nothing before it is closed. 0 never.
-     */
-    idle_timeout: number;
-    /**
      * The address of its TCP port.
      */
     listen: string;
-    /**
-     * How many programs it takes at once. 0 is no limit of its own, up to 64.
-     */
-    max_connections: number;
     /**
      * What the API calls the printer.
      */
     name: string;
     /**
-     * How many bytes the network keeps for what a program sends before the printer reads it. 0
-     * leaves it to the system, which keeps a lot.
-     */
-    network_buffer: number;
-    /**
      * How much paper is left on the roll, in millimetres.
      */
     paper_left: number;
-    /**
-     * How long its paper roll was when it was full, in millimetres. 0 is a roll that never runs
-     * out, and then the paper is set by hand.
-     */
-    paper_roll: number;
-    /**
-     * How fast it prints, in millimetres of paper a second. 0 prints without taking any time.
-     */
-    print_speed: number;
-    /**
-     * How many bytes it holds while it cannot print, such as with its cover open. 0 means it holds
-     * nothing and prints whatever it receives.
-     */
-    printer_buffer: number;
     /**
      * The printer model, which decides the code pages, the columns and the answers.
      */
@@ -777,60 +717,19 @@ export type PrinterInfo = {
 /**
  * A printer as written in `--printer` or in an API request. Anything left out gets its default.
  */
-export type PrinterSettings = {
+export type PrinterSettings = SettingsChange & {
     /**
      * The command language it reads: `escpos`, `starline` or `starprnt`.
      */
     dialect?: string | null;
     /**
-     * How many seconds a connection can send nothing before the printer closes it, as one does
-     * that is tired of waiting. What it was sent still prints. Time spent waiting for the printer
-     * to print does not count. The default is 0, which never closes one.
-     */
-    idle_timeout?: number | null;
-    /**
      * The address of its TCP port, such as `127.0.0.1:9100`. Port 0 picks a free one.
      */
     listen?: string | null;
     /**
-     * How many programs can be connected to it at once, as a real printer takes one or a few. The
-     * next one that connects is closed at once, and one that was refused can try again when a
-     * connection has closed. The default is 0, no limit of its own: up to 64.
-     */
-    max_connections?: number | null;
-    /**
      * What the API calls it: letters, digits, `-` and `_`. `printer` when left out.
      */
     name?: string | null;
-    /**
-     * How many bytes the network keeps for what a program sends before the printer reads it, as
-     * the network chip of a real printer does. A program that sends more than that, and more than
-     * its own system keeps, has to wait. 0, the default, leaves it to the system, which keeps a
-     * lot, so a program may not wait at all. The system rounds the number, and a connection that
-     * is open keeps the size it had when it opened.
-     */
-    network_buffer?: number | null;
-    /**
-     * How long its paper roll is when it is full, in millimetres, such as 80000 for 80 m. It runs
-     * down as receipts print: it reports near end for the last tenth and end when it is used up,
-     * and a printer with no paper stops printing until paper is put in. The default is 0, a roll
-     * that never runs out.
-     */
-    paper_roll?: number | null;
-    /**
-     * How fast it prints, in millimetres of paper a second: a real receipt printer does 100 to 300.
-     * A receipt keeps the printer busy for as long as its paper takes to come out, and a program
-     * that sends more has to wait until it is done. The default is 0, which prints without taking
-     * any time.
-     */
-    print_speed?: number | null;
-    /**
-     * How many bytes it holds while it cannot print, as a real printer keeps them in its receive
-     * buffer: it is off line, its cover is open, its paper has run out or it has a fault. A program
-     * that sends more has to wait. What it held prints when the printer can print again, even if
-     * the program has gone. The default is 4096. 0 holds nothing: it prints whatever it receives.
-     */
-    printer_buffer?: number | null;
     /**
      * The printer model, as `GET /api/profiles` lists them. It decides the code pages, the
      * columns and the answers.
@@ -1049,6 +948,108 @@ export type SampleSummary = {
      * Each library that wrote it, with its bytes.
      */
     variants: Array<VariantInfo>;
+};
+
+/**
+ * What a printer is set to.
+ */
+export type Settings = {
+    /**
+     * How many seconds a connection can send nothing before the printer closes it, as one does
+     * that is tired of waiting. What it was sent still prints. Time spent waiting for the printer
+     * to print does not count. The default is 0, which never closes one. A change applies to the
+     * connections that are open too.
+     */
+    idle_timeout: number;
+    /**
+     * How many programs can be connected to it at once, as a real printer takes one or a few. The
+     * next one that connects is closed at once, and one that was refused can try again when a
+     * connection has closed. The default is 0, no limit of its own: up to 64. Programs that are
+     * connected stay, even if there are more than a new limit.
+     */
+    max_connections: number;
+    /**
+     * How many bytes the network keeps for what a program sends before the printer reads it, as
+     * the network chip of a real printer does. A program that sends more than that, and more than
+     * its own system keeps, has to wait. 0, the default, leaves it to the system, which keeps a
+     * lot, so a program may not wait at all. The system rounds the number. A change applies to
+     * connections that open from then on.
+     */
+    network_buffer: number;
+    /**
+     * How long its paper roll is when it is full, in millimetres, such as 80000 for 80 m. It runs
+     * down as receipts print: it reports near end for the last tenth and end when it is used up,
+     * and a printer with no paper stops printing until paper is put in. The default is 0, a roll
+     * that never runs out, and then the paper is set by hand. Setting it puts in a new full roll,
+     * and a printer that stopped at the end of its paper prints what it held.
+     */
+    paper_roll: number;
+    /**
+     * How fast it prints, in millimetres of paper a second: a real receipt printer does 100 to
+     * 300. A receipt keeps the printer busy for as long as its paper takes to come out, and a
+     * program that sends more has to wait until it is done. The default is 0, which prints without
+     * taking any time.
+     */
+    print_speed: number;
+    /**
+     * How many bytes it holds while it cannot print, as a real printer keeps them in its receive
+     * buffer: it is off line, its cover is open, its paper has run out or it has a fault. A program
+     * that sends more has to wait. What it held prints when the printer can print again, even if
+     * the program has gone. 0 holds nothing: it prints whatever it receives. The default is 4096.
+     * Connections that are open follow a change.
+     */
+    printer_buffer: number;
+};
+
+/**
+ * A change to the settings: the ones it names are set, and the others are left as they are.
+ */
+export type SettingsChange = {
+    /**
+     * How many seconds a connection can send nothing before the printer closes it, as one does
+     * that is tired of waiting. What it was sent still prints. Time spent waiting for the printer
+     * to print does not count. The default is 0, which never closes one. A change applies to the
+     * connections that are open too.
+     */
+    idle_timeout?: number | null;
+    /**
+     * How many programs can be connected to it at once, as a real printer takes one or a few. The
+     * next one that connects is closed at once, and one that was refused can try again when a
+     * connection has closed. The default is 0, no limit of its own: up to 64. Programs that are
+     * connected stay, even if there are more than a new limit.
+     */
+    max_connections?: number | null;
+    /**
+     * How many bytes the network keeps for what a program sends before the printer reads it, as
+     * the network chip of a real printer does. A program that sends more than that, and more than
+     * its own system keeps, has to wait. 0, the default, leaves it to the system, which keeps a
+     * lot, so a program may not wait at all. The system rounds the number. A change applies to
+     * connections that open from then on.
+     */
+    network_buffer?: number | null;
+    /**
+     * How long its paper roll is when it is full, in millimetres, such as 80000 for 80 m. It runs
+     * down as receipts print: it reports near end for the last tenth and end when it is used up,
+     * and a printer with no paper stops printing until paper is put in. The default is 0, a roll
+     * that never runs out, and then the paper is set by hand. Setting it puts in a new full roll,
+     * and a printer that stopped at the end of its paper prints what it held.
+     */
+    paper_roll?: number | null;
+    /**
+     * How fast it prints, in millimetres of paper a second: a real receipt printer does 100 to
+     * 300. A receipt keeps the printer busy for as long as its paper takes to come out, and a
+     * program that sends more has to wait until it is done. The default is 0, which prints without
+     * taking any time.
+     */
+    print_speed?: number | null;
+    /**
+     * How many bytes it holds while it cannot print, as a real printer keeps them in its receive
+     * buffer: it is off line, its cover is open, its paper has run out or it has a fault. A program
+     * that sends more has to wait. What it held prints when the printer can print again, even if
+     * the program has gone. 0 holds nothing: it prints whatever it receives. The default is 4096.
+     * Connections that are open follow a change.
+     */
+    printer_buffer?: number | null;
 };
 
 /**

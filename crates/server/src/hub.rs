@@ -16,6 +16,7 @@ use crate::engine::{Job, What, Work};
 use crate::listener;
 use crate::pictures::{PictureKey, Pictures};
 use crate::printer::{Usage, VirtualPrinter};
+use crate::settings::{Settings, SettingsChange};
 use crate::store::{Command, Loaded, SavedPrinter, SavedReceipt, Store};
 use crate::wire::{PrinterInfo, ReceiptSummary};
 
@@ -337,7 +338,10 @@ impl Hub {
                             name: saved.printer.clone(),
                             dialect,
                             profile: (*profile).clone(),
-                            printer_buffer: 0,
+                            settings: Settings {
+                                printer_buffer: 0,
+                                ..Settings::default()
+                            },
                             ..PrinterConfig::default()
                         },
                         ([127, 0, 0, 1], 0).into(),
@@ -401,15 +405,16 @@ impl Hub {
                 format!("there is already a printer called {}", settings.name),
             ));
         }
-        let socket = listener::open(settings.listen, settings.network_buffer).map_err(|error| {
-            io::Error::new(
-                error.kind(),
-                format!(
-                    "printer {} cannot listen on {}: {error}",
-                    settings.name, settings.listen
-                ),
-            )
-        })?;
+        let socket =
+            listener::open(settings.listen, settings.settings.network_buffer).map_err(|error| {
+                io::Error::new(
+                    error.kind(),
+                    format!(
+                        "printer {} cannot listen on {}: {error}",
+                        settings.name, settings.listen
+                    ),
+                )
+            })?;
         let printer = Arc::new(VirtualPrinter::new(settings, socket.local_addr()?));
         {
             let mut printers = self
@@ -661,6 +666,27 @@ impl Hub {
         drawer
     }
 
+    /// Changes what the printer is set to. A printer that holds nothing now prints what it held, if
+    /// it can, and a new roll is full and ends a stop for want of paper.
+    pub fn change_settings(&self, printer: &Arc<VirtualPrinter>, change: SettingsChange) {
+        printer.change(change);
+        if change.printer_buffer.is_some() {
+            self.release_held(printer, printer.status());
+        }
+        if let Some(paper) = change
+            .paper_roll
+            .and_then(|length| printer.load_roll(length))
+        {
+            let mut status = printer.status();
+            status.paper = paper;
+            let status = self.apply_status(printer, status);
+            self.notify(Notice::Status {
+                printer: printer.name.clone(),
+                status,
+            });
+        }
+    }
+
     /// Sets the printer to `status`. What programs that have gone left in it prints first, if it
     /// can print now, and what that printing did to the printer is kept: the drawer it kicked and
     /// the paper it used. Returns the status the printer has now.
@@ -893,7 +919,8 @@ impl Hub {
             self.notify(Notice::Receipt(ReceiptSummary::of(&stored)));
         }
         // The sensors may say the roll is running out.
-        if let Some(paper) = printer.printed(used) {
+        let level = printer.printed(used);
+        if let Some(paper) = level {
             let mut status = printer.status();
             status.paper = paper;
             printer.set_status(status);

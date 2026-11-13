@@ -80,7 +80,7 @@ impl Session {
 
     /// How long a connection can send nothing before the printer closes it, or `None` for ever.
     pub fn idle_timeout(&self) -> Option<std::time::Duration> {
-        match self.virtual_printer.idle_timeout() {
+        match self.virtual_printer.settings().idle_timeout {
             0 => None,
             seconds => Some(std::time::Duration::from_secs(seconds as u64)),
         }
@@ -138,7 +138,7 @@ impl Session {
             self.id,
             pushed,
             &self.profile,
-            self.virtual_printer.print_speed(),
+            self.virtual_printer.settings().print_speed,
         );
         self.run(work);
         self.sync_held();

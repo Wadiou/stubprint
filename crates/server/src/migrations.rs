@@ -61,8 +61,8 @@ mod tests {
         let db = Connection::open_in_memory().unwrap();
         apply(&db).unwrap();
         assert_eq!(version(&db), i64::from(MIGRATIONS.last().unwrap().0));
-        // The columns the last change added are there.
-        db.prepare("SELECT paper_roll, paper_used, print_speed, max_connections, idle_timeout FROM printers")
+        // The columns the changes added are there.
+        db.prepare("SELECT settings, paper_left, paper_used FROM printers")
             .unwrap();
     }
 
@@ -77,12 +77,44 @@ mod tests {
         .unwrap();
         apply(&db).unwrap();
         assert_eq!(version(&db), i64::try_from(MIGRATIONS.len()).unwrap());
-        let (name, roll): (String, i64) = db
-            .query_row("SELECT name, paper_roll FROM printers", [], |row| {
+        // What the printer had is in its settings now.
+        let (name, settings): (String, String) = db
+            .query_row("SELECT name, settings FROM printers", [], |row| {
                 Ok((row.get(0)?, row.get(1)?))
             })
             .unwrap();
-        assert_eq!((name.as_str(), roll), ("till", 0));
+        let settings: serde_json::Value = serde_json::from_str(&settings).unwrap();
+        assert_eq!(name, "till");
+        assert_eq!(settings["printer_buffer"], 4096);
+        assert_eq!(settings["paper_roll"], 0);
+    }
+
+    #[test]
+    fn the_settings_of_a_printer_keep_their_values_when_they_move_into_one_column() {
+        let db = Connection::open_in_memory().unwrap();
+        let before: String = MIGRATIONS[..5].iter().map(|(_, _, sql)| *sql).collect();
+        db.execute_batch(&format!(
+            "BEGIN; {before} PRAGMA user_version = 5; COMMIT;
+             INSERT INTO printers (position, name, listen, dialect, profile, printer_buffer,
+                 network_buffer, status, paper_roll, print_speed, max_connections, idle_timeout)
+             VALUES (0, 'till', '127.0.0.1:9100', 'escpos', 'default', 2048, 8192, '{{}}', 80000,
+                 150, 2, 30);"
+        ))
+        .unwrap();
+        apply(&db).unwrap();
+        let text: String = db
+            .query_row("SELECT settings FROM printers", [], |row| row.get(0))
+            .unwrap();
+        let settings: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(
+            settings,
+            serde_json::json!({
+                "printer_buffer": 2048, "network_buffer": 8192, "paper_roll": 80000,
+                "print_speed": 150, "max_connections": 2, "idle_timeout": 30
+            })
+        );
+        // The columns they were in are gone.
+        assert!(db.prepare("SELECT print_speed FROM printers").is_err());
     }
 
     #[test]

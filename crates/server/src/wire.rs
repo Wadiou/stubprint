@@ -7,6 +7,7 @@ use utoipa::ToSchema;
 use crate::hub::{ReceiptState, Stored};
 use crate::printer::{Usage, VirtualPrinter};
 use crate::samples::{Sample, Variant};
+use crate::settings::Settings;
 
 /// How many printed lines the short form of a receipt shows.
 const PREVIEW_LINES: usize = 3;
@@ -86,29 +87,17 @@ pub struct PrinterInfo {
     /// The address of its TCP port.
     pub listen: String,
     pub status: PrinterStatus,
-    /// How many bytes it holds while it cannot print, such as with its cover open. 0 means it holds
-    /// nothing and prints whatever it receives.
-    pub printer_buffer: usize,
-    /// How many bytes the network keeps for what a program sends before the printer reads it. 0
-    /// leaves it to the system, which keeps a lot.
-    pub network_buffer: usize,
+    /// What it is set to.
+    #[serde(flatten)]
+    pub settings: Settings,
     /// How many bytes it holds now because it cannot print.
     pub held: usize,
     /// How many programs are connected to it now.
     pub connections: usize,
     /// How many bytes its receive buffer holds: what it was sent and did not print yet.
     pub buffered: usize,
-    /// How long its paper roll was when it was full, in millimetres. 0 is a roll that never runs
-    /// out, and then the paper is set by hand.
-    pub paper_roll: usize,
     /// How much paper is left on the roll, in millimetres.
     pub paper_left: f64,
-    /// How fast it prints, in millimetres of paper a second. 0 prints without taking any time.
-    pub print_speed: usize,
-    /// How many programs it takes at once. 0 is no limit of its own, up to 64.
-    pub max_connections: usize,
-    /// How many seconds a connection can send nothing before it is closed. 0 never.
-    pub idle_timeout: usize,
     /// What it has done since it was made.
     pub usage: Usage,
 }
@@ -120,17 +109,12 @@ impl PrinterInfo {
             dialect: printer.dialect,
             profile: printer.profile().name.clone(),
             listen: printer.listen.to_string(),
+            settings: printer.settings(),
             status: printer.status(),
-            printer_buffer: printer.printer_buffer(),
-            network_buffer: printer.network_buffer(),
             held: printer.held(),
             connections: printer.connections(),
             buffered: printer.buffered(),
-            paper_roll: printer.paper_roll(),
             paper_left: printer.paper_left(),
-            print_speed: printer.print_speed(),
-            max_connections: printer.max_connections(),
-            idle_timeout: printer.idle_timeout(),
             usage: printer.usage(),
         }
     }

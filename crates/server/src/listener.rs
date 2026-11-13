@@ -72,7 +72,7 @@ pub async fn listen(hub: Arc<Hub>, printer: Arc<VirtualPrinter>, listener: TcpLi
                         drop(stream);
                         continue;
                     }
-                    limit_network_buffer(&stream, printer.network_buffer());
+                    limit_network_buffer(&stream, printer.settings().network_buffer);
                     let session =
                         Session::open(hub.clone(), printer.clone(), peer.to_string()).paced();
                     let stop = stop.clone();

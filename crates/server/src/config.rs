@@ -4,6 +4,8 @@ use std::path::PathBuf;
 use serde::Deserialize;
 use stubprint_core::{Dialect, Profile};
 
+use crate::settings::{Settings, SettingsChange, Unknown};
+
 /// How the server starts: where the API listens, which printers it starts, and where it keeps
 /// its state.
 #[derive(Debug, Clone)]
@@ -37,24 +39,8 @@ pub struct PrinterConfig {
     pub listen: SocketAddr,
     pub dialect: Dialect,
     pub profile: Profile,
-    /// How many bytes it holds while it cannot print (offline, cover open, out of paper, or a
-    /// fault). 0 means it holds nothing and prints whatever it receives.
-    pub printer_buffer: usize,
-    /// How many bytes the network keeps for a program's data before the printer reads it. 0 leaves
-    /// it to the operating system, which keeps a lot, so a program rarely has to wait. A small
-    /// number makes a program that sends a lot wait, as it does for a real printer.
-    pub network_buffer: usize,
-    /// How long its paper roll is when it is full, in millimetres. It runs down as receipts print,
-    /// and 0 is a roll that never runs out.
-    pub paper_roll: usize,
-    /// How fast it prints, in millimetres of paper a second. A receipt keeps it busy for as long as
-    /// its paper takes to come out, and 0 prints without taking any time.
-    pub print_speed: usize,
-    /// How many programs can be connected at once. The next one is refused. 0 is no limit of its
-    /// own, up to [`MAX_SOCKETS`].
-    pub max_connections: usize,
-    /// How many seconds a connection can send nothing before the printer closes it. 0 never.
-    pub idle_timeout: usize,
+    /// What it is set to: its buffers, its paper roll, its speed, its limits and its failures.
+    pub settings: Settings,
 }
 
 /// The most programs that can be connected to one printer, whatever its settings say, so that a
@@ -88,19 +74,13 @@ impl Default for PrinterConfig {
             listen: ([127, 0, 0, 1], 9100).into(),
             dialect: Dialect::EscPos,
             profile: Profile::generic(),
-            printer_buffer: DEFAULT_PRINTER_BUFFER,
-            network_buffer: 0,
-            paper_roll: 0,
-            print_speed: 0,
-            max_connections: 0,
-            idle_timeout: 0,
+            settings: Settings::default(),
         }
     }
 }
 
 /// A printer as written in `--printer` or in an API request. Anything left out gets its default.
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
-#[serde(deny_unknown_fields)]
 pub struct PrinterSettings {
     /// What the API calls it: letters, digits, `-` and `_`. `printer` when left out.
     #[schema(example = "till")]
@@ -115,65 +95,12 @@ pub struct PrinterSettings {
     /// columns and the answers.
     #[schema(example = "TM-T88IV")]
     pub profile: Option<String>,
-    /// How many bytes it holds while it cannot print, as a real printer keeps them in its receive
-    /// buffer: it is off line, its cover is open, its paper has run out or it has a fault. A program
-    /// that sends more has to wait. What it held prints when the printer can print again, even if
-    /// the program has gone. The default is 4096. 0 holds nothing: it prints whatever it receives.
-    #[schema(example = 4096)]
-    #[serde(default, alias = "hold_offline", deserialize_with = "number")]
-    pub printer_buffer: Option<usize>,
-    /// How many bytes the network keeps for what a program sends before the printer reads it, as
-    /// the network chip of a real printer does. A program that sends more than that, and more than
-    /// its own system keeps, has to wait. 0, the default, leaves it to the system, which keeps a
-    /// lot, so a program may not wait at all. The system rounds the number, and a connection that
-    /// is open keeps the size it had when it opened.
-    #[schema(example = 8192)]
-    #[serde(default, alias = "receive_buffer", deserialize_with = "number")]
-    pub network_buffer: Option<usize>,
-    /// How long its paper roll is when it is full, in millimetres, such as 80000 for 80 m. It runs
-    /// down as receipts print: it reports near end for the last tenth and end when it is used up,
-    /// and a printer with no paper stops printing until paper is put in. The default is 0, a roll
-    /// that never runs out.
-    #[schema(example = 80000)]
-    #[serde(default, deserialize_with = "number")]
-    pub paper_roll: Option<usize>,
-    /// How fast it prints, in millimetres of paper a second: a real receipt printer does 100 to 300.
-    /// A receipt keeps the printer busy for as long as its paper takes to come out, and a program
-    /// that sends more has to wait until it is done. The default is 0, which prints without taking
-    /// any time.
-    #[schema(example = 150)]
-    #[serde(default, deserialize_with = "number")]
-    pub print_speed: Option<usize>,
-    /// How many programs can be connected to it at once, as a real printer takes one or a few. The
-    /// next one that connects is closed at once, and one that was refused can try again when a
-    /// connection has closed. The default is 0, no limit of its own: up to 64.
-    #[schema(example = 1)]
-    #[serde(default, deserialize_with = "number")]
-    pub max_connections: Option<usize>,
-    /// How many seconds a connection can send nothing before the printer closes it, as one does
-    /// that is tired of waiting. What it was sent still prints. Time spent waiting for the printer
-    /// to print does not count. The default is 0, which never closes one.
-    #[schema(example = 30)]
-    #[serde(default, deserialize_with = "number")]
-    pub idle_timeout: Option<usize>,
-}
-
-/// Reads a whole number, written either as a number or as text such as `"4096"`.
-fn number<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Option<usize>, D::Error> {
-    #[derive(Deserialize)]
-    #[serde(untagged)]
-    enum Size {
-        Number(usize),
-        Text(String),
-    }
-    match Option::<Size>::deserialize(deserializer)? {
-        None => Ok(None),
-        Some(Size::Number(bytes)) => Ok(Some(bytes)),
-        Some(Size::Text(text)) => text
-            .parse()
-            .map(Some)
-            .map_err(|_| serde::de::Error::custom(format!("`{text}` is not a whole number"))),
-    }
+    /// What it is set to. What is left out gets its default.
+    #[serde(flatten)]
+    pub settings: SettingsChange,
+    #[serde(flatten)]
+    #[schema(ignore)]
+    _unknown: Unknown,
 }
 
 impl PrinterSettings {
@@ -208,24 +135,7 @@ impl PrinterSettings {
             printer.profile = Profile::named(&profile)
                 .ok_or_else(|| format!("`{profile}` is not a printer profile"))?;
         }
-        if let Some(bytes) = self.printer_buffer {
-            printer.printer_buffer = bytes;
-        }
-        if let Some(bytes) = self.network_buffer {
-            printer.network_buffer = bytes;
-        }
-        if let Some(length) = self.paper_roll {
-            printer.paper_roll = length;
-        }
-        if let Some(speed) = self.print_speed {
-            printer.print_speed = speed;
-        }
-        if let Some(limit) = self.max_connections {
-            printer.max_connections = limit;
-        }
-        if let Some(seconds) = self.idle_timeout {
-            printer.idle_timeout = seconds;
-        }
+        printer.settings = self.settings.applied_to(printer.settings);
         Ok(printer)
     }
 }
@@ -339,9 +249,21 @@ mod tests {
     #[test]
     fn the_buffers_of_a_printer_are_written_by_their_names_and_by_the_names_they_had() {
         let printer = PrinterConfig::parse("printer_buffer=1,network_buffer=2").unwrap();
-        assert_eq!((printer.printer_buffer, printer.network_buffer), (1, 2));
+        assert_eq!(
+            (
+                printer.settings.printer_buffer,
+                printer.settings.network_buffer
+            ),
+            (1, 2)
+        );
         let printer = PrinterConfig::parse("hold_offline=3,receive_buffer=4").unwrap();
-        assert_eq!((printer.printer_buffer, printer.network_buffer), (3, 4));
+        assert_eq!(
+            (
+                printer.settings.printer_buffer,
+                printer.settings.network_buffer
+            ),
+            (3, 4)
+        );
         let error = PrinterConfig::parse("printer_buffer=big").unwrap_err();
         assert!(error.contains("whole number"), "{error}");
     }

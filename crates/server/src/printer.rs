@@ -11,6 +11,7 @@ use utoipa::ToSchema;
 
 use crate::config::{PrinterConfig, MAX_SOCKETS};
 use crate::engine::{Engine, Work};
+use crate::settings::{Settings, SettingsChange};
 
 /// The roll reports near end when this share of it is left, or less.
 const NEAR_END_SHARE: f64 = 0.1;
@@ -77,10 +78,8 @@ pub struct VirtualPrinter {
     /// The address it really listens on, which differs from the configured one for port 0.
     pub listen: SocketAddr,
     status: watch::Sender<PrinterStatus>,
-    /// How many bytes it holds while it cannot print. 0 means it holds nothing.
-    printer_buffer: AtomicUsize,
-    /// How many bytes the network keeps for a program's data. 0 leaves it to the operating system.
-    network_buffer: AtomicUsize,
+    /// What it is set to.
+    settings: Mutex<Settings>,
     /// Bytes left behind by programs that disconnected while it could not print. They print when
     /// it can.
     held: Mutex<Vec<Held>>,
@@ -89,12 +88,6 @@ pub struct VirtualPrinter {
     /// The `held` total the watchers were last told, so an event is sent only when it changes.
     told_held: AtomicUsize,
     roll: Mutex<Roll>,
-    /// How fast it prints, in millimetres of paper a second. 0 takes no time.
-    print_speed: AtomicUsize,
-    /// How many programs it takes at once. 0 is as many as it can.
-    max_connections: AtomicUsize,
-    /// How many seconds a connection can send nothing before it is closed. 0 never.
-    idle_timeout: AtomicUsize,
     /// How many connections of its port are open now.
     sockets: AtomicUsize,
     /// What it has read and is printing: the receive buffer, the work, and the paper.
@@ -118,12 +111,7 @@ impl VirtualPrinter {
             name,
             dialect,
             profile,
-            printer_buffer,
-            network_buffer,
-            paper_roll,
-            print_speed,
-            max_connections,
-            idle_timeout,
+            settings,
             ..
         } = settings;
         Self {
@@ -132,19 +120,15 @@ impl VirtualPrinter {
             profile: Mutex::new(Arc::new(profile)),
             listen,
             status: watch::channel(PrinterStatus::default()).0,
-            printer_buffer: AtomicUsize::new(printer_buffer),
-            network_buffer: AtomicUsize::new(network_buffer),
+            settings: Mutex::new(settings),
             held: Mutex::new(Vec::new()),
             session_held: AtomicUsize::new(0),
             told_held: AtomicUsize::new(0),
             roll: Mutex::new(Roll {
-                length: paper_roll,
-                left: millimetres(paper_roll),
+                length: settings.paper_roll,
+                left: millimetres(settings.paper_roll),
                 usage: Usage::default(),
             }),
-            print_speed: AtomicUsize::new(print_speed),
-            max_connections: AtomicUsize::new(max_connections),
-            idle_timeout: AtomicUsize::new(idle_timeout),
             sockets: AtomicUsize::new(0),
             engine: Mutex::new(Engine::default()),
             wake: Notify::new(),
@@ -172,6 +156,28 @@ impl VirtualPrinter {
             .unwrap_or_else(|poisoned| poisoned.into_inner()) = Arc::new(profile);
     }
 
+    /// What it is set to.
+    pub fn settings(&self) -> Settings {
+        *self
+            .settings
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    /// Makes a change to what it is set to. What is running follows it: the engine looks at its
+    /// speed and its head again, and the connections that are open at their limits.
+    pub(crate) fn change(&self, change: SettingsChange) {
+        {
+            let mut settings = self
+                .settings
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            *settings = change.applied_to(*settings);
+        }
+        self.wake.notify_one();
+        self.status.send_modify(|_| {});
+    }
+
     pub fn status(&self) -> PrinterStatus {
         *self.status.borrow()
     }
@@ -186,12 +192,6 @@ impl VirtualPrinter {
             .roll
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
-    }
-
-    /// How long its paper roll was when it was full, in millimetres. 0 is a roll that never runs
-    /// out.
-    pub fn paper_roll(&self) -> usize {
-        self.roll().length
     }
 
     /// How much paper is left on the roll, in millimetres.
@@ -280,43 +280,10 @@ impl VirtualPrinter {
         (level != self.status().paper).then_some(level)
     }
 
-    /// How fast it prints, in millimetres of paper a second. 0 takes no time.
-    pub fn print_speed(&self) -> usize {
-        self.print_speed.load(Ordering::Relaxed)
-    }
-
-    /// Changes how fast it prints. It applies to what is read from now on, and 0 ends the time
-    /// what is waiting still had to take.
-    pub fn set_print_speed(&self, speed: usize) {
-        self.print_speed.store(speed, Ordering::Relaxed);
-        self.wake.notify_one();
-    }
-
-    /// How many programs it takes at once. 0 is as many as it can.
-    pub fn max_connections(&self) -> usize {
-        self.max_connections.load(Ordering::Relaxed)
-    }
-
-    /// Changes how many programs it takes at once. Those that are connected stay, even if there
-    /// are more than the new limit.
-    pub fn set_max_connections(&self, limit: usize) {
-        self.max_connections.store(limit, Ordering::Relaxed);
-    }
-
-    /// How many seconds a connection can send nothing before it is closed. 0 never.
-    pub fn idle_timeout(&self) -> usize {
-        self.idle_timeout.load(Ordering::Relaxed)
-    }
-
-    /// Changes how long a connection can send nothing. It applies to the ones that are open too.
-    pub fn set_idle_timeout(&self, seconds: usize) {
-        self.idle_timeout.store(seconds, Ordering::Relaxed);
-    }
-
     /// Takes a place for a connection of its port, unless they are all taken: then it says no, and
     /// the connection is to be refused.
     pub(crate) fn take_socket(&self) -> bool {
-        let limit = match self.max_connections() {
+        let limit = match self.settings().max_connections {
             0 => MAX_SOCKETS,
             limit => limit.min(MAX_SOCKETS),
         };
@@ -340,7 +307,7 @@ impl VirtualPrinter {
 
     /// Whether what is read can be printed at once: it takes no time, and nothing is waiting.
     pub(crate) fn is_instant(&self) -> bool {
-        self.print_speed() == 0 && self.engine().is_idle()
+        self.settings().print_speed == 0 && self.engine().is_idle()
     }
 
     /// Bytes came into the receive buffer.
@@ -363,9 +330,9 @@ impl VirtualPrinter {
     /// frees itself. A buffer that is full while nothing waits to be printed is full of the start of
     /// a command that is longer than the buffer, which can only be finished by reading on.
     pub(crate) fn buffer_room(&self) -> Option<usize> {
-        let size = self.printer_buffer();
+        let size = self.settings().printer_buffer;
         let engine = self.engine();
-        if size == 0 || (self.print_speed() == 0 && engine.is_idle()) {
+        if size == 0 || (self.settings().print_speed == 0 && engine.is_idle()) {
             return None;
         }
         let room = engine.room(size);
@@ -390,7 +357,7 @@ impl VirtualPrinter {
         }
         let due = self.engine().due_in()?;
         // A printer that takes no time is done with what it has, however long it was to take.
-        Some(if self.print_speed() == 0 {
+        Some(if self.settings().print_speed == 0 {
             Duration::ZERO
         } else {
             due
@@ -399,7 +366,7 @@ impl VirtualPrinter {
 
     /// Lets time pass for the engine and returns what was done in it.
     pub(crate) fn advance(&self, elapsed: Duration) -> Vec<Work> {
-        let elapsed = if self.print_speed() == 0 {
+        let elapsed = if self.settings().print_speed == 0 {
             Duration::MAX
         } else {
             elapsed
@@ -407,34 +374,10 @@ impl VirtualPrinter {
         self.engine().advance(elapsed)
     }
 
-    /// How many bytes it holds while it cannot print. 0 means it holds nothing and prints whatever
-    /// it receives. Connections that are open follow it as it changes.
-    pub fn printer_buffer(&self) -> usize {
-        self.printer_buffer.load(Ordering::Relaxed)
-    }
-
-    /// Changes how many bytes it holds. Connections that are open hear of it, so what they held
-    /// is printed when it is turned off.
-    pub fn set_printer_buffer(&self, bytes: usize) {
-        self.printer_buffer.store(bytes, Ordering::Relaxed);
-        self.status.send_modify(|_| {});
-    }
-
-    /// How many bytes the network keeps for what a program sends before the printer reads it. 0
-    /// leaves it to the system.
-    pub fn network_buffer(&self) -> usize {
-        self.network_buffer.load(Ordering::Relaxed)
-    }
-
-    /// Changes it for the connections that open from now on.
-    pub fn set_network_buffer(&self, bytes: usize) {
-        self.network_buffer.store(bytes, Ordering::Relaxed);
-    }
-
     /// How many bytes a connection may hold, whatever the printer's state: `printer_buffer` minus
     /// what disconnected programs left behind. `None` when `printer_buffer` is 0.
     pub(crate) fn capacity(&self) -> Option<usize> {
-        let hold = self.printer_buffer();
+        let hold = self.settings().printer_buffer;
         (hold > 0).then(|| hold.saturating_sub(self.held_len()))
     }
 
@@ -442,7 +385,7 @@ impl VirtualPrinter {
     /// print or because `printer_buffer` is 0. While it cannot print, it is `printer_buffer` minus
     /// what disconnected programs left behind.
     pub fn room(&self) -> Option<usize> {
-        let hold = self.printer_buffer();
+        let hold = self.settings().printer_buffer;
         (hold > 0 && self.halted()).then(|| hold.saturating_sub(self.held_len()))
     }
 

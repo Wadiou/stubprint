@@ -27,6 +27,7 @@ use crate::page;
 use crate::printer::VirtualPrinter;
 use crate::samples;
 use crate::session::Session;
+use crate::settings::{SettingsChange, Unknown};
 use crate::wire::{
     hex, trace_of, trace_of_stream, PrinterInfo, ProfileInfo, ReceiptDetail, ReceiptSummary,
     SampleDetail, SampleSummary, TraceItem,
@@ -370,34 +371,16 @@ async fn set_printer(
 
 /// What a request changes about the printer itself. What is left out stays as it is.
 #[derive(Debug, Deserialize, ToSchema)]
-#[serde(deny_unknown_fields)]
 struct PrinterChange {
     /// The printer model, as `GET /api/profiles` lists them. Receipts printed from now on are read
     /// and drawn as this model. The ones already kept stay as they were printed.
     profile: Option<String>,
-    /// How many bytes it holds while it cannot print, as a real printer keeps them in its receive
-    /// buffer. 0 holds nothing and prints whatever it receives. Connections that are open follow
-    /// the change.
-    #[serde(alias = "hold_offline")]
-    printer_buffer: Option<usize>,
-    /// How many bytes the network keeps for what a program sends before the printer reads it, as
-    /// the network chip of a real printer does. 0 leaves it to the system, which keeps a lot. It
-    /// applies to connections that open from now on.
-    #[serde(alias = "receive_buffer")]
-    network_buffer: Option<usize>,
-    /// Puts in a new roll, which is full: its length in millimetres. 0 is a roll that never runs
-    /// out, and then the paper is set by hand. A printer that stopped at the end of its paper
-    /// prints what it held.
-    paper_roll: Option<usize>,
-    /// How fast it prints, in millimetres of paper a second. 0 prints without taking any time. A
-    /// receipt that is printing now keeps the printer busy as long as it was set to.
-    print_speed: Option<usize>,
-    /// How many programs it takes at once. The next one is closed at once. 0 is no limit of its own.
-    /// Programs that are connected stay, even if there are more than the new limit.
-    max_connections: Option<usize>,
-    /// How many seconds a connection can send nothing before it is closed. 0 never. It applies to
-    /// the connections that are open too.
-    idle_timeout: Option<usize>,
+    /// The settings to change, such as `print_speed`. The others stay as they are.
+    #[serde(flatten)]
+    settings: SettingsChange,
+    #[serde(flatten)]
+    #[schema(ignore)]
+    _unknown: Unknown,
 }
 
 /// Sets the printer to another model, as if another printer stood on its port, or changes how much it holds while it cannot print and how much the network keeps for a program.
@@ -423,34 +406,7 @@ async fn update_printer(
         })?;
         printer.set_profile(profile);
     }
-    if let Some(bytes) = change.printer_buffer {
-        printer.set_printer_buffer(bytes);
-        // A printer that holds nothing prints what it has, if it can.
-        hub.release_held(&printer, printer.status());
-    }
-    if let Some(bytes) = change.network_buffer {
-        printer.set_network_buffer(bytes);
-    }
-    if let Some(length) = change.paper_roll {
-        if let Some(paper) = printer.load_roll(length) {
-            let mut status = printer.status();
-            status.paper = paper;
-            let status = hub.apply_status(&printer, status);
-            hub.notify(Notice::Status {
-                printer: printer.name.clone(),
-                status,
-            });
-        }
-    }
-    if let Some(speed) = change.print_speed {
-        printer.set_print_speed(speed);
-    }
-    if let Some(limit) = change.max_connections {
-        printer.set_max_connections(limit);
-    }
-    if let Some(seconds) = change.idle_timeout {
-        printer.set_idle_timeout(seconds);
-    }
+    hub.change_settings(&printer, change.settings);
     hub.notify(Notice::PrinterChanged(PrinterInfo::of(&printer)));
     Ok(Json(PrinterInfo::of(&printer)))
 }
