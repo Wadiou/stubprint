@@ -1,3 +1,10 @@
+# [0.13.0](https://github.com/Wadiou/stubprint/compare/v0.12.0...v0.13.0) (2026-11-13)
+
+
+### Features
+
+* **repo:** highlight the key words of the landing page's tagline ([7461d91](https://github.com/Wadiou/stubprint/commit/7461d915f033b0fd43c11dd00ee59c6bf0f90d2d))
+
 # [0.12.0](https://github.com/Wadiou/stubprint/compare/v0.11.0...v0.12.0) (2026-11-13)
 
 
