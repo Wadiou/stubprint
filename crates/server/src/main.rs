@@ -1,15 +1,26 @@
+mod cli;
+
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 use stubprint_server::Config;
 
 /// A virtual receipt printer. Programs print to its TCP ports, and its REST API shows what was
 /// printed.
+///
+/// With no command it starts the server, from the options below. With a command it asks a server
+/// that is running: say where it is with --server, or it is on 127.0.0.1:8080.
 #[derive(Parser)]
 #[command(name = "stubprint", version)]
 struct Options {
+    #[command(flatten)]
+    remote: cli::Remote,
+
+    #[command(subcommand)]
+    command: Option<cli::Command>,
+
     /// Keep nothing: use no database. The printers, the receipts and the connections are gone when
     /// the server stops.
     #[arg(long)]
@@ -80,9 +91,41 @@ fn configuration(options: Options) -> Result<Config, String> {
     })
 }
 
-#[tokio::main]
-async fn main() -> ExitCode {
-    let options = Options::parse();
+impl Options {
+    /// Whether an option that starts or describes the server was given.
+    fn is_for_the_server(&self) -> bool {
+        self.ephemeral
+            || self.reset
+            || self.openapi
+            || self.http.is_some()
+            || self.ready_file.is_some()
+            || !self.printer.is_empty()
+    }
+}
+
+fn main() -> ExitCode {
+    let mut options = Options::parse();
+    if let Some(command) = options.command.take() {
+        if options.is_for_the_server() {
+            Options::command()
+                .error(
+                    clap::error::ErrorKind::ArgumentConflict,
+                    "a command asks a running server, and the options that start a server do not go with it",
+                )
+                .exit();
+        }
+        return cli::run(&options.remote, command);
+    }
+    match tokio::runtime::Runtime::new() {
+        Ok(runtime) => runtime.block_on(serve(options)),
+        Err(error) => {
+            eprintln!("stubprint: {error}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+async fn serve(options: Options) -> ExitCode {
     if options.openapi {
         match stubprint_server::api::openapi().to_pretty_json() {
             Ok(document) => println!("{document}"),
