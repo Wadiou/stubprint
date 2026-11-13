@@ -1,3 +1,10 @@
+# [0.12.0](https://github.com/Wadiou/stubprint/compare/v0.11.0...v0.12.0) (2026-11-13)
+
+
+### Features
+
+* **server:** add stubprint uninstall ([8b8d97a](https://github.com/Wadiou/stubprint/commit/8b8d97a7b1eeca12385ce359c1555569edeb58b1))
+
 # [0.11.0](https://github.com/Wadiou/stubprint/compare/v0.10.0...v0.11.0) (2026-11-13)
 
 
