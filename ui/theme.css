@@ -92,4 +92,13 @@
   body {
     @apply bg-background font-sans text-foreground antialiased;
   }
+
+  /* A button has no pointer cursor by default in most browsers, unlike a link. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  [role="checkbox"]:not(:disabled),
+  [role="radio"]:not(:disabled),
+  [role="switch"]:not(:disabled) {
+    cursor: pointer;
+  }
 }
