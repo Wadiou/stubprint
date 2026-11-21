@@ -1,3 +1,10 @@
+## [0.15.3](https://github.com/Wadiou/stubprint/compare/v0.15.2...v0.15.3) (2026-11-21)
+
+
+### Bug Fixes
+
+* **web:** give the nav items the same width on a wide screen ([232aad7](https://github.com/Wadiou/stubprint/commit/232aad71e49f39fb0706f6261b7ede4088f0a823))
+
 ## [0.15.2](https://github.com/Wadiou/stubprint/compare/v0.15.1...v0.15.2) (2026-11-13)
 
 
