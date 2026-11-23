@@ -30,8 +30,8 @@
   },
   "escpresso": {
     "repository": "jflaflamme/escpresso",
-    "ref": "v0.1.3",
-    "commit": "776e3fae53ec97f63b9ed118fcdc8172ba911627",
+    "ref": "v0.1.4",
+    "commit": "bc77a7df58239a592d950b31f9d8a24fa7357216",
     "files": {
       "fixtures/captured/escpresso/LICENSE": "f0fe3b90eba8830ed8f92c2b060df38cca82c3c3e5bc7aec93ac452062f4e625",
       "fixtures/captured/escpresso/escpos_capture.raw": "1fb126257d9129f9e197382b9f7e4064e01e003f8f1cf2282dca2a0e02441815",
